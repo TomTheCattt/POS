@@ -15,6 +15,7 @@ struct MenuView: View {
         OrderItem(menuItemId: "9", quantity: 1),
         OrderItem(menuItemId: "10", quantity: 1),
         OrderItem(menuItemId: "2", quantity: 2)
+        
     ]
     @State private var selectedCategory: String = "Coffee"
     
