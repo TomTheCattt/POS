@@ -24,6 +24,16 @@ enum PaymentMethod: String, Codable, CaseIterable {
     }
 }
 
+enum TemperatureOption: String, CaseIterable, Codable {
+    case hot = "Hot"
+    case cold = "Cold"
+}
+
+enum ConsumptionOption: String, CaseIterable, Codable {
+    case stay = "Stay"
+    case takeAway = "Take Away"
+}
+
 struct Order: Codable, Identifiable, Hashable {
     var id: String
     var items: [OrderItem]
@@ -35,10 +45,12 @@ struct Order: Codable, Identifiable, Hashable {
 }
 
 struct OrderItem: Codable, Identifiable, Hashable {
+    var id: String { UUID().uuidString }
     var menuItemId: String
     var quantity: Int
-
-    var id: String { menuItemId }
+    var note: String
+    var temprature: TemperatureOption
+    var consumption: ConsumptionOption
 }
 
 

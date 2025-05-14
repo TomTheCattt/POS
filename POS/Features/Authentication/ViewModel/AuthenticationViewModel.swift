@@ -5,7 +5,7 @@
 //  Created by Việt Anh Nguyễn on 16/4/25.
 //
 
-import Foundation
+import SwiftUI
 import Combine
 import FirebaseAuth
 
@@ -13,7 +13,7 @@ final class AuthenticationViewModel: ObservableObject {
     
     private let authService: AuthServiceProtocol
     private let crashlytics: CrashlyticsServiceProtocol
-    private let authManager: AuthManager
+    @ObservedObject private var authManager: AuthManager
     
     @Published var email = ""
     @Published var displayName = ""
@@ -34,7 +34,6 @@ final class AuthenticationViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        // Thực hiện đăng nhập
         authService.login(email: email, password: password) { [weak self] result in
             guard let self = self else { return }
             
@@ -42,11 +41,8 @@ final class AuthenticationViewModel: ObservableObject {
                 self.isLoading = false
                 
                 switch result {
-                case .success(let token):
-                    // Lưu token và cập nhật trạng thái đăng nhập
-                    // Khi isAuthenticated trở thành true, fullScreenCover sẽ tự động đóng
-                    self.authManager.saveToken(token)
-                    
+                case .success(let uid):
+                    self.authManager.saveUID(uid)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                 }
@@ -55,7 +51,7 @@ final class AuthenticationViewModel: ObservableObject {
     }
     
     func register(completion: @escaping (Result<Void, AppError>) -> Void) {
-        authService.registerShopAccount(email: email, password: password, shopName: shopName) { result in
+        authService.registerAccount(email: email, password: password, displayName: displayName, shopName: shopName) { result in
             switch result {
             case .success:
                 completion(.success(()))

@@ -47,7 +47,7 @@ struct AuthenticationView: View {
                                 self.viewModel.register { result in
                                     switch result {
                                     case .success:
-                                        self.coordinator.navigateTo(.verifyEmailSent, using: .fullScreenCover)
+                                        self.coordinator.navigateTo(.verifyEmailSent, using: .overlay)
                                         self.login = true
                                         self.viewModel.email = ""
                                         self.viewModel.shopName = ""

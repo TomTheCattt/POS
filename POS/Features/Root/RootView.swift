@@ -20,7 +20,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             NavigationStack(path: $coordinator.navigationPath) {
-                factory.viewForDestination(.home) // Luôn đặt .home làm view gốc
+                factory.viewForDestination(.home)
                     .navigationBarBackButtonHidden(!coordinator.navigationConfig.showBackButton)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarLeading) {

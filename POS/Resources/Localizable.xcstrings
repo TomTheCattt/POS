@@ -811,7 +811,7 @@
         }
       }
     },
-    "Find category..." : {
+    "Find item..." : {
 
     },
     "forgot_password" : {
@@ -912,6 +912,9 @@
       }
     },
     "Loading..." : {
+
+    },
+    "Log Out" : {
 
     },
     "login" : {
@@ -1117,6 +1120,9 @@
           }
         }
       }
+    },
+    "Note" : {
+
     },
     "ok" : {
       "extractionState" : "manual",
@@ -1436,6 +1442,16 @@
     "Temperature:" : {
 
     },
+    "Temprature: %@, Consumption: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Temprature: %1$@, Consumption: %2$@"
+          }
+        }
+      }
+    },
     "total" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1489,9 +1505,6 @@
           }
         }
       }
-    },
-    "Viet Anh Nguyen" : {
-
     },
     "warning_low_stock" : {
       "extractionState" : "manual",

@@ -8,8 +8,9 @@
 import Foundation
 
 struct Shop: Codable, Identifiable {
-    var id: String
-    var name: String
-    var createdByMasterUID: String
-    var createdAt: Date
+    let id: String
+    var shopName: String
+    let createdAt: Date
+    var menuItems: [MenuItem]?
+    var inventoryItems: [InventoryItem]?
 }

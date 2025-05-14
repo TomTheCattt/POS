@@ -102,6 +102,7 @@ struct SignUpSectionView: View {
                 .modifier(ShakeEffect(shake: $shakeAnimation))
                 .focused($focusedField, equals: .shopName)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Display Name
             TextField(strings.displayNamePlaceholder, text: $viewModel.displayName)
                 .padding()
@@ -116,6 +117,7 @@ struct SignUpSectionView: View {
                 .modifier(ShakeEffect(shake: $shakeAnimation))
                 .focused($focusedField, equals: .displayName)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Email
             TextField(strings.emailPlaceholder, text: $viewModel.email)
                 .padding()
@@ -130,6 +132,7 @@ struct SignUpSectionView: View {
                 .modifier(ShakeEffect(shake: $shakeAnimation))
                 .focused($focusedField, equals: .email)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Password
             SecureField(strings.passwordPlaceholder, text: $viewModel.password)
                 .padding()
@@ -144,6 +147,7 @@ struct SignUpSectionView: View {
                 .modifier(ShakeEffect(shake: $shakeAnimation))
                 .focused($focusedField, equals: .password)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Re-Enter Password
             SecureField(strings.reEnterPasswordPlaceholder, text: $viewModel.rePassword)
                 .padding()
@@ -159,6 +163,7 @@ struct SignUpSectionView: View {
                 .focused($focusedField, equals: .rePassword)
                 .submitLabel(.done)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Sign Up
             Button {
                 focusedField = nil
@@ -198,6 +203,8 @@ struct SignUpSectionView: View {
         .onSubmit {
             switch focusedField {
             case .shopName:
+                focusedField = .displayName
+            case .displayName:
                 focusedField = .email
             case .email:
                 focusedField = .password
@@ -209,6 +216,13 @@ struct SignUpSectionView: View {
             default:
                 break
             }
+        }
+        .onAppear {
+            viewModel.email = ""
+            viewModel.password = ""
+            viewModel.rePassword = ""
+            viewModel.displayName = ""
+            viewModel.shopName = ""
         }
     }
 }

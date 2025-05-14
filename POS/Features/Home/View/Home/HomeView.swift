@@ -11,9 +11,9 @@ struct HomeView: View {
     
     @State private var isMenuVisible: Bool = false
     @State private var selectedTab: HomeTab = HomeTab.allCases.first!
+    @State private var measuredMenuWidth: CGFloat = 0
     @ObservedObject var viewModel: HomeViewModel
     @ObservedObject var coordinator: AppCoordinator
-    @State private var measuredMenuWidth: CGFloat = 0
     
     @Environment(\.isIphone) private var isIphone
     
@@ -44,7 +44,7 @@ struct HomeView: View {
                             .ignoresSafeArea()
                     }
                     
-                    SideMenuView(selectedTab: $selectedTab, sideMenuWidth: sideMenuWidth)
+                    SideMenuView(selectedTab: $selectedTab, sideMenuWidth: sideMenuWidth, viewModel: viewModel)
                         .frame(width: sideMenuWidth)
                         .frame(maxHeight: .infinity)
                         .background(Color(.systemGray6))
@@ -53,7 +53,7 @@ struct HomeView: View {
                 }
             } else {
                 HStack(spacing: 0) {
-                    SideMenuView(selectedTab: $selectedTab, sideMenuWidth: sideMenuWidth)
+                    SideMenuView(selectedTab: $selectedTab, sideMenuWidth: sideMenuWidth, viewModel: viewModel)
                         .frame(minWidth: sideMenuWidth * 0.8, idealWidth: sideMenuWidth, maxWidth: sideMenuWidth * 1.2)
                         .background(Color(.systemGray6))
                     
@@ -85,6 +85,7 @@ struct SideMenuView: View {
     
     @Binding var selectedTab: HomeTab
     @State var sideMenuWidth: CGFloat
+    @ObservedObject var viewModel: HomeViewModel
     
     @Environment(\.isIphone) private var isIphone
     
@@ -118,7 +119,26 @@ struct SideMenuView: View {
                 .foregroundColor(isSelected ? .white : .primary)
                 .animation(.easeInOut, value: isSelected)
             }
+            
             Spacer()
+            
+            Button {
+                viewModel.logout()
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "door.left.hand.open")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: isIphone ? 24 : 32, height: isIphone ? 24 : 32)
+                    
+                    Text("Log Out")
+                        .font(.system(size: isIphone ? 14 : 18, weight: .medium))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            .foregroundStyle(Color.red)
         }
         .padding(.horizontal)
         .frame(maxWidth: isIphone ? sideMenuWidth : .infinity, alignment: .leading)

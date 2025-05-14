@@ -65,7 +65,6 @@ struct LoginSectionView: View {
     
     var body: some View {
         VStack {
-            
             // Email
             TextField(strings.emailPlaceholder, text: $viewModel.email)
                 .padding()
@@ -80,6 +79,7 @@ struct LoginSectionView: View {
                 .modifier(ShakeEffect(shake: $shakeAnimation))
                 .focused($focusedField, equals: .userName)
                 .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             
             // Password
             VStack {
@@ -94,6 +94,7 @@ struct LoginSectionView: View {
                     .focused($focusedField, equals: .password)
                     .submitLabel(.done)
                     .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                 // Forgot Password
                 HStack {
                     Spacer()
@@ -160,6 +161,13 @@ struct LoginSectionView: View {
             default:
                 break
             }
+        }
+        .onAppear {
+            viewModel.email = ""
+            viewModel.password = ""
+            viewModel.rePassword = ""
+            viewModel.displayName = ""
+            viewModel.shopName = ""
         }
     }
 }

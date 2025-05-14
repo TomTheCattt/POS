@@ -5,12 +5,12 @@
 //  Created by Việt Anh Nguyễn on 1/5/25.
 //
 
-import Foundation
+import SwiftUI
 
 class HomeViewModel: ObservableObject {
     
     private let homeService: HomeServiceProtocol
-    private let authManager: AuthManager
+    @ObservedObject private var authManager: AuthManager
     
     init(environment: AppEnvironment = .default,
          authManager: AuthManager) {

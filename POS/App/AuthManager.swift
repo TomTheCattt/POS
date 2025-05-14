@@ -5,53 +5,69 @@
 //  Created by Việt Anh Nguyễn on 10/5/25.
 //
 
-import Foundation
 import SwiftUI
+import FirebaseFirestore
+import FirebaseCrashlytics
 
 class AuthManager: ObservableObject {
-    // Sử dụng AppStorage để lưu trữ trạng thái đăng nhập
-    @AppStorage("isAuthenticated") private var _isAuthenticated: Bool = false
-    @AppStorage("userToken") private var _userToken: String = ""
-    
-    // Tạo published wrapper cho trạng thái đăng nhập
+    @AppStorage("userUID") private var _userUID: String = ""
+    @Published var currentUser: AppUser? {
+        didSet {
+            objectWillChange.send()
+        }
+    }
+
+    private let firestore = Firestore.firestore()
+
+    var userUID: String {
+        get { _userUID }
+        set {
+            _userUID = newValue
+            objectWillChange.send()
+        }
+    }
+
     var isAuthenticated: Bool {
-        get { _isAuthenticated }
-        set {
-            objectWillChange.send()
-            _isAuthenticated = newValue
-        }
+        return currentUser != nil
     }
-    
-    var userToken: String {
-        get { _userToken }
-        set {
-            objectWillChange.send()
-            _userToken = newValue
-        }
-    }
-    
-    @Published var currentUser: SessionUser?
-    
+
     init() {
-        // Kiểm tra và tải thông tin người dùng nếu đã đăng nhập
-        if isAuthenticated && !userToken.isEmpty {
-            fetchUserInfo(token: userToken)
+        if !_userUID.isEmpty {
+            fetchCurrentUser()
         }
     }
-    
-    func saveToken(_ token: String) {
-        userToken = token
-        isAuthenticated = true
+
+    func saveUID(_ uid: String) {
+        userUID = uid
+        fetchCurrentUser()
     }
-    
+
     func logout() {
-        userToken = ""
-        isAuthenticated = false
+        userUID = ""
         currentUser = nil
     }
-    
-    private func fetchUserInfo(token: String) {
-        // Gọi API để lấy thông tin người dùng
-        // Cập nhật currentUser
+
+    func fetchCurrentUser() {
+        let userRef = firestore.collection("users").document(userUID)
+
+        userRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                Crashlytics.crashlytics().record(error: error)
+                return
+            }
+
+            guard let document = snapshot, document.exists else {
+                return
+            }
+
+            do {
+                let appUser = try document.data(as: AppUser.self)
+                DispatchQueue.main.async {
+                    self?.currentUser = appUser
+                }
+            } catch {
+                Crashlytics.crashlytics().record(error: error)
+            }
+        }
     }
 }

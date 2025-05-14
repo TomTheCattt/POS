@@ -105,6 +105,7 @@ extension FirebaseAuthError: LocalizedError {
 // MARK: - Firestore Error
 enum FirestoreError: Error {
     case documentNotFound
+    case encodingFailed
     case decodingFailed
     case permissionDenied
     case networkError
@@ -115,6 +116,7 @@ extension FirestoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .documentNotFound: return NSLocalizedString("error.firestore.not_found", comment: "")
+        case .encodingFailed: return "Encoding Failed"
         case .decodingFailed: return NSLocalizedString("error.firestore.decoding", comment: "")
         case .permissionDenied: return NSLocalizedString("error.firestore.permission", comment: "")
         case .networkError: return NSLocalizedString("error.network", comment: "")

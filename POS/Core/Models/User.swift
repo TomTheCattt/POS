@@ -7,15 +7,12 @@
 
 import Foundation
 
-struct SessionUser {
-    let id: String
-    let email: String?
-}
-
 struct AppUser: Codable, Identifiable {
-    var id: String
-    var email: String
+    let id: String
+    let email: String
     
     var ownerPassword: String?
+    var displayName: String
+    var shopOwned: [Shop]
 }
 

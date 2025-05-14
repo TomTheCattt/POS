@@ -1,12 +1,12 @@
 import Foundation
 import FirebaseAuth
-import FirebaseDatabase
+import FirebaseFirestore
 import FirebaseCrashlytics
 
 final class AuthService: AuthServiceProtocol {
     
     private let auth = Auth.auth()
-    private let db = Database.database().reference()
+    private let firestore = Firestore.firestore()
     
     // MARK: - Login
     func login(email: String, password: String, completion: @escaping (Result<String, AppError>) -> Void) {
@@ -29,33 +29,13 @@ final class AuthService: AuthServiceProtocol {
                     return
                 }
 
-                user.getIDToken { token, error in
-                    if let error = error {
-                        Crashlytics.crashlytics().record(error: error)
-                        completion(.failure(.auth(.tokenError)))
-                        return
-                    }
-
-                    if let token = token {
-                        // Bạn có thể lưu token vào viewModel hoặc Keychain nếu cần
-                        completion(.success(token))
-                    } else {
-                        completion(.failure(.auth(.tokenError)))
-                    }
-                }
+                completion(.success(user.uid))
             }
         }
     }
-
     
-    // MARK: - Current User
-    func currentUser() -> SessionUser? {
-        guard let user = auth.currentUser else { return nil }
-        return SessionUser(id: user.uid, email: user.email)
-    }
-    
-    // MARK: - Register Firebase user + send verification email
-    func registerShopAccount(email: String, password: String, shopName: String, completion: @escaping (Result<Void, AppError>) -> Void) {
+    // MARK: - Register account and store in Firestore
+    func registerAccount(email: String, password: String, displayName: String, shopName: String, completion: @escaping (Result<Void, AppError>) -> Void) {
         auth.createUser(withEmail: email, password: password) { result, error in
             if let error = error {
                 let mapped = FirebaseAuthError.map(error)
@@ -63,54 +43,63 @@ final class AuthService: AuthServiceProtocol {
                 completion(.failure(.auth(mapped)))
                 return
             }
-            
+
             guard let user = result?.user else {
                 completion(.failure(.auth(.unknown)))
                 return
             }
-            
-            let shopID = shopName.lowercased().replacingOccurrences(of: " ", with: "_")
-            let createdAt = Date().timeIntervalSince1970
-            
-            let shopData: [String: Any] = [
-                "id": shopID,
-                "name": shopName,
-                "createdAt": createdAt,
-                "ownerUID": user.uid,
-                "ownerEmail": user.email ?? ""
-            ]
-            
-            let userData: [String: Any] = [
-                "id": user.uid,
-                "email": user.email ?? "",
-                "shopID": shopID
-            ]
-            
-            let updates: [String: Any] = [
-                "shops/\(shopID)": shopData,
-                "users/\(user.uid)": userData,
-                "userShopMapping/\(user.uid)/shopID": shopID
-            ]
-            
-            self.db.updateChildValues(updates) { error, _ in
-                if let error = error {
-                    Crashlytics.crashlytics().record(error: error)
-                    completion(.failure(.firestore(.unknown)))
-                    return
+
+            let shopID = UUID().uuidString
+            let createdAt = Date()
+
+            let shop = Shop(
+                id: shopID,
+                shopName: shopName,
+                createdAt: createdAt,
+                menuItems: [],
+                inventoryItems: []
+            )
+
+            let appUser = AppUser(
+                id: user.uid,
+                email: email,
+                ownerPassword: "",
+                displayName: displayName,
+                shopOwned: [shop]
+            )
+
+            do {
+                let userRef = self.firestore.collection("users").document(user.uid)
+                let shopRef = self.firestore.collection("shops").document(shopID)
+
+                let batch = self.firestore.batch()
+                try batch.setData(from: appUser, forDocument: userRef)
+                try batch.setData(from: shop, forDocument: shopRef)
+
+                batch.commit { error in
+                    if let error = error {
+                        Crashlytics.crashlytics().record(error: error)
+                        completion(.failure(.firestore(.unknown)))
+                        return
+                    }
+
+                    user.sendEmailVerification { error in
+                        if let error = error {
+                            Crashlytics.crashlytics().record(error: error)
+                            completion(.failure(.auth(.unknown)))
+                            return
+                        }
+                        completion(.success(()))
+                    }
                 }
-            }
-            
-            user.sendEmailVerification { error in
-                if let error = error {
-                    Crashlytics.crashlytics().record(error: error)
-                    completion(.failure(.auth(.unknown)))
-                    return
-                }
-                completion(.success(()))
+            } catch {
+                Crashlytics.crashlytics().record(error: error)
+                completion(.failure(.firestore(.encodingFailed)))
             }
         }
     }
-    
+
+    // MARK: - Email verification status
     func onEmailVerified(completion: @escaping (Result<Void, AppError>) -> Void) {
         guard let user = Auth.auth().currentUser else {
             completion(.failure(.auth(.unknown)))
@@ -131,8 +120,8 @@ final class AuthService: AuthServiceProtocol {
             }
         }
     }
-
-    // MARK: - Hash (nếu cần)
+    
+    // MARK: - Optional hashing
     private func hashString(_ input: String) -> String {
         return String(input.reversed())
     }

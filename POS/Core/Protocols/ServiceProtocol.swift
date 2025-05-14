@@ -11,9 +11,7 @@ import UIKit
 // MARK: - 1. Handle Auth Service
 protocol AuthServiceProtocol {
     func login(email: String, password: String, completion: @escaping (Result<String, AppError>) -> Void)
-    func currentUser() -> SessionUser?
-    
-    func registerShopAccount(email: String, password: String, shopName: String, completion: @escaping (Result<Void, AppError>) -> Void)
+    func registerAccount(email: String, password: String, displayName: String, shopName: String, completion: @escaping (Result<Void, AppError>) -> Void)
 }
 
 
@@ -81,6 +79,7 @@ protocol OrderServiceProtocol {
     func createOrder(items: [OrderItem]) async throws -> Order
     func getOrders() async throws -> [Order]
     func getOrderDetails(id: String) async throws -> Order
+    func clearOrder()
 }
 
 // MARK: - 9. Inventory Service
@@ -101,6 +100,11 @@ protocol AnalyticsServiceProtocol {
 // MARK: - 11. Home Service
 protocol HomeServiceProtocol {
     func logout()
+}
+
+protocol MenuServiceProtocol {
+    func searchMenuItem()
+    func updateMenuItem()
 }
 
 struct DailySales {

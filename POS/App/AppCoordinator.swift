@@ -203,6 +203,10 @@ class AppDependencyContainer: DependencyContainer {
         return AuthenticationViewModel(authManager: AuthManager())
     }
     
+    func provideMenuViewModel() -> MenuViewModel {
+        return MenuViewModel()
+    }
+    
     //    func provideOrderDetailViewModel(for order: Order) -> OrderDetailViewModel {
     //        return OrderDetailViewModel(order: order, orderService: orderService)
     //    }
@@ -514,7 +518,7 @@ struct ViewFactory {
         case .homeTab(let homeTab):
             switch homeTab {
             case .menu:
-                MenuView()
+                MenuView(viewModel: dependencies.provideMenuViewModel())
             case .history:
                 Text("History")
             case .inventory:
