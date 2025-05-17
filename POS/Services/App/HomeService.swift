@@ -8,7 +8,8 @@
 import Foundation
 import FirebaseAuth
 
-final class HomeService: HomeServiceProtocol {
+final class HomeService: HomeServiceProtocol, ObservableObject {
+    static let shared = HomeService()
     
     private let auth = Auth.auth()
     

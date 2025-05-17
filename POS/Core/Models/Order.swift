@@ -45,10 +45,10 @@ struct Order: Codable, Identifiable, Hashable {
 }
 
 struct OrderItem: Codable, Identifiable, Hashable {
-    var id: String { UUID().uuidString }
+    var id: String
     var menuItemId: String
     var quantity: Int
-    var note: String
+    var note: String?
     var temprature: TemperatureOption
     var consumption: ConsumptionOption
 }

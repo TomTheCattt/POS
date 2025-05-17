@@ -1,49 +1,8 @@
 import SwiftUI
 
 struct MenuView: View {
-    
-    @State private var searchKey: String = ""
-    @State private var paymentMethod: PaymentMethod = .cash
-    @State private var selectedItems: [OrderItem] = []
-    @State private var selectedCategory: String = "Coffee"
-    
     @ObservedObject var viewModel: MenuViewModel
-    
-    // Sample menu items for demonstration
-    private let menuItems: [MenuItem] = [
-        MenuItem(id: "1", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "2", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "3", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "4", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "5", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "6", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "7", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "8", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "9", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true),
-        MenuItem(id: "10", name: "Coffee", price: 2, category: "Coffee", ingredients: [IngredientUsage(inventoryItemID: "1", quantity: 2, unit: .gram)], isAvailable: true)
-    ]
-    
-    // Sample categories
-    private let categories = ["All", "Coffee", "Tea", "Pastries", "Sandwiches", "Drinks"]
-    
-    // Filter menu items by category
-    private var filteredMenuItems: [MenuItem] {
-        menuItems.filter {
-            (selectedCategory == "All" || $0.category == selectedCategory) &&
-            (searchKey.isEmpty || $0.name.localizedCaseInsensitiveContains(searchKey))
-        }
-    }
-    
-    // Calculate total price
-    private var totalPrice: String {
-        let total = selectedItems.reduce(0.0) { result, item in
-            // Find the corresponding menu item to get its price
-            let menuItem = menuItems.first(where: { $0.id == item.menuItemId })
-            let itemPrice = menuItem?.price ?? 0
-            return result + Double(itemPrice) * Double(item.quantity)
-        }
-        return "$\(String(format: "%.2f", total))"
-    }
+    @ObservedObject var coordinator: AppCoordinator
     
     var body: some View {
         GeometryReader { geometry in
@@ -79,11 +38,14 @@ struct MenuView: View {
     
     private func searchField(width: CGFloat) -> some View {
         HStack {
-            TextField("Find item...", text: $searchKey)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .disableAutocorrection(true)
-                .italic()
+            TextField("Find item...", text: Binding(
+                get: { viewModel.searchKey },
+                set: { viewModel.updateSearchKey($0) }
+            ))
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .disableAutocorrection(true)
+            .italic()
             
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
@@ -97,12 +59,12 @@ struct MenuView: View {
     private func categoryScrollView() -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(categories, id: \.self) { category in
+                ForEach(viewModel.categories, id: \.self) { category in
                     OptionButton(
                         title: category,
-                        isSelected: selectedCategory == category
+                        isSelected: viewModel.selectedCategory == category
                     ) {
-                        selectedCategory = category
+                        viewModel.updateSelectedCategory(category)
                     }
                 }
             }
@@ -116,9 +78,9 @@ struct MenuView: View {
                 columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 3),
                 spacing: 24
             ) {
-                ForEach(filteredMenuItems) { item in
+                ForEach(viewModel.filteredMenuItems) { item in
                     ItemView(menuItem: item) { temp, consump in
-                        addItemToOrder(item, temp, consump)
+                        viewModel.addItemToOrder(item, temp, consump)
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(3/4, contentMode: .fit)
@@ -141,7 +103,7 @@ struct MenuView: View {
                     .fontWeight(.bold)
                 Spacer()
                 Button {
-                    selectedItems.removeAll()
+                    viewModel.clearOrder()
                 } label: {
                     Text("Clear All")
                         .font(.footnote)
@@ -180,7 +142,7 @@ struct MenuView: View {
             VStack(alignment: .leading) {
                 Text("Good morning,")
                     .foregroundColor(.secondary)
-                Text(viewModel.getDisplayName())
+                Text(viewModel.displayName)
                     .font(.headline)
             }
         }
@@ -189,7 +151,7 @@ struct MenuView: View {
     private func orderItemsList(geometry: GeometryProxy) -> some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(selectedItems) { item in
+                ForEach(viewModel.selectedItems) { item in
                     orderItemView(for: item)
                     Divider()
                 }
@@ -199,12 +161,19 @@ struct MenuView: View {
     }
     
     private func orderItemView(for item: OrderItem) -> some View {
-        let menuItem = menuItems.first(where: { $0.id == item.menuItemId })
+        let menuItem = viewModel.getMenuItem(by: item.menuItemId)
         
         return OrderItemView(
             orderItem: item,
+            coordinator: coordinator,
             name: menuItem?.name ?? "Unknown Item",
-            price: "$\(String(format: "%.2f", menuItem?.price ?? 0.0))"
+            price: "$\(String(format: "%.2f", menuItem?.price ?? 0.0))",
+            updateQuantity: { increment in
+                viewModel.updateOrderItemQuantity(for: item.id, increment: increment)
+            },
+            updateNote: { note in
+                viewModel.updateOrderItemNote(for: item.id, note: note)
+            }
         )
         .padding(.vertical, 4)
     }
@@ -214,7 +183,7 @@ struct MenuView: View {
             Text("Total")
                 .font(.headline)
             Spacer()
-            Text(totalPrice)
+            Text(viewModel.totalPrice)
                 .font(.headline)
         }
     }
@@ -228,9 +197,11 @@ struct MenuView: View {
             
             HStack {
                 ForEach(PaymentMethod.allCases, id: \.self) { option in
-                    OptionButton(title: option.title,
-                                 isSelected: paymentMethod == option) {
-                        paymentMethod = option
+                    OptionButton(
+                        title: option.title,
+                        isSelected: viewModel.paymentMethod == option
+                    ) {
+                        viewModel.updatePaymentMethod(option)
                     }
                 }
             }
@@ -239,20 +210,7 @@ struct MenuView: View {
     
     private func paymentButton() -> some View {
         Button {
-            let total = selectedItems.reduce(0.0) { result, item in
-                let menuItem = menuItems.first(where: { $0.id == item.menuItemId })
-                let price = menuItem?.price ?? 0
-                return result + Double(price) * Double(item.quantity)
-            }
-            
-            let discount = 0.0
-            
-            let newOrder = Order(id: UUID().uuidString, items: selectedItems, createdAt: Date(), createdBy: "Viet Anh Nguyen", totalAmount: total, discount: discount, paymentMethod: paymentMethod)
-            
-            print("Created order: \(newOrder)")
-            
-            selectedItems.removeAll()
-            
+            viewModel.createOrder()
         } label: {
             Text("Create Order")
                 .frame(maxWidth: .infinity)
@@ -263,29 +221,10 @@ struct MenuView: View {
                 )
                 .foregroundColor(.white)
                 .font(.headline)
-                .disabled(selectedItems.isEmpty)
-                .opacity(selectedItems.isEmpty ? 0.5 : 1)
+                .disabled(viewModel.selectedItems.isEmpty)
+                .opacity(viewModel.selectedItems.isEmpty ? 0.5 : 1)
         }
         .padding(.top, 12)
-    }
-    
-    // MARK: - Helper Functions
-    private func addItemToOrder(_ item: MenuItem, _ temprature: TemperatureOption, _ consumption: ConsumptionOption) {
-        if let index = selectedItems.firstIndex(where: {
-            $0.menuItemId == item.id &&
-            $0.temprature == temprature &&
-            $0.consumption == consumption
-        }) {
-            selectedItems[index].quantity += 1
-        } else {
-            selectedItems.append(OrderItem(
-                menuItemId: item.id,
-                quantity: 1,
-                note: "",
-                temprature: temprature,
-                consumption: consumption
-            ))
-        }
     }
 }
 
@@ -317,8 +256,7 @@ struct ItemView: View {
     }
     
     private func itemImage(width: CGFloat) -> some View {
-        // Use AsyncImage
-        Image(systemName: "cup.and.saucer.fill") // Fallback image if URL is nil
+        Image(systemName: "cup.and.saucer.fill")
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(maxWidth: width, maxHeight: width * 0.7)
@@ -346,8 +284,10 @@ struct ItemView: View {
             
             HStack {
                 ForEach(TemperatureOption.allCases, id: \.self) { option in
-                    OptionButton(title: option.rawValue,
-                                 isSelected: temperature == option) {
+                    OptionButton(
+                        title: option.rawValue,
+                        isSelected: temperature == option
+                    ) {
                         temperature = option
                     }
                 }
@@ -363,8 +303,10 @@ struct ItemView: View {
             
             HStack {
                 ForEach(ConsumptionOption.allCases, id: \.self) { option in
-                    OptionButton(title: option.rawValue,
-                                 isSelected: consumption == option) {
+                    OptionButton(
+                        title: option.rawValue,
+                        isSelected: consumption == option
+                    ) {
                         consumption = option
                     }
                 }
@@ -409,88 +351,6 @@ struct OptionButton: View {
     }
 }
 
-struct OrderItemView: View {
-    @State var orderItem: OrderItem
-    let name: String
-    let price: String
-    
-    var body: some View {
-        VStack(alignment: .leading) {
-            HStack(spacing: 16) {
-                itemImage()
-                itemDetails()
-                Spacer()
-                quantitySelector()
-            }
-            noteSection()
-        }
-    }
-    
-    private func itemImage() -> some View {
-        Image(systemName: "cup.and.saucer.fill")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 40, height: 40)
-            .cornerRadius(8)
-            .foregroundColor(.blue)
-            .padding(8)
-            .background(Color(.systemGray6))
-            .cornerRadius(8)
-    }
-    
-    private func itemDetails() -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(name)
-                .font(.headline)
-            Text(price)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-    }
-    
-    private func quantitySelector() -> some View {
-        HStack(spacing: 12) {
-            Button(action: {
-                if orderItem.quantity > 1 {
-                    orderItem.quantity -= 1
-                }
-            }) {
-                Image(systemName: "minus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.blue)
-            }
-            
-            Text("\(orderItem.quantity)")
-                .font(.headline)
-                .frame(width: 30)
-            
-            Button(action: {
-                orderItem.quantity += 1
-            }) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.blue)
-            }
-        }
-    }
-    
-    private func noteSection() -> some View {
-        HStack {
-            Text("Temprature: \(orderItem.temprature.rawValue), Consumption: \(orderItem.consumption.rawValue)")
-                .font(.footnote)
-                .foregroundStyle(Color.gray)
-            Spacer()
-            Button {
-                
-            } label: {
-                HStack {
-                    Text("Note")
-                        .font(.footnote)
-                }
-            }
-        }
-    }
-}
 //
 //#Preview {
 //    MenuView()

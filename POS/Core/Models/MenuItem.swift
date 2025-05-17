@@ -23,3 +23,10 @@ struct IngredientUsage: Codable, Hashable  {
     var unit: MeasurementUnit
 }
 
+enum MeasurementUnit: String, Codable, CaseIterable, Hashable {
+    case gram
+    case kilogram
+    case milliliter
+    case liter
+    case piece
+}

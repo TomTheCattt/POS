@@ -2,108 +2,84 @@
 //  RootView.swift
 //  POS
 //
-//  Created by Việt Anh Nguyễn on 7/5/25.
+//  Created by Việt Anh Nguyễn on 16/5/25.
 //
 
 import SwiftUI
-import FirebaseAuth
 
 struct RootView: View {
-    @StateObject private var coordinator = AppCoordinator()
-    @StateObject private var authManager = AuthManager()
-    private let dependencies = AppDependencyContainer()
-
-    private var factory: ViewFactory {
-        ViewFactory(coordinator: coordinator)
+    // MARK: - Properties
+    @StateObject private var environment: AppEnvironment = AppEnvironment()
+    @StateObject private var coordinator: AppCoordinator = AppCoordinator()
+    
+    @ObservedObject private var authService: AuthService
+    
+    init() {
+        let environment = AppEnvironment()
+        _environment = StateObject(wrappedValue: environment)
+        authService = environment.authService
     }
-
+    
+    // MARK: - Body
     var body: some View {
-        ZStack {
-            NavigationStack(path: $coordinator.navigationPath) {
-                factory.viewForDestination(.home)
-                    .navigationBarBackButtonHidden(!coordinator.navigationConfig.showBackButton)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            if coordinator.navigationPath.count > 0 && coordinator.navigationConfig.showBackButton {
-                                Button {
-                                    coordinator.navigateBack()
-                                } label: {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "chevron.left")
-                                        Text("Back")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .navigationDestination(for: AppDestination.self) { destination in
-                        factory.viewForDestination(destination)
-                    }
-            }
-            .sheet(isPresented: $coordinator.isSheetPresented) {
-                if let destination = coordinator.activeSheet {
-                    factory.viewForDestination(destination)
+        NavigationStack(path: $coordinator.navigationPath) {
+            Group {
+                switch authService.authState {
+                case .authenticated:
+                    coordinator.makeView(for: .home)
+                        .applyNavigationStyle(.push)
+                case .unauthenticated:
+                    coordinator.makeView(for: .authentication)
+                        .applyNavigationStyle(.fade)
+                case .loading:
+                    LoadingView()
+                        .applyNavigationStyle(.fade)
                 }
             }
-            .fullScreenCover(isPresented: .constant(!authManager.isAuthenticated)) {
-                factory.viewForDestination(.authentication)
-            }
-            .overlay(
-                ZStack {
-                    if coordinator.isOverlayPresented {
-                        Color.black.opacity(0.4)
-                            .edgesIgnoringSafeArea(.all)
-                            .transition(.opacity)
-                            .onTapGesture {
-                                coordinator.dismissOverlay()
-                            }
-                    }
-
-                    if let destination = coordinator.activeOverlay {
-                        factory.viewForDestination(destination)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.white)
-                                    .shadow(radius: 10)
-                            )
-                            .transition(.scale)
-                            .zIndex(1)
-                    }
-                }
-            )
-            .animation(.easeInOut(duration: 0.3), value: coordinator.isOverlayPresented)
-
-            if coordinator.isLoading {
-                LoadingOverlayView()
-                    .transition(.opacity)
-                    .zIndex(999)
+            .navigationBarHidden(true)
+            .navigationDestination(for: Route.self) { route in
+                coordinator.makeView(for: route)
+                    .applyNavigationStyle(.push)
             }
         }
+        .sheet(isPresented: Binding(
+            get: { coordinator.presentedRoute != nil },
+            set: { if !$0 { coordinator.presentedRoute = nil } }
+        )) {
+            if let (route, config) = coordinator.presentedRoute {
+                coordinator.makeView(for: route)
+                    .applyNavigationStyle(.present)
+                    .applyBackgroundEffect(config.backgroundEffect)
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { coordinator.fullScreenRoute != nil },
+            set: { if !$0 { coordinator.fullScreenRoute = nil } }
+        )) {
+            if let (route, _) = coordinator.fullScreenRoute {
+                coordinator.makeView(for: route)
+                    .applyNavigationStyle(.fullScreen)
+            }
+        }
+        .overlay {
+            if let (route, config) = coordinator.overlayRoute {
+                coordinator.makeView(for: route)
+                    .applyNavigationStyle(.overlay)
+                    .applyBackgroundEffect(config.backgroundEffect)
+            }
+        }
+        .overlay {
+            if let (route, config) = coordinator.slideRoute {
+                coordinator.makeView(for: route)
+                    .applyNavigationStyle(coordinator.slideDirection ?? .slideFromRight)
+                    .applyBackgroundEffect(config.backgroundEffect)
+            }
+        }
+        .environmentObject(environment)
+        .environmentObject(coordinator)
     }
 }
 
-struct LoadingOverlayView: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.4)
-                .edgesIgnoringSafeArea(.all)
-            
-            VStack(spacing: 20) {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.white)
-                
-                Text("Loading...")
-                    .font(.headline)
-                    .foregroundColor(.white)
-            }
-            .padding(25)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray.opacity(0.7))
-            )
-        }
-        .transition(.opacity)
-    }
-}
+//#Preview {
+//    RootView()
+//}

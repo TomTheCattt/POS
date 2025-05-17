@@ -6,20 +6,48 @@
 //
 
 import SwiftUI
+import Combine
 
-class HomeViewModel: ObservableObject {
+final class HomeViewModel: BaseViewModel {
+    var isLoading: Bool = false
     
-    private let homeService: HomeServiceProtocol
-    @ObservedObject private var authManager: AuthManager
+    var errorMessage: String?
     
-    init(environment: AppEnvironment = .default,
-         authManager: AuthManager) {
-        self.homeService = environment.homeService
-        self.authManager = authManager
+    var showError: Bool = false
+    
+    // MARK: - Dependencies
+    let environment: AppEnvironment
+    var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Published Properties
+    @Published var selectedTab: HomeTab = .menu
+    @Published var userName: String = "Unknown User"
+    @Published var shopName: String = "Unknown Shop"
+    
+    // MARK: - Initialization
+    required init(environment: AppEnvironment) {
+        self.environment = environment
+        setupBindings()
     }
     
-    func logout() {
-        homeService.logout()
-        authManager.logout()
+    private func setupBindings() {
+        // Observe user changes
+        authService.currentUserPublisher
+            .sink { [weak self] user in
+                self?.userName = user?.displayName ?? "Unknown User"
+            }
+            .store(in: &cancellables)
+        
+        // Observe shop changes
+        shopService.currentShopPublisher
+            .sink { [weak self] shop in
+                self?.shopName = shop?.shopName ?? "Unknown Shop"
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Public Methods
+    func signOut() async {
+        try? await authService.logout()
     }
 }

@@ -7,13 +7,27 @@
 
 import Foundation
 import UIKit
+import Combine
 
 // MARK: - 1. Handle Auth Service
-protocol AuthServiceProtocol {
-    func login(email: String, password: String, completion: @escaping (Result<String, AppError>) -> Void)
-    func registerAccount(email: String, password: String, displayName: String, shopName: String, completion: @escaping (Result<Void, AppError>) -> Void)
+protocol AuthServiceProtocol: ObservableObject {
+    // Properties
+    var currentUser: AppUser? { get }
+    var authState: AuthState { get }
+    var currentUserPublisher: AnyPublisher<AppUser?, Never> { get }
+    var authStatePublisher: AnyPublisher<AuthState, Never> { get }
+    
+    // Authentication Methods
+    func login(email: String, password: String) async throws -> AppUser
+    func registerAccount(email: String, password: String, displayName: String, shopName: String) async throws
+    func logout() async throws
+    func resetPassword(email: String) async throws
+    func updatePassword(currentPassword: String, newPassword: String) async throws
+    func deleteAccount(password: String) async throws
+    func updateProfile(displayName: String?, photoURL: URL?) async throws
+    func checkEmailVerification() async throws
+    func sendEmailVerification() async throws
 }
-
 
 // MARK: - 2. Saving Real Time Data: Order, Menu, Inventory
 protocol FirestoreServiceProtocol {
@@ -70,31 +84,79 @@ protocol StorageServiceProtocol {
 
 // MARK: - 7. Shop Service
 protocol ShopServiceProtocol {
-    func getShopDetails() async throws -> Shop
-    func updateShop(shop: Shop) async throws -> Shop
+    var currentShop: Shop? { get }
+    var currentShopPublisher: AnyPublisher<Shop?, Never> { get }
+    
+    func createShop(name: String, address: String, ownerId: String) -> AnyPublisher<Shop, Error>
+    func updateShop(id: String, name: String?, address: String?) -> AnyPublisher<Void, Error>
+    func fetchShop(id: String) -> AnyPublisher<Shop, Error>
+    func deleteShop(id: String) -> AnyPublisher<Void, Error>
 }
 
 // MARK: - 8. Order Service
 protocol OrderServiceProtocol {
-    func createOrder(items: [OrderItem]) async throws -> Order
+    func createOrder(order: Order) async throws
     func getOrders() async throws -> [Order]
     func getOrderDetails(id: String) async throws -> Order
-    func clearOrder()
+    func deleteOrder(id: String) async throws
 }
 
 // MARK: - 9. Inventory Service
 protocol InventoryServiceProtocol {
-    func getInventoryItems() async throws -> [InventoryItem]
-    func getInventoryItem(id: String) async throws -> InventoryItem
-    func updateInventoryItem(item: InventoryItem) async throws -> InventoryItem
-    func addInventoryItem(item: InventoryItem) async throws -> InventoryItem
+    // Properties
+    var currentInventory: [InventoryItem] { get }
+    var inventoryPublisher: AnyPublisher<[InventoryItem], Never> { get }
+    
+    // CRUD Operations
+    func createItem(_ item: InventoryItem) async throws -> InventoryItem
+    func getItem(id: String) async throws -> InventoryItem
+    func updateItem(_ item: InventoryItem) async throws -> InventoryItem
+    func deleteItem(id: String) async throws
+    func getAllItems() async throws -> [InventoryItem]
+    
+    // Inventory Management
+    func adjustQuantity(itemId: String, adjustment: Double) async throws
+    func checkStock(itemId: String, requiredQuantity: Double) async throws -> Bool
+    func getItemsByCategory(_ category: InventoryCategory) async throws -> [InventoryItem]
+    func getLowStockItems(threshold: Double) async throws -> [InventoryItem]
+    
+    // Batch Operations
+    func batchUpdateQuantities(_ updates: [(id: String, quantity: Double)]) async throws
+    func batchCreateItems(_ items: [InventoryItem]) async throws
+    
+    // Reports
+    func generateInventoryReport() async throws -> InventoryReport
 }
 
 // MARK: - 10. Analytics Service
 protocol AnalyticsServiceProtocol {
-    func getDailySales() async throws -> [DailySales]
-    func getTopSellingItems() async throws -> [TopSellingItem]
-    func getRevenueReport(startDate: Date, endDate: Date) async throws -> RevenueReport
+    // Sales Analytics
+    func getDailySales(date: Date) async throws -> DailySales
+    func getSalesReport(from: Date, to: Date) async throws -> SalesReport
+    func getTopSellingItems(limit: Int) async throws -> [TopSellingItem]
+    func getSalesTrend(period: AnalyticsPeriod) async throws -> [SalesTrendPoint]
+    
+    // Customer Analytics
+    func getCustomerStats() async throws -> CustomerStats
+    func getCustomerRetentionRate() async throws -> Double
+    func getCustomerLifetimeValue() async throws -> Double
+    
+    // Product Analytics
+    func getProductPerformance(productId: String) async throws -> ProductPerformance
+    func getProductCategoryAnalytics() async throws -> [CategoryAnalytics]
+    func getLowPerformingProducts(threshold: Double) async throws -> [ProductPerformance]
+    
+    // Employee Analytics
+    func getEmployeePerformance(employeeId: String) async throws -> EmployeePerformance
+    func getStaffEfficiencyReport() async throws -> StaffEfficiencyReport
+    
+    // Real-time Monitoring
+    var currentDayStats: AnyPublisher<DailySales, Never> { get }
+    var topSellingItemsPublisher: AnyPublisher<[TopSellingItem], Never> { get }
+    
+    // Custom Events
+    //func logEvent(_ event: AnalyticsEvent)
+    func getEventStats(eventName: String, from: Date, to: Date) async throws -> EventStats
 }
 
 // MARK: - 11. Home Service
@@ -102,22 +164,32 @@ protocol HomeServiceProtocol {
     func logout()
 }
 
+//MARK: - 12. Menu Service
 protocol MenuServiceProtocol {
     func searchMenuItem()
     func updateMenuItem()
 }
 
-struct DailySales {
-    let date: Date
-    let totalSales: Double
-    let orderCount: Int
+// MARK: - 13. Settings Service
+protocol SettingsServiceProtocol {
+    // Language
+    var currentLanguage: AppLanguage { get }
+    func setLanguage(_ language: AppLanguage)
+    var languagePublisher: AnyPublisher<AppLanguage, Never> { get }
+    
+    // Theme
+    var currentTheme: AppTheme { get }
+    func setTheme(_ theme: AppTheme)
+    var themePublisher: AnyPublisher<AppTheme, Never> { get }
+    
+    // Load & Save
+    func loadSettings()
+    func saveSettings()
 }
 
-struct TopSellingItem {
-    let itemId: String
-    let name: String
-    let quantity: Int
-    let revenue: Double
+//MARK: - 14. Printer Service
+protocol PrinterServiceProtocol {
+    
 }
 
 struct RevenueReport {

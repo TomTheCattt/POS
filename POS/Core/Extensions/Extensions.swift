@@ -34,24 +34,3 @@ extension UIDevice {
         return UIDevice.current.userInterfaceIdiom == .phone
     }
 }
-
-extension View {
-    func toast<Content: View>(
-        isPresented: Binding<Bool>,
-        duration: TimeInterval = 2.0,
-        position: ToastPosition = .bottom,
-        @ViewBuilder content: @escaping () -> Content
-    ) -> some View {
-        self.modifier(ToastModifier(isPresented: isPresented, duration: duration, position: position, toastContent: content))
-    }
-    
-    func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-    
-    public func addBorder<S>(_ content: S, width: CGFloat = 1, cornerRadius: CGFloat) -> some View where S : ShapeStyle {
-        let roundedRect = RoundedRectangle(cornerRadius: cornerRadius)
-        return clipShape(roundedRect)
-            .overlay(roundedRect.strokeBorder(content, lineWidth: width))
-    }
-}

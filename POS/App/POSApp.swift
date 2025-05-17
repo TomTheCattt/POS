@@ -7,11 +7,32 @@
 
 import SwiftUI
 import FirebaseCore
+import Combine
 
 class AppDelegate: NSObject, UIApplicationDelegate {
+    
+    var window: UIWindow?
+    
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         FirebaseApp.configure()
+        let environment = AppEnvironment()
+        
+        // Áp dụng theme
+        switch environment.settingsService.currentTheme {
+        case .light:
+            window?.overrideUserInterfaceStyle = .light
+        case .dark:
+            window?.overrideUserInterfaceStyle = .dark
+        case .system:
+            window?.overrideUserInterfaceStyle = .unspecified
+        }
+        
+        // Áp dụng ngôn ngữ
+        if let languageCode = environment.settingsService.currentLanguage.rawValue as String? {
+            UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
+        }
         return true
     }
     
@@ -26,31 +47,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 @main
 struct POSApp: App {
-    
+    // MARK: - Properties
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
+    // MARK: - Body
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(\.isIphone, UIDevice.current.userInterfaceIdiom == .phone)
         }
-    }
-}
-
-struct IsIphoneKey: EnvironmentKey {
-    static let defaultValue: Bool = UIDevice.current.userInterfaceIdiom == .phone
-}
-
-extension EnvironmentValues {
-    var isIphone: Bool {
-        get { self[IsIphoneKey.self] }
-        set { self[IsIphoneKey.self] = newValue }
-    }
-}
-
-struct MenuWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }

@@ -9,6 +9,8 @@ import Foundation
 import FirebaseCrashlytics
 
 final class CrashlyticsService: CrashlyticsServiceProtocol {
+    
+    static let shared = CrashlyticsService()
 
     func log(_ message: String) {
         Crashlytics.crashlytics().log(message)

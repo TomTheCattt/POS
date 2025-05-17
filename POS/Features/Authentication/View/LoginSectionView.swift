@@ -16,9 +16,6 @@ struct LoginSectionView: View {
     private let strings = AppLocalizedString()
     private let validationStrings = ValidationLocalizedString()
     
-    
-    @Binding var showPopUp: Bool
-    @Binding var errorMessage: String
     @Binding var login: Bool
     
     @State private var isLoginPressed = false
@@ -46,14 +43,14 @@ struct LoginSectionView: View {
         isLoginPressed = true
         
         guard !viewModel.email.isEmpty else {
-            showPopUp = true
-            errorMessage = validationStrings.authErrorEmptyEmail
+            viewModel.showError = true
+            viewModel.errorMessage = validationStrings.authErrorEmptyEmail
             shakeAnimation = true
             return
         }
         guard !viewModel.password.isEmpty else {
-            showPopUp = true
-            errorMessage = validationStrings.authErrorEmptyPassword
+            viewModel.showError = true
+            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
             shakeAnimation = true
             return
         }

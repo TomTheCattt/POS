@@ -9,6 +9,9 @@ import Foundation
 import SwiftUI
 
 final class StorageService: StorageServiceProtocol {
+    
+    static let shared = StorageService()
+    
     func uploadImage(_ image: UIImage, path: String, completion: @escaping (Result<URL, AppError>) -> Void) {
         
     }

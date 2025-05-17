@@ -9,15 +9,20 @@ import SwiftUI
 
 struct ForgotPasswordView: View {
     
+    @ObservedObject var coordinator: AppCoordinator
+    
     var body: some View {
         Text("We have sent an email to recover your account. Please check your mail box.")
             .multilineTextAlignment(.center)
             .bold()
             .ignoresSafeArea()
+            .overlayStyle(config: .overlay) {
+                coordinator.dismiss()
+            }
     }
 }
-
-#Preview {
-    ForgotPasswordView()
-}
+//
+//#Preview {
+//    ForgotPasswordView()
+//}
 

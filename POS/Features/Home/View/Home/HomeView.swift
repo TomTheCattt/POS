@@ -7,6 +7,43 @@
 
 import SwiftUI
 
+enum HomeTab: String, CaseIterable, Identifiable {
+    case menu, history, inventory, analytics, settings
+    
+    var id: String { self.rawValue }
+
+    var icon: String {
+        switch self {
+        case .menu:
+            return "list.bullet.rectangle"
+        case .history:
+            return "clock.arrow.circlepath"
+        case .inventory:
+            return "shippingbox"
+        case .analytics:
+            return "chart.bar"
+        case .settings:
+            return "gearshape"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .menu:
+            return "Menu"
+        case .history:
+            return "History"
+        case .inventory:
+            return "Inventory"
+        case .analytics:
+            return "Analytics"
+        case .settings:
+            return "Settings"
+        }
+    }
+}
+
+
 struct HomeView: View {
     
     @State private var isMenuVisible: Bool = false
@@ -15,13 +52,17 @@ struct HomeView: View {
     @ObservedObject var viewModel: HomeViewModel
     @ObservedObject var coordinator: AppCoordinator
     
-    @Environment(\.isIphone) private var isIphone
+    private let isIphone = UIDevice.current.userInterfaceIdiom == .phone
+    private let viewModelFactory = ViewModelFactory.shared
     
     var body: some View {
         GeometryReader { geometry in
-            let sideMenuWidth = UIDevice.current.is_iPhone ? geometry.size.width * 0.8 : geometry.size.width * 0.08
+            let sideMenuWidth = isIphone ? geometry.size.width * 0.8 : geometry.size.width * 0.1
             if isIphone {
                 ZStack(alignment: .leading) {
+                    contentView(for: selectedTab)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
                     VStack {
                         Button {
                             withAnimation {
@@ -31,6 +72,7 @@ struct HomeView: View {
                             Image(systemName: "line.horizontal.3")
                                 .padding()
                         }
+                        .padding(.top)
                         Spacer()
                     }
                     
@@ -54,29 +96,31 @@ struct HomeView: View {
             } else {
                 HStack(spacing: 0) {
                     SideMenuView(selectedTab: $selectedTab, sideMenuWidth: sideMenuWidth, viewModel: viewModel)
-                        .frame(minWidth: sideMenuWidth * 0.8, idealWidth: sideMenuWidth, maxWidth: sideMenuWidth * 1.2)
+                        .frame(width: sideMenuWidth)
                         .background(Color(.systemGray6))
                     
                     Divider()
-                    switch selectedTab {
-                    case .menu:
-                        ViewFactory(coordinator: coordinator)
-                            .viewForDestination(.homeTab(.menu))
-                    case .history:
-                        ViewFactory(coordinator: coordinator)
-                            .viewForDestination(.homeTab(.history))
-                    case .inventory:
-                        ViewFactory(coordinator: coordinator)
-                            .viewForDestination(.homeTab(.inventory))
-                    case .analytics:
-                        ViewFactory(coordinator: coordinator)
-                            .viewForDestination(.homeTab(.analytics))
-                    case .settings:
-                        ViewFactory(coordinator: coordinator)
-                            .viewForDestination(.homeTab(.settings))
-                    }
+                    
+                    contentView(for: selectedTab)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+        }
+    }
+    
+    @ViewBuilder
+    private func contentView(for tab: HomeTab) -> some View {
+        switch tab {
+        case .menu:
+            coordinator.makeView(for: .menu)
+        case .history:
+            coordinator.makeView(for: .history)
+        case .inventory:
+            coordinator.makeView(for: .inventory)
+        case .analytics:
+            coordinator.makeView(for: .analytics)
+        case .settings:
+            coordinator.makeView(for: .settings)
         }
     }
 }
@@ -87,17 +131,17 @@ struct SideMenuView: View {
     @State var sideMenuWidth: CGFloat
     @ObservedObject var viewModel: HomeViewModel
     
-    @Environment(\.isIphone) private var isIphone
+    private let isIphone = UIDevice.current.userInterfaceIdiom == .phone
     
     var body: some View {
         VStack(spacing: 15) {
-            ForEach(HomeTab.allCases) { tab in
+            ForEach(HomeTab.allCases, id: \.self) { tab in
                 let isSelected = selectedTab == tab
                 Button {
                     selectedTab = tab
                 } label: {
                     VStack(spacing: 6) {
-                        Image(systemName: tab.icon.name)
+                        Image(systemName: tab.icon)
                             .resizable()
                             .scaledToFit()
                             .frame(width: isIphone ? 24 : 32, height: isIphone ? 24 : 32)
@@ -123,7 +167,11 @@ struct SideMenuView: View {
             Spacer()
             
             Button {
-                viewModel.logout()
+                Task {
+                    do {
+                        await viewModel.signOut()
+                    }
+                }
             } label: {
                 VStack(spacing: 6) {
                     Image(systemName: "door.left.hand.open")
@@ -141,12 +189,13 @@ struct SideMenuView: View {
             .foregroundStyle(Color.red)
         }
         .padding(.horizontal)
-        .frame(maxWidth: isIphone ? sideMenuWidth : .infinity, alignment: .leading)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemGray6))
     }
 }
 
-
-#Preview {
-    HomeView(viewModel: HomeViewModel(authManager: AuthManager()), coordinator: AppCoordinator())
-}
+// Uncomment for preview
+//#Preview {
+//    HomeView(viewModel: HomeViewModel(), coordinator: AppCoordinator())
+//}

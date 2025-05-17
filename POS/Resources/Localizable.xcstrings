@@ -4,6 +4,16 @@
     "%lld" : {
 
     },
+    "%lld/%lld" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
     "$%@" : {
 
     },
@@ -44,12 +54,6 @@
         }
       }
     },
-    "Analytics" : {
-
-    },
-    "Back" : {
-
-    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -83,6 +87,9 @@
           }
         }
       }
+    },
+    "Chọn giao diện" : {
+
     },
     "Choose Category" : {
 
@@ -132,9 +139,6 @@
           }
         }
       }
-    },
-    "Đã xảy ra lỗi không xác định." : {
-
     },
     "daily" : {
       "extractionState" : "manual",
@@ -567,9 +571,6 @@
         }
       }
     },
-    "error.firestore.unknown" : {
-
-    },
     "error.functions.internal" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -637,9 +638,6 @@
           }
         }
       }
-    },
-    "error.messaging.permission" : {
-
     },
     "error.messaging.permisson" : {
       "extractionState" : "manual",
@@ -831,6 +829,12 @@
         }
       }
     },
+    "Ghi chú cho món" : {
+
+    },
+    "Ghi chú đặc biệt, yêu cầu riêng..." : {
+
+    },
     "Good morning," : {
 
     },
@@ -854,7 +858,7 @@
         }
       }
     },
-    "History" : {
+    "Huỷ" : {
 
     },
     "inventory" : {
@@ -874,7 +878,7 @@
         }
       }
     },
-    "Inventory" : {
+    "Inventory View" : {
 
     },
     "item_name" : {
@@ -910,9 +914,6 @@
           }
         }
       }
-    },
-    "Loading..." : {
-
     },
     "Log Out" : {
 
@@ -1121,9 +1122,6 @@
         }
       }
     },
-    "Note" : {
-
-    },
     "ok" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1249,6 +1247,9 @@
         }
       }
     },
+    "Printer View" : {
+
+    },
     "printer_connected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1334,6 +1335,9 @@
         }
       }
     },
+    "Select Language" : {
+
+    },
     "send_report" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1350,9 +1354,6 @@
           }
         }
       }
-    },
-    "Settings" : {
-
     },
     "shop_name_placeholder" : {
       "extractionState" : "manual",
@@ -1472,6 +1473,9 @@
     "Total" : {
 
     },
+    "Update Menu View" : {
+
+    },
     "verify_email_sent" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1542,6 +1546,9 @@
           }
         }
       }
+    },
+    "Xác nhận" : {
+
     },
     "yes" : {
       "extractionState" : "manual",
