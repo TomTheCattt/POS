@@ -37,27 +37,11 @@ struct AuthenticationView: View {
                     // Authentication
                     ZStack {
                         if login {
-                            LoginSectionView(
-                                login: $login, 
-                                viewModel: viewModel
-                            ) {
-                                Task {
-                                    await self.viewModel.login()
-                                }
-                            } onForgotPasswordTapped: {
-                                self.coordinator.navigateTo(.forgotPassword, using: .overlay, with: .overlay)
-                            }
-                            .transition(.move(edge: .leading).combined(with: .opacity))
+                            LoginSectionView(login: $login, viewModel: viewModel)
+                                .transition(.move(edge: .leading).combined(with: .opacity))
                         } else {
-                            SignUpSectionView(
-                                login: $login, 
-                                viewModel: viewModel
-                            ) {
-                                Task {
-                                    try await self.viewModel.register()
-                                }
-                            }
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            SignUpSectionView(login: $login, viewModel: viewModel)
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: login)
@@ -83,18 +67,11 @@ struct AuthenticationView: View {
                             .foregroundColor(.black)
                             .font(.system(size: 16, weight: .medium))
                     }
-                    .overlayStyle(
-                        config: NavigationConfig(
-                            isAnimated: true,
-                            autoDismiss: true,
-                            autoDismissDelay: 3.0,
-                            dismissOnTapOutside: true,
-                            backgroundEffect: .none,
-                            overlaySize: .small,
-                            overlayAlignment: .bottom,
-                            overlayPadding: 16,
-                            customAnimation: .spring()
-                        )
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(radius: 5)
                     )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 32)
@@ -108,6 +85,68 @@ struct AuthenticationView: View {
                     }
                 }
                 .animation(.spring(), value: viewModel.showError)
+                .zIndex(1)
+            }
+            
+            if viewModel.forgotPassword {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "envelope")
+                            .foregroundColor(.primary)
+                        Text(strings.forgotPasswordContent)
+                            .foregroundColor(.black)
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(radius: 5)
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
+                    .transition(.move(edge: .bottom))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            withAnimation(.spring()) {
+                                viewModel.forgotPassword = false
+                            }
+                        }
+                    }
+                }
+                .animation(.spring(), value: viewModel.forgotPassword)
+                .zIndex(1)
+            }
+            
+            if viewModel.verifyEmailSent {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "envelope")
+                            .foregroundColor(.primary)
+                        Text(strings.forgotPasswordContent)
+                            .foregroundColor(.black)
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(radius: 5)
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
+                    .transition(.move(edge: .bottom))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            withAnimation(.spring()) {
+                                viewModel.verifyEmailSent = false
+                            }
+                        }
+                    }
+                }
+                .animation(.spring(), value: viewModel.verifyEmailSent)
                 .zIndex(1)
             }
         }

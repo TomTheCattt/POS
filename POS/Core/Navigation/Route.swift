@@ -6,8 +6,6 @@ enum Route: Hashable, Identifiable {
     
     /// Authentication
     case authentication
-    case verifyEmail
-    case forgotPassword
 
     /// Main Features
     case home
@@ -31,10 +29,6 @@ enum Route: Hashable, Identifiable {
         switch self {
         case .authentication:
             return "authentication"
-        case .verifyEmail:
-            return "verifyEmail"
-        case .forgotPassword:
-            return "forgotPassword"
         case .home:
             return "home"
         case .menu:
@@ -97,8 +91,6 @@ extension Route {
             return factory.makeMenuViewModel()
         case .setUpPrinter:
             return factory.makePrinterViewModel()
-        default:
-            fatalError("ViewModel not implemented for route: \(self)")
         }
     }
 }

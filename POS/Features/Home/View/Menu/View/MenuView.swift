@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct MenuView: View {
+    
+    private let strings = AppLocalizedString()
+    
     @ObservedObject var viewModel: MenuViewModel
     @ObservedObject var coordinator: AppCoordinator
     
@@ -180,7 +183,7 @@ struct MenuView: View {
     
     private func orderTotalSection() -> some View {
         HStack {
-            Text("Total")
+            Text(strings.total)
                 .font(.headline)
             Spacer()
             Text(viewModel.totalPrice)
@@ -230,6 +233,9 @@ struct MenuView: View {
 
 // MARK: - Supporting Views
 struct ItemView: View {
+    
+    private let strings = AppLocalizedString()
+    
     let menuItem: MenuItem
     let addAction: (_ temperature: TemperatureOption, _ consumption: ConsumptionOption) -> Void
     
@@ -320,7 +326,7 @@ struct ItemView: View {
             temperature = .hot
             consumption = .stay
         }) {
-            Text("Add")
+            Text(strings.addItem)
                 .frame(maxWidth: width)
                 .padding(8)
                 .background(

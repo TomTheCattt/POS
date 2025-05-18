@@ -167,10 +167,6 @@ class AppCoordinator: ObservableObject {
             case .authentication:
                 let viewModel = route.makeViewModel() as! AuthenticationViewModel
                 AuthenticationView(viewModel: viewModel, coordinator: self)
-            case .verifyEmail:
-                VerifyEmailSentView()
-            case .forgotPassword:
-                ForgotPasswordView(coordinator: self)
                 
             // Main Features
             case .home:

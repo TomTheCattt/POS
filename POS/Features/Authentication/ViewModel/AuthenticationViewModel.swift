@@ -24,6 +24,8 @@ final class AuthenticationViewModel: BaseViewModel {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showError = false
+    @Published var verifyEmailSent = false
+    @Published var forgotPassword = false
     
     private let authService: AuthService
     private let crashlytics: CrashlyticsService
@@ -81,6 +83,7 @@ final class AuthenticationViewModel: BaseViewModel {
             )
             
             clearFields()
+            verifyEmailSent = true
             
         } catch let error as AppError {
             handleError(error)

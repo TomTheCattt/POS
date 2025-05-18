@@ -24,9 +24,6 @@ struct LoginSectionView: View {
     
     @ObservedObject var viewModel: AuthenticationViewModel
     
-    var onLoginTapped: (() -> Void)?
-    var onForgotPasswordTapped: (() -> Void)?
-    
     func borderColor(for text: String) -> Color {
         if isLoginPressed && text.isEmpty {
             return .red
@@ -57,7 +54,9 @@ struct LoginSectionView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             shakeAnimation = false
         }
-        onLoginTapped?()
+        Task {
+            await self.viewModel.login()
+        }
     }
     
     var body: some View {
@@ -97,7 +96,7 @@ struct LoginSectionView: View {
                     Spacer()
                     Button {
                         // Forgot password action
-                        onForgotPasswordTapped?()
+                        viewModel.forgotPassword = true
                     } label: {
                         Text(strings.forgotPassword)
                             .fontWeight(.bold)

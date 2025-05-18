@@ -17,9 +17,6 @@
     "$%@" : {
 
     },
-    "Add" : {
-
-    },
     "add_item" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -100,15 +97,11 @@
     "Consumption:" : {
 
     },
-    "creat_new_order" : {
-      "extractionState" : "manual",
+    "Create Order" : {
+
+    },
+    "create_new_order" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create new order"
-          }
-        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
@@ -116,12 +109,6 @@
           }
         }
       }
-    },
-    "Create Order" : {
-
-    },
-    "create_new_order" : {
-
     },
     "create_new_shop" : {
       "extractionState" : "manual",
@@ -829,6 +816,23 @@
         }
       }
     },
+    "forgot_password_content" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "We have sent an email to recover your account. Please check your mail box."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chúng tôi đã gửi một email để khôi phục tài khoản của bạn. Vui lòng kiểm tra hộp thư."
+          }
+        }
+      }
+    },
     "Ghi chú cho món" : {
 
     },
@@ -1470,9 +1474,6 @@
         }
       }
     },
-    "Total" : {
-
-    },
     "Update Menu View" : {
 
     },
@@ -1526,9 +1527,6 @@
           }
         }
       }
-    },
-    "We have sent an email to recover your account. Please check your mail box." : {
-
     },
     "weekly" : {
       "extractionState" : "manual",

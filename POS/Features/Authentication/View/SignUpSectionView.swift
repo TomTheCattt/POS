@@ -24,8 +24,6 @@ struct SignUpSectionView: View {
     
     @ObservedObject var viewModel: AuthenticationViewModel
     
-    var onSignUpTapped: (() -> Void)?
-    
     func borderColor(for text: String) -> Color {
         if isSignUpPressed && text.isEmpty {
             return .red
@@ -81,7 +79,9 @@ struct SignUpSectionView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             shakeAnimation = false
         }
-        onSignUpTapped?()
+        Task {
+            try await self.viewModel.register()
+        }
     }
     
     var body: some View {
