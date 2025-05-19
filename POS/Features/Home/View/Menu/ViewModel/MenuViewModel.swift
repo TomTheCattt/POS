@@ -167,7 +167,6 @@ final class MenuViewModel: BaseViewModel {
                 id: UUID().uuidString,
                 items: selectedItems,
                 createdAt: Date(),
-                createdBy: displayName,
                 totalAmount: total,
                 discount: discount,
                 paymentMethod: paymentMethod

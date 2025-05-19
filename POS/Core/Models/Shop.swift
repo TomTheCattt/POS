@@ -11,14 +11,10 @@ struct Shop: Codable, Identifiable, Equatable {
     let id: String
     var shopName: String
     let createdAt: Date
-    var menuItems: [MenuItem]?
-    var inventoryItems: [InventoryItem]?
     
     static func == (lhs: Shop, rhs: Shop) -> Bool {
         return lhs.id == rhs.id &&
                lhs.shopName == rhs.shopName &&
-               lhs.createdAt == rhs.createdAt &&
-               lhs.menuItems == rhs.menuItems &&
-               lhs.inventoryItems == rhs.inventoryItems
+               lhs.createdAt == rhs.createdAt
     }
 }

@@ -38,7 +38,6 @@ struct Order: Codable, Identifiable, Hashable {
     var id: String
     var items: [OrderItem]
     var createdAt: Date
-    var createdBy: String
     var totalAmount: Double
     var discount: Double
     var paymentMethod: PaymentMethod

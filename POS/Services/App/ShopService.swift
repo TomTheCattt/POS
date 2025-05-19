@@ -31,8 +31,7 @@ final class ShopService: ShopServiceProtocol {
     private func setupShopListener() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        db.collection("shops")
-            .whereField("ownerId", isEqualTo: userId)
+        db.collection("users").document(userId).collection("shops")
             .addSnapshotListener { [weak self] snapshot, error in
                 if let error = error {
                     print("Error listening for shop updates: \(error)")

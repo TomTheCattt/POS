@@ -10,8 +10,6 @@ import SwiftUI
 struct AuthenticationView: View {
     private let strings = AppLocalizedString()
     
-    @State private var login: Bool = true
-    
     @ObservedObject var viewModel: AuthenticationViewModel
     @ObservedObject var coordinator: AppCoordinator
     
@@ -36,15 +34,15 @@ struct AuthenticationView: View {
                     
                     // Authentication
                     ZStack {
-                        if login {
-                            LoginSectionView(login: $login, viewModel: viewModel)
+                        if viewModel.loginSectionShowed {
+                            LoginSectionView(login: $viewModel.loginSectionShowed, viewModel: viewModel)
                                 .transition(.move(edge: .leading).combined(with: .opacity))
                         } else {
-                            SignUpSectionView(login: $login, viewModel: viewModel)
+                            SignUpSectionView(login: $viewModel.loginSectionShowed, viewModel: viewModel)
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
-                    .animation(.easeInOut(duration: 0.3), value: login)
+                    .animation(.easeInOut(duration: 0.3), value: viewModel.loginSectionShowed)
                 }
                 .frame(maxWidth: UIDevice.current.is_iPhone ? geometry.size.width : geometry.size.width / 1.5)
                 .position(x: geometry.frame(in: .local).midX, y: geometry.frame(in: .local).midY)
@@ -54,6 +52,7 @@ struct AuthenticationView: View {
             if viewModel.isLoading {
                 LoadingView(message: "Đang xử lý...")
                     .transition(.opacity)
+                    .animation(.spring(), value: viewModel.isLoading)
             }
             
             // Error Message Overlay
@@ -125,7 +124,7 @@ struct AuthenticationView: View {
                     HStack {
                         Image(systemName: "envelope")
                             .foregroundColor(.primary)
-                        Text(strings.forgotPasswordContent)
+                        Text(strings.verifyEmailSentContent)
                             .foregroundColor(.black)
                             .font(.system(size: 16, weight: .medium))
                     }

@@ -26,6 +26,7 @@ final class AuthenticationViewModel: BaseViewModel {
     @Published var showError = false
     @Published var verifyEmailSent = false
     @Published var forgotPassword = false
+    @Published var loginSectionShowed = false
     
     private let authService: AuthService
     private let crashlytics: CrashlyticsService
@@ -56,14 +57,16 @@ final class AuthenticationViewModel: BaseViewModel {
             
             // Attempt login
             _ = try await authService.login(email: email, password: password)
+            showLoading(false)
             
         } catch let error as AppError {
             handleError(error)
+            showLoading(false)
         } catch {
             handleError(AppError.unknown)
+            showLoading(false)
         }
         
-        showLoading(false)
     }
     
     @MainActor
@@ -84,28 +87,32 @@ final class AuthenticationViewModel: BaseViewModel {
             
             clearFields()
             verifyEmailSent = true
+            showLoading(false)
+            loginSectionShowed = true
             
         } catch let error as AppError {
             handleError(error)
+            showLoading(false)
             throw error
         } catch {
             let appError = AppError.unknown
             handleError(appError)
+            showLoading(false)
             throw appError
         }
         
-        showLoading(false)
     }
     
     func checkEmailVerification() async throws {
         do {
             showLoading(true)
             try await authService.checkEmailVerification()
+            showLoading(false)
         } catch {
             handleError(AppError.auth(.emailNotVerified))
+            showLoading(false)
             throw error
         }
-        showLoading(false)
     }
     
     private func validateLoginInput() throws {

@@ -37,27 +37,21 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
     }
     
     func setupAuthStateListener() {
-        print("🔵 Setting up auth state listener")
         self.authState = .loading
         auth.addStateDidChangeListener { [weak self] _, user in
-            print("🔵 Auth state changed - User: \(user?.uid ?? "nil")")
             if let user = user {
-                print("🔵 User is logged in, fetching user data...")
                 // Fetch user data from Firestore
                 self?.fetchUserData(uid: user.uid) { result in
                     switch result {
                     case .success(let appUser):
-                        print("✅ Successfully fetched user data: \(appUser)")
                         self?.currentUser = appUser
                         self?.authState = .authenticated
                     case .failure(let error):
-                        print("❌ Error fetching user data: \(error)")
                         self?.currentUser = nil
                         self?.authState = .unauthenticated
                     }
                 }
             } else {
-                print("🔵 No user logged in")
                 self?.currentUser = nil
                 self?.authState = .unauthenticated
             }
@@ -94,7 +88,7 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
                     }
                 }
                 
-                let appUser = try AppUser(
+                let appUser = AppUser(
                     id: uid,
                     email: data["email"] as? String ?? "",
                     displayName: data["displayName"] as? String ?? "",
@@ -106,8 +100,6 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
                     self?.authState = .authenticated
                     completion(.success(appUser))
                 }
-            } catch {
-                completion(.failure(AppError.database(.decodingError)))
             }
         }
     }
@@ -150,19 +142,20 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
                 createdAt: Date()
             )
             
-            // 4. Tạo document user trong Firestore
-            try await firestore.collection("users").document(result.user.uid).setData([
+            let userRef = firestore.collection("users").document(result.user.uid)
+            
+            // 4. Tạo document user
+            try await userRef.setData([
                 "email": email,
                 "displayName": displayName,
                 "ownerPassword": "",
-                "shopOwned": [shop],
                 "createdAt": FieldValue.serverTimestamp()
             ])
             
-            // 5. Tạo document shop
-            try await firestore.collection("shops").document(shop.id).setData([
-                "name": shopName,
-                "ownerId": result.user.uid,
+            // 5. Tạo document shop trong collection con users/{uid}/shops/{shopId}
+            try await userRef.collection("shops").document(shop.id).setData([
+                "id": shop.id,
+                "shopName": shop.shopName,
                 "createdAt": FieldValue.serverTimestamp()
             ])
             

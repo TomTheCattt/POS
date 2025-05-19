@@ -166,8 +166,9 @@ protocol HomeServiceProtocol {
 
 //MARK: - 12. Menu Service
 protocol MenuServiceProtocol {
+    func getMenuItems() async throws -> [MenuItem]
     func searchMenuItem()
-    func updateMenuItem()
+    func updateMenuItem(with menuItem: MenuItem)
 }
 
 // MARK: - 13. Settings Service

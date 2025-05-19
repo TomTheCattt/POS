@@ -20,8 +20,7 @@ final class HistoryViewModel: BaseViewModel {
     var filteredOrders: [Order] {
         orders.filter { order in
             if !searchText.isEmpty {
-                return order.id.localizedCaseInsensitiveContains(searchText) ||
-                       order.createdBy.localizedCaseInsensitiveContains(searchText)
+                return order.id.localizedCaseInsensitiveContains(searchText)
             }
             return true
         }

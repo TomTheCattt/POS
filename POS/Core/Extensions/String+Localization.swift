@@ -78,4 +78,5 @@ final class AppLocalizedString {
     let forgotPasswordContent = NSLocalizedString("forgot_password_content", comment: "")
     let createNewShop = NSLocalizedString("create_new_shop", comment: "")
     let hintShopName = NSLocalizedString("hint.shop.name_format", comment: "")
+    let verifyEmailSentContent = NSLocalizedString("verify_email_sent_content", comment: "")
 }

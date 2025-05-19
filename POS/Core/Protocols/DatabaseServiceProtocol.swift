@@ -44,5 +44,5 @@ protocol DatabaseServiceProtocol {
     ) -> AnyPublisher<[T], Error>
     
     // Transaction
-    func runTransaction<T>(_ updateBlock: @escaping (inout T) -> Void) async throws
+    func runTransaction<T>(_ updateBlock: @escaping (inout T.Type) -> Void) async throws
 } 

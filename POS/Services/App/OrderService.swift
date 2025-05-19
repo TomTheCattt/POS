@@ -19,10 +19,10 @@ final class OrderService: OrderServiceProtocol, ObservableObject {
     }
     
     func getOrders() async throws -> [Order] {
-        return [Order(id: "", items: [OrderItem(id: UUID().uuidString, menuItemId: "1", quantity: 1, note: "", temprature: .hot, consumption: .stay)], createdAt: Date(), createdBy: "", totalAmount: 1, discount: 0, paymentMethod: .cash)]
+        return [Order(id: "", items: [OrderItem(id: UUID().uuidString, menuItemId: "1", quantity: 1, note: "", temprature: .hot, consumption: .stay)], createdAt: Date(), totalAmount: 1, discount: 0, paymentMethod: .cash)]
     }
     
     func getOrderDetails(id: String) async throws -> Order {
-        return Order(id: "", items: [OrderItem(id: UUID().uuidString, menuItemId: "1", quantity: 1, note: "", temprature: .hot, consumption: .stay)], createdAt: Date(), createdBy: "", totalAmount: 1, discount: 0, paymentMethod: .cash)
+        return Order(id: "", items: [OrderItem(id: UUID().uuidString, menuItemId: "1", quantity: 1, note: "", temprature: .hot, consumption: .stay)], createdAt: Date(), totalAmount: 1, discount: 0, paymentMethod: .cash)
     }
 }

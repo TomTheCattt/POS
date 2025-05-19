@@ -38,8 +38,7 @@ final class InventoryViewModel: BaseViewModel {
         // Apply search filter
         if !searchText.isEmpty {
             items = items.filter { item in
-                item.name.localizedCaseInsensitiveContains(searchText) ||
-                item.supplier?.localizedCaseInsensitiveContains(searchText) == true
+                item.name.localizedCaseInsensitiveContains(searchText)
             }
         }
         
