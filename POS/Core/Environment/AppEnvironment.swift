@@ -6,6 +6,7 @@ final class AppEnvironment: ObservableObject {
     let networkService: NetworkService
     let storageService: StorageService
     let shopService: ShopService
+    let menuService: MenuService
     let orderService: OrderService
     let inventoryService: InventoryService
     let analyticsService: AnalyticsService
@@ -19,6 +20,7 @@ final class AppEnvironment: ObservableObject {
         networkService: NetworkService = .shared,
         storageService: StorageService = .shared,
         shopService: ShopService = .shared,
+        menuService: MenuService = .shared,
         orderService: OrderService = .shared,
         inventoryService: InventoryService = .shared,
         analyticsService: AnalyticsService = .shared,
@@ -30,6 +32,7 @@ final class AppEnvironment: ObservableObject {
         self.networkService = networkService
         self.storageService = storageService
         self.shopService = shopService
+        self.menuService = menuService
         self.orderService = orderService
         self.inventoryService = inventoryService
         self.analyticsService = analyticsService

@@ -21,10 +21,6 @@ struct NoteView: View {
     
     private let maxCharacterCount = 200
     
-    private var menuItemName: String {
-        viewModel.menuItems.first { $0.id == orderItem.menuItemId }?.name ?? "Không xác định"
-    }
-    
     init(viewModel: MenuViewModel, coordinator: AppCoordinator, orderItem: OrderItem) {
         self.viewModel = viewModel
         self.coordinator = coordinator
@@ -46,7 +42,7 @@ struct NoteView: View {
                 HStack {
                     Text("Ghi chú cho món")
                         .font(.headline)
-                    Text(menuItemName)
+                    Text(orderItem.name)
                         .font(.headline)
                         .foregroundColor(.blue)
                     Spacer()

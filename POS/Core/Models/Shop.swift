@@ -6,15 +6,19 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
-struct Shop: Codable, Identifiable, Equatable {
-    let id: String
-    var shopName: String
+struct Shop: Codable, Identifiable {
+    @DocumentID var id: String?
+    let shopName: String
     let createdAt: Date
+    let updatedAt: Date
     
-    static func == (lhs: Shop, rhs: Shop) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.shopName == rhs.shopName &&
-               lhs.createdAt == rhs.createdAt
+    var dictionary: [String: Any] {
+        [
+            "shopName": shopName,
+            "createdAt": createdAt,
+            "updatedAt": updatedAt
+        ]
     }
 }

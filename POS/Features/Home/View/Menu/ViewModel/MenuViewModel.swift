@@ -10,9 +10,7 @@ import Combine
 
 final class MenuViewModel: BaseViewModel {
     var isLoading: Bool = false
-    
     var errorMessage: String?
-    
     var showError: Bool = false
     
     // MARK: - Dependencies
@@ -39,10 +37,9 @@ final class MenuViewModel: BaseViewModel {
     }
     
     var totalPrice: String {
-        let total = selectedItems.reduce(0.0) { result, item in
-            let menuItem = menuItems.first(where: { $0.id == item.menuItemId })
-            let itemPrice = menuItem?.price ?? 0
-            return result + Double(itemPrice) * Double(item.quantity)
+        //Bổ sung tính discount
+        let total = selectedItems.reduce(0) { result, item in
+            result + (item.price * Double(item.quantity))
         }
         return "$\(String(format: "%.2f", total))"
     }
@@ -51,27 +48,20 @@ final class MenuViewModel: BaseViewModel {
     init(environment: AppEnvironment) {
         self.environment = environment
         setupBindings()
-        loadMenuItems()
     }
     
     private func setupBindings() {
-        // Observe user changes
         authService.currentUserPublisher
             .sink { [weak self] user in
                 self?.displayName = user?.displayName ?? "Unknown User"
             }
             .store(in: &cancellables)
-    }
-    
-    private func loadMenuItems() {
-        // TODO: Load menu items from database service
-        // For now using mock data
-        self.menuItems = [
-            MenuItem(id: "1", name: "Espresso", price: 3.0, category: "Coffee",
-                     ingredients: [IngredientUsage(inventoryItemID: "beans", quantity: 18, unit: .gram)],
-                     isAvailable: true),
-            // ... other menu items ...
-        ]
+        
+        menuService.menuItemsPublisher
+            .sink { [weak self] menuItems in
+                self?.menuItems = menuItems ?? []
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -89,9 +79,10 @@ final class MenuViewModel: BaseViewModel {
     
     func addItemToOrder(_ item: MenuItem, _ temperature: TemperatureOption, _ consumption: ConsumptionOption) {
         if let index = selectedItems.firstIndex(where: {
-            $0.menuItemId == item.id &&
-            $0.temprature == temperature &&
-            $0.consumption == consumption
+            $0.name == item.name &&
+            $0.price == item.price &&
+            $0.temprature == temperature.rawValue &&
+            $0.consumption == consumption.rawValue
         }) {
             var updatedItems = selectedItems
             var updatedItem = updatedItems[index]
@@ -101,10 +92,11 @@ final class MenuViewModel: BaseViewModel {
         } else {
             selectedItems.append(OrderItem(
                 id: UUID().uuidString,
-                menuItemId: item.id,
+                name: item.name,
                 quantity: 1,
-                temprature: temperature,
-                consumption: consumption
+                price: item.price,
+                temprature: temperature.rawValue,
+                consumption: consumption.rawValue
             ))
         }
     }
@@ -153,27 +145,21 @@ final class MenuViewModel: BaseViewModel {
     }
     
     func createOrder() {
+        let discount = 0.0
         Task { [weak self] in
             guard let self = self else { return }
 
-            let total = self.selectedItems.reduce(0.0) { result, item in
-                let menuItem = self.menuItems.first(where: { $0.id == item.menuItemId })
-                let price = menuItem?.price ?? 0
-                return result + price * Double(item.quantity)
+            let subTotal = self.selectedItems.reduce(0) { _, item in
+                return item.price * Double(item.quantity)
             }
+            
+            let total = subTotal * discount
 
             let discount = 0.0
-            let newOrder = Order(
-                id: UUID().uuidString,
-                items: selectedItems,
-                createdAt: Date(),
-                totalAmount: total,
-                discount: discount,
-                paymentMethod: paymentMethod
-            )
+            let newOrder = Order(items: selectedItems, subTotal: subTotal, discount: discount, total: total, paymentMethod: paymentMethod, createdAt: Date())
 
             do {
-                _ = try await environment.orderService.createOrder(order: newOrder)
+                _ = try await environment.orderService.createOrder(newOrder)
                 self.clearOrder()
             } catch {
                 print("Error creating order: \(error)")

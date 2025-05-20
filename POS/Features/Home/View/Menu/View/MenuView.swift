@@ -164,13 +164,11 @@ struct MenuView: View {
     }
     
     private func orderItemView(for item: OrderItem) -> some View {
-        let menuItem = viewModel.getMenuItem(by: item.menuItemId)
-        
         return OrderItemView(
             orderItem: item,
             coordinator: coordinator,
-            name: menuItem?.name ?? "Unknown Item",
-            price: "$\(String(format: "%.2f", menuItem?.price ?? 0.0))",
+            name: item.name,
+            price: "$\(String(format: "%.2f", item.price))",
             updateQuantity: { increment in
                 viewModel.updateOrderItemQuantity(for: item.id, increment: increment)
             },
@@ -201,7 +199,7 @@ struct MenuView: View {
             HStack {
                 ForEach(PaymentMethod.allCases, id: \.self) { option in
                     OptionButton(
-                        title: option.title,
+                        title: option.description,
                         isSelected: viewModel.paymentMethod == option
                     ) {
                         viewModel.updatePaymentMethod(option)

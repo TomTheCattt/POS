@@ -9,15 +9,19 @@ import Foundation
 import UIKit
 import Combine
 
-// MARK: - 1. Handle Auth Service
-protocol AuthServiceProtocol: ObservableObject {
-    // Properties
+// MARK: - BaseService Protocol
+protocol BaseServiceProtocol: ObservableObject {
     var currentUser: AppUser? { get }
-    var authState: AuthState { get }
-    var currentUserPublisher: AnyPublisher<AppUser?, Never> { get }
-    var authStatePublisher: AnyPublisher<AuthState, Never> { get }
-    
-    // Authentication Methods
+    var selectedShop: Shop? { get }
+    var menuItems: [MenuItem]? { get }
+    var inventoryItems: [InventoryItem]? { get }
+    var orders: [Order]? { get }
+    var isLoading: Bool { get }
+    var error: Error? { get }
+}
+
+// MARK: - 1. Handle Auth Service
+protocol AuthServiceProtocol: BaseServiceProtocol {
     func login(email: String, password: String) async throws -> AppUser
     func registerAccount(email: String, password: String, displayName: String, shopName: String) async throws
     func logout() async throws
@@ -83,49 +87,52 @@ protocol StorageServiceProtocol {
 }
 
 // MARK: - 7. Shop Service
-protocol ShopServiceProtocol {
-    var currentShop: Shop? { get }
-    var currentShopPublisher: AnyPublisher<Shop?, Never> { get }
+protocol ShopServiceProtocol: BaseServiceProtocol {
+    // CRUD Operations
+    func createShop(name: String, address: String) async throws -> Shop
+    func updateShop(_ shop: Shop) async throws
+    func deleteShop(_ shop: Shop) async throws
+    func fetchShop(_ shop: Shop) async throws -> Shop
     
-    func createShop(name: String, address: String, ownerId: String) -> AnyPublisher<Shop, Error>
-    func updateShop(id: String, name: String?, address: String?) -> AnyPublisher<Void, Error>
-    func fetchShop(id: String) -> AnyPublisher<Shop, Error>
-    func deleteShop(id: String) -> AnyPublisher<Void, Error>
+    // Shop Selection
+    func selectShop(_ shop: Shop) throws
+    var selectedShopPublisher: AnyPublisher<Shop?, Never> { get }
 }
 
 // MARK: - 8. Order Service
-protocol OrderServiceProtocol {
-    func createOrder(order: Order) async throws
-    func getOrders() async throws -> [Order]
-    func getOrderDetails(id: String) async throws -> Order
-    func deleteOrder(id: String) async throws
+protocol OrderServiceProtocol: BaseServiceProtocol {
+    // CRUD Operations
+    func createOrder(_ order: Order) async throws
+    func updateOrder(_ order: Order) async throws
+    func deleteOrder(_ order: Order) async throws
+    func fetchOrders() async throws -> [Order]
+    func fetchOrder(id: String) async throws -> Order
+    
+    // Order Management
+    func calculateOrderTotal(_ order: Order) -> Double
+    
+    // Search & Filter
+    func getOrdersByDate(from: Date, to: Date) async throws -> [Order]
+    
+    // Publishers
+    var ordersPublisher: AnyPublisher<[Order]?, Never> { get }
 }
 
 // MARK: - 9. Inventory Service
-protocol InventoryServiceProtocol {
-    // Properties
-    var currentInventory: [InventoryItem] { get }
-    var inventoryPublisher: AnyPublisher<[InventoryItem], Never> { get }
-    
+protocol InventoryServiceProtocol: BaseServiceProtocol {
     // CRUD Operations
-    func createItem(_ item: InventoryItem) async throws -> InventoryItem
-    func getItem(id: String) async throws -> InventoryItem
-    func updateItem(_ item: InventoryItem) async throws -> InventoryItem
-    func deleteItem(id: String) async throws
-    func getAllItems() async throws -> [InventoryItem]
+    func createInventoryItem(_ item: InventoryItem) async throws
+    func updateInventoryItem(_ item: InventoryItem) async throws
+    func deleteInventoryItem(_ item: InventoryItem) async throws
+    func fetchInventoryItems() async throws -> [InventoryItem]
     
     // Inventory Management
     func adjustQuantity(itemId: String, adjustment: Double) async throws
     func checkStock(itemId: String, requiredQuantity: Double) async throws -> Bool
-    func getItemsByCategory(_ category: InventoryCategory) async throws -> [InventoryItem]
     func getLowStockItems(threshold: Double) async throws -> [InventoryItem]
     
-    // Batch Operations
-    func batchUpdateQuantities(_ updates: [(id: String, quantity: Double)]) async throws
-    func batchCreateItems(_ items: [InventoryItem]) async throws
-    
-    // Reports
-    func generateInventoryReport() async throws -> InventoryReport
+    // Publishers
+    var inventoryItemsPublisher: AnyPublisher<[InventoryItem]?, Never> { get }
 }
 
 // MARK: - 10. Analytics Service
@@ -159,16 +166,23 @@ protocol AnalyticsServiceProtocol {
     func getEventStats(eventName: String, from: Date, to: Date) async throws -> EventStats
 }
 
-// MARK: - 11. Home Service
-protocol HomeServiceProtocol {
-    func logout()
-}
-
 //MARK: - 12. Menu Service
-protocol MenuServiceProtocol {
-    func getMenuItems() async throws -> [MenuItem]
-    func searchMenuItem()
-    func updateMenuItem(with menuItem: MenuItem)
+protocol MenuServiceProtocol: BaseServiceProtocol {
+    // CRUD Operations
+    func createMenuItem(_ item: MenuItem) async throws
+    func updateMenuItem(_ item: MenuItem) async throws
+    func deleteMenuItem(_ item: MenuItem) async throws
+    func fetchMenuItems() async throws -> [MenuItem]
+    
+    // Batch Operations
+    func createMenuItems(_ items: [MenuItem]) async throws
+    
+    // Search & Filter
+    func searchMenuItems(query: String) async throws -> [MenuItem]
+    func getMenuItemsByCategory(_ category: String) async throws -> [MenuItem]
+    
+    // Publishers
+    var menuItemsPublisher: AnyPublisher<[MenuItem]?, Never> { get }
 }
 
 // MARK: - 13. Settings Service

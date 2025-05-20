@@ -6,21 +6,26 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
-struct AppUser: Codable, Identifiable, Equatable {
-    let id: String
+struct AppUser: Codable, Identifiable {
+    @DocumentID var id: String?
     let email: String
+    let displayName: String
+    var emailVerified: Bool
+    let photoURL: URL?
+    let createdAt: Date
+    let updatedAt: Date
     
-    var ownerPassword: String?
-    var displayName: String
-    var shopOwned: [Shop]
-    
-    static func == (lhs: AppUser, rhs: AppUser) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.email == rhs.email &&
-               lhs.ownerPassword == rhs.ownerPassword &&
-               lhs.displayName == rhs.displayName &&
-               lhs.shopOwned == rhs.shopOwned
+    var dictionary: [String: Any] {
+        [
+            "email": email,
+            "displayName": displayName,
+            "emailVerified": emailVerified,
+            "photoURL": photoURL?.absoluteString as Any,
+            "createdAt": createdAt,
+            "updatedAt": updatedAt
+        ]
     }
 }
 

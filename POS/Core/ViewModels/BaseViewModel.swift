@@ -39,6 +39,7 @@ extension BaseViewModel where Environment == AppEnvironment {
     var networkService: NetworkService { environment.networkService }
     var storageService: StorageService { environment.storageService }
     var shopService: ShopService { environment.shopService }
+    var menuService: MenuService { environment.menuService }
     var orderService: OrderService { environment.orderService }
     var inventoryService: InventoryService { environment.inventoryService }
     var analyticsService: AnalyticsService { environment.analyticsService }

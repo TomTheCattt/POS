@@ -14,8 +14,6 @@ final class InventoryViewModel: BaseViewModel {
     // MARK: - Published Properties
     @Published private(set) var inventoryItems: [InventoryItem] = []
     @Published private(set) var filteredItems: [InventoryItem] = []
-    @Published private(set) var categories: [InventoryCategory] = InventoryCategory.allCases
-    @Published private(set) var selectedCategory: InventoryCategory?
     @Published private(set) var lowStockItems: [InventoryItem] = []
     @Published private(set) var inventoryReport: InventoryReport?
     
@@ -30,33 +28,21 @@ final class InventoryViewModel: BaseViewModel {
     private var sortedAndFilteredItems: [InventoryItem] {
         var items = inventoryItems
         
-        // Apply category filter
-        if let category = selectedCategory {
-            items = items.filter { $0.category == category }
-        }
-        
-        // Apply search filter
         if !searchText.isEmpty {
             items = items.filter { item in
                 item.name.localizedCaseInsensitiveContains(searchText)
             }
         }
         
-        // Apply low stock filter
         if showLowStockOnly {
             items = items.filter { $0.isLowStock }
         }
         
-        // Apply sorting
         switch sortOrder {
         case .name:
             items.sort { $0.name < $1.name }
         case .quantity:
             items.sort { $0.quantity > $1.quantity }
-        case .value:
-            items.sort { $0.value > $1.value }
-        case .category:
-            items.sort { $0.category.rawValue < $1.category.rawValue }
         }
         
         return items
@@ -81,7 +67,7 @@ final class InventoryViewModel: BaseViewModel {
             .store(in: &cancellables)
         
         // Observe filter changes
-        Publishers.CombineLatest3($selectedCategory, $showLowStockOnly, $sortOrder)
+        Publishers.CombineLatest3($searchText, $showLowStockOnly, $sortOrder)
             .sink { [weak self] _ in
                 self?.updateFilteredItems()
             }
@@ -99,7 +85,7 @@ final class InventoryViewModel: BaseViewModel {
         
         do {
             // Load inventory items
-            inventoryItems = try await inventoryService.getAllItems()
+            inventoryItems = try await inventoryService.fetchInventoryItems()
             
             // Load low stock items
             lowStockItems = try await inventoryService.getLowStockItems(threshold: 10)
@@ -120,15 +106,11 @@ final class InventoryViewModel: BaseViewModel {
         await loadInventory()
     }
     
-    func selectCategory(_ category: InventoryCategory?) {
-        selectedCategory = category
-    }
-    
     func createItem(_ item: InventoryItem) async throws {
         isLoading = true
         do {
-            let newItem = try await inventoryService.createItem(item)
-            inventoryItems.append(newItem)
+            try await inventoryService.createInventoryItem(item)
+            inventoryItems.append(item)
             updateFilteredItems()
         } catch {
             handleError(error)
@@ -139,9 +121,9 @@ final class InventoryViewModel: BaseViewModel {
     func updateItem(_ item: InventoryItem) async throws {
         isLoading = true
         do {
-            let updatedItem = try await inventoryService.updateItem(item)
+            try await inventoryService.updateInventoryItem(item)
             if let index = inventoryItems.firstIndex(where: { $0.id == item.id }) {
-                inventoryItems[index] = updatedItem
+                inventoryItems[index] = item
             }
             updateFilteredItems()
         } catch {
@@ -153,7 +135,7 @@ final class InventoryViewModel: BaseViewModel {
     func deleteItem(_ item: InventoryItem) async throws {
         isLoading = true
         do {
-            try await inventoryService.deleteItem(id: item.id)
+            try await inventoryService.deleteInventoryItem(item)
             inventoryItems.removeAll { $0.id == item.id }
             updateFilteredItems()
         } catch {
@@ -165,7 +147,7 @@ final class InventoryViewModel: BaseViewModel {
     func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
         isLoading = true
         do {
-            try await inventoryService.adjustQuantity(itemId: item.id, adjustment: adjustment)
+            try await inventoryService.adjustQuantity(itemId: item.id ?? "", adjustment: adjustment)
             await loadInventory() // Reload to get updated quantities
         } catch {
             handleError(error)
@@ -188,7 +170,5 @@ extension InventoryViewModel {
     enum SortOrder {
         case name
         case quantity
-        case value
-        case category
     }
 }

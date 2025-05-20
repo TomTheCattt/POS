@@ -22,7 +22,6 @@ final class HomeViewModel: BaseViewModel {
     // MARK: - Published Properties
     @Published var selectedTab: HomeTab = .menu
     @Published var userName: String = "Unknown User"
-    @Published var shopName: String = "Unknown Shop"
     
     // MARK: - Initialization
     required init(environment: AppEnvironment) {
@@ -31,17 +30,9 @@ final class HomeViewModel: BaseViewModel {
     }
     
     private func setupBindings() {
-        // Observe user changes
         authService.currentUserPublisher
             .sink { [weak self] user in
                 self?.userName = user?.displayName ?? "Unknown User"
-            }
-            .store(in: &cancellables)
-        
-        // Observe shop changes
-        shopService.currentShopPublisher
-            .sink { [weak self] shop in
-                self?.shopName = shop?.shopName ?? "Unknown Shop"
             }
             .store(in: &cancellables)
     }

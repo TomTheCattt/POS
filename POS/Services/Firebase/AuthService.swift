@@ -9,20 +9,16 @@ import SwiftUI
 enum AuthState {
     case authenticated
     case unauthenticated
+    case emailNotVerified
     case loading
 }
 
-final class AuthService: AuthServiceProtocol, ObservableObject {
+final class AuthService: BaseService, AuthServiceProtocol {
+    
     // MARK: - Properties
     static let shared = AuthService()
     
-    @Published private(set) var currentUser: AppUser?
-    @Published private(set) var authState: AuthState = .unauthenticated
-    @AppStorage("userUID") private var userUID: String = ""
-    
-    private let auth = Auth.auth()
-    private let firestore = Firestore.firestore()
-    
+    // Publishers from BaseService
     var currentUserPublisher: AnyPublisher<AppUser?, Never> {
         $currentUser.eraseToAnyPublisher()
     }
@@ -32,205 +28,106 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
     }
     
     // MARK: - Initialization
-    private init() {
-        setupAuthStateListener()
-    }
-    
-    func setupAuthStateListener() {
-        self.authState = .loading
-        auth.addStateDidChangeListener { [weak self] _, user in
-            if let user = user {
-                // Fetch user data from Firestore
-                self?.fetchUserData(uid: user.uid) { result in
-                    switch result {
-                    case .success(let appUser):
-                        self?.currentUser = appUser
-                        self?.authState = .authenticated
-                    case .failure(let error):
-                        self?.currentUser = nil
-                        self?.authState = .unauthenticated
-                    }
-                }
-            } else {
-                self?.currentUser = nil
-                self?.authState = .unauthenticated
-            }
-        }
-    }
-    
-    // MARK: - Private Methods
-    private func fetchUserData(uid: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
-        
-        firestore.collection("users").document(uid).getDocument { [weak self] snapshot, error in
-            
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data = snapshot?.data() else {
-                completion(.failure(AppError.database(.documentNotFound)))
-                return
-            }
-            
-            do {
-                var shops: [Shop] = []
-                if let shopsData = data["shopOwned"] as? [[String: Any]] {
-                    shops = shopsData.compactMap { shopData in
-                        guard let id = shopData["id"] as? String,
-                              let name = shopData["shopName"] as? String,
-                              let createdAt = (shopData["createdAt"] as? Timestamp)?.dateValue() ?? (shopData["createdAt"] as? Date)
-                        else {
-                            return nil
-                        }
-                        
-                        return Shop(id: id, shopName: name, createdAt: createdAt)
-                    }
-                }
-                
-                let appUser = AppUser(
-                    id: uid,
-                    email: data["email"] as? String ?? "",
-                    displayName: data["displayName"] as? String ?? "",
-                    shopOwned: shops
-                )
-                
-                DispatchQueue.main.async {
-                    self?.currentUser = appUser
-                    self?.authState = .authenticated
-                    completion(.success(appUser))
-                }
-            }
-        }
+    private override init() {
+        super.init()
     }
     
     // MARK: - Authentication Methods
     func login(email: String, password: String) async throws -> AppUser {
         do {
-            let result = try await auth.signIn(withEmail: email, password: password)
+            try await Auth.auth().signIn(withEmail: email, password: password)
             
-            // Fetch user data from Firestore
-            return try await withCheckedThrowingContinuation { continuation in
-                fetchUserData(uid: result.user.uid) { result in
-                    switch result {
-                    case .success(let user):
-                        continuation.resume(returning: user)
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
-                }
+            try await Task.sleep(nanoseconds: 500_000_000)
+            
+            guard let user = currentUser else {
+                throw AppError.auth(.userNotFound)
             }
+            
+            return user
         } catch {
-            throw AppError.auth(.invalidCredentials)
+            throw AppError.auth(.map(error))
         }
     }
     
     func registerAccount(email: String, password: String, displayName: String, shopName: String) async throws {
         do {
-            // 1. Tạo tài khoản Firebase Auth
-            let result = try await auth.createUser(withEmail: email, password: password)
+            let result = try await Auth.auth().createUser(withEmail: email, password: password)
             
-            // 2. Cập nhật displayName
             let changeRequest = result.user.createProfileChangeRequest()
             changeRequest.displayName = displayName
             try await changeRequest.commitChanges()
             
-            // 3. Tạo shop mới
-            let shop = Shop(
-                id: UUID().uuidString,
-                shopName: shopName,
-                createdAt: Date()
-            )
+            let shopId = UUID().uuidString
             
-            let userRef = firestore.collection("users").document(result.user.uid)
+            let user = AppUser(email: email, displayName: displayName, emailVerified: false, photoURL: nil, createdAt: Date(), updatedAt: Date())
             
-            // 4. Tạo document user
-            try await userRef.setData([
-                "email": email,
-                "displayName": displayName,
-                "ownerPassword": "",
-                "createdAt": FieldValue.serverTimestamp()
-            ])
+            let shop = Shop(id: shopId, shopName: shopName, createdAt: Date(), updatedAt: Date())
             
-            // 5. Tạo document shop trong collection con users/{uid}/shops/{shopId}
-            try await userRef.collection("shops").document(shop.id).setData([
-                "id": shop.id,
-                "shopName": shop.shopName,
-                "createdAt": FieldValue.serverTimestamp()
-            ])
+            let userRef = db.collection("users").document(result.user.uid)
             
-            // 6. Gửi email xác thực
+            try await userRef.setData(user.dictionary)
+            
+            try await userRef.collection("shops").document(shopId).setData(shop.dictionary)
+            
             try await result.user.sendEmailVerification()
             
         } catch {
-            throw AppError.auth(.registrationFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func logout() async throws {
         do {
-            try auth.signOut()
-            
-            await MainActor.run {
-                self.userUID = ""
-                self.currentUser = nil
-                self.authState = .unauthenticated
-            }
-            
+            try Auth.auth().signOut()
         } catch {
-            throw AppError.auth(.signOutFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func resetPassword(email: String) async throws {
         do {
-            try await auth.sendPasswordReset(withEmail: email)
+            try await Auth.auth().sendPasswordReset(withEmail: email)
         } catch {
-            throw AppError.auth(.resetPasswordFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func updatePassword(currentPassword: String, newPassword: String) async throws {
-        guard let email = auth.currentUser?.email else {
+        guard let email = Auth.auth().currentUser?.email else {
             throw AppError.auth(.userNotFound)
         }
         
         do {
-            // Xác thực lại với mật khẩu hiện tại
             let credential = EmailAuthProvider.credential(withEmail: email, password: currentPassword)
-            try await auth.currentUser?.reauthenticate(with: credential)
+            try await Auth.auth().currentUser?.reauthenticate(with: credential)
             
-            // Cập nhật mật khẩu mới
-            try await auth.currentUser?.updatePassword(to: newPassword)
+            try await Auth.auth().currentUser?.updatePassword(to: newPassword)
         } catch {
-            throw AppError.auth(.updatePasswordFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func deleteAccount(password: String) async throws {
-        guard let email = auth.currentUser?.email else {
+        guard let email = Auth.auth().currentUser?.email else {
             throw AppError.auth(.userNotFound)
         }
         
         do {
-            // Xác thực lại trước khi xóa
             let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-            try await auth.currentUser?.reauthenticate(with: credential)
+            try await Auth.auth().currentUser?.reauthenticate(with: credential)
             
-            // Xóa dữ liệu user từ Firestore
-            if let uid = auth.currentUser?.uid {
-                try await firestore.collection("users").document(uid).delete()
+            if let uid = Auth.auth().currentUser?.uid {
+                try await db.collection("users").document(uid).delete()
             }
             
-            // Xóa tài khoản
-            try await auth.currentUser?.delete()
+            try await Auth.auth().currentUser?.delete()
         } catch {
-            throw AppError.auth(.deleteAccountFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func updateProfile(displayName: String?, photoURL: URL?) async throws {
-        guard let user = auth.currentUser else {
+        guard let user = Auth.auth().currentUser else {
             throw AppError.auth(.userNotFound)
         }
         
@@ -244,36 +141,40 @@ final class AuthService: AuthServiceProtocol, ObservableObject {
             }
             try await changeRequest.commitChanges()
             
-            // Cập nhật thông tin trong Firestore
             if let displayName = displayName {
-                try await firestore.collection("users").document(user.uid).updateData([
+                try await db.collection("users").document(user.uid).updateData([
                     "displayName": displayName
                 ])
             }
         } catch {
-            throw AppError.auth(.updateProfileFailed)
+            throw AppError.auth(.map(error))
         }
     }
     
     func checkEmailVerification() async throws {
-        try await auth.currentUser?.reload()
-        guard let isVerified = auth.currentUser?.isEmailVerified else {
+        guard let user = Auth.auth().currentUser else {
             throw AppError.auth(.userNotFound)
         }
-        if !isVerified {
-            throw AppError.auth(.emailNotVerified)
+
+        do {
+            try await user.reload()
+            if !user.isEmailVerified {
+                throw AppError.auth(.unverifiedEmail)
+            }
+        } catch {
+            throw AppError.auth(.map(error))
         }
     }
     
     func sendEmailVerification() async throws {
-        guard let user = auth.currentUser else {
+        guard let user = Auth.auth().currentUser else {
             throw AppError.auth(.userNotFound)
         }
         
         do {
             try await user.sendEmailVerification()
         } catch {
-            throw AppError.auth(.sendEmailVerificationFailed)
+            throw AppError.auth(.map(error))
         }
     }
 }

@@ -14,7 +14,7 @@ private let validationStrings = ValidationLocalizedString()
 
 // MARK: - Tổng hợp lỗi toàn app
 enum AppError: LocalizedError {
-    case auth(AuthError)
+    case auth(FirebaseAuthError)
     case network(NetworkError)
     case database(DatabaseError)
     case validation(ValidationError)
@@ -22,57 +22,6 @@ enum AppError: LocalizedError {
     case order(OrderError)
     case inventory(InventoryError)
     case unknown
-}
-
-// MARK: - Auth Errors
-enum AuthError: LocalizedError {
-    case invalidCredentials
-    case registrationFailed
-    case signOutFailed
-    case resetPasswordFailed
-    case updatePasswordFailed
-    case deleteAccountFailed
-    case updateProfileFailed
-    case emailNotVerified
-    case userNotFound
-    case sendEmailVerificationFailed
-    case unverifiedEmail
-    case weakPassword
-    case emailAlreadyInUse
-    case invalidEmail
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidCredentials:
-            return "Email hoặc mật khẩu không chính xác"
-        case .registrationFailed:
-            return "Không thể tạo tài khoản. Vui lòng thử lại"
-        case .signOutFailed:
-            return "Không thể đăng xuất. Vui lòng thử lại"
-        case .resetPasswordFailed:
-            return "Không thể đặt lại mật khẩu. Vui lòng thử lại"
-        case .updatePasswordFailed:
-            return "Không thể cập nhật mật khẩu. Vui lòng thử lại"
-        case .deleteAccountFailed:
-            return "Không thể xóa tài khoản. Vui lòng thử lại"
-        case .updateProfileFailed:
-            return "Không thể cập nhật thông tin. Vui lòng thử lại"
-        case .emailNotVerified:
-            return "Email chưa được xác thực"
-        case .userNotFound:
-            return "Không tìm thấy người dùng"
-        case .sendEmailVerificationFailed:
-            return "Không thể gửi email xác thực. Vui lòng thử lại"
-        case .unverifiedEmail:
-            return "Vui lòng xác thực email trước khi đăng nhập"
-        case .weakPassword:
-            return "Mật khẩu phải có ít nhất 6 ký tự"
-        case .emailAlreadyInUse:
-            return "Email đã được sử dụng"
-        case .invalidEmail:
-            return "Email không hợp lệ"
-        }
-    }
 }
 
 // MARK: - Network Errors

@@ -4,6 +4,11 @@ import FirebaseFirestore
 import Combine
 
 final class AnalyticsService: AnalyticsServiceProtocol {
+    
+    var isLoading: Bool = false
+    
+    var error: (any Error)?
+    
     // MARK: - Singleton
     static let shared = AnalyticsService()
     
@@ -489,6 +494,10 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         documents.reduce(0) { sum, doc in
             sum + (doc.data()["total"] as? Double ?? 0)
         }
+    }
+    
+    func logEvent(_ name: String, params: [String : Any]?) {
+        
     }
 }
 

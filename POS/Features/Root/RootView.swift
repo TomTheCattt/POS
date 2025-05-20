@@ -9,26 +9,18 @@ import SwiftUI
 
 struct RootView: View {
     // MARK: - Properties
-    @StateObject private var environment: AppEnvironment = AppEnvironment()
+    @StateObject private var baseService: BaseService = BaseService()
     @StateObject private var coordinator: AppCoordinator = AppCoordinator()
-    
-    @ObservedObject private var authService: AuthService
-    
-    init() {
-        let environment = AppEnvironment()
-        _environment = StateObject(wrappedValue: environment)
-        authService = environment.authService
-    }
     
     // MARK: - Body
     var body: some View {
         NavigationStack(path: $coordinator.navigationPath) {
             Group {
-                switch authService.authState {
+                switch baseService.authState {
                 case .authenticated:
                     coordinator.makeView(for: .home)
                         .applyNavigationStyle(.push)
-                case .unauthenticated:
+                case .unauthenticated, .emailNotVerified:
                     coordinator.makeView(for: .authentication)
                         .applyNavigationStyle(.fade)
                 case .loading:
@@ -75,7 +67,7 @@ struct RootView: View {
                     .applyBackgroundEffect(config.backgroundEffect)
             }
         }
-        .environmentObject(environment)
+        .environmentObject(baseService)
         .environmentObject(coordinator)
     }
 }

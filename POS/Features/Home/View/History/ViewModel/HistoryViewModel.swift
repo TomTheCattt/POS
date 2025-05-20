@@ -20,7 +20,7 @@ final class HistoryViewModel: BaseViewModel {
     var filteredOrders: [Order] {
         orders.filter { order in
             if !searchText.isEmpty {
-                return order.id.localizedCaseInsensitiveContains(searchText)
+                return ((order.id?.localizedCaseInsensitiveContains(searchText)) != nil)
             }
             return true
         }
@@ -49,7 +49,7 @@ final class HistoryViewModel: BaseViewModel {
         
         Task {
             do {
-                let fetchedOrders = try await orderService.getOrders()
+                let fetchedOrders = try await orderService.fetchOrders()
                 await MainActor.run {
                     self.orders = fetchedOrders
                     self.isLoading = false
@@ -67,7 +67,7 @@ final class HistoryViewModel: BaseViewModel {
     func deleteOrder(_ order: Order) {
         Task {
             do {
-                try await orderService.deleteOrder(id: order.id)
+                try await orderService.deleteOrder(order)
                 await MainActor.run {
                     if let index = orders.firstIndex(where: { $0.id == order.id }) {
                         orders.remove(at: index)

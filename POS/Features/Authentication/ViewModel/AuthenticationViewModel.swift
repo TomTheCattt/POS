@@ -26,7 +26,7 @@ final class AuthenticationViewModel: BaseViewModel {
     @Published var showError = false
     @Published var verifyEmailSent = false
     @Published var forgotPassword = false
-    @Published var loginSectionShowed = false
+    @Published var loginSectionShowed = true
     
     private let authService: AuthService
     private let crashlytics: CrashlyticsService
@@ -54,6 +54,8 @@ final class AuthenticationViewModel: BaseViewModel {
             
             // Validate input
             try validateLoginInput()
+            
+            try await checkEmailVerification()
             
             // Attempt login
             _ = try await authService.login(email: email, password: password)
@@ -109,7 +111,7 @@ final class AuthenticationViewModel: BaseViewModel {
             try await authService.checkEmailVerification()
             showLoading(false)
         } catch {
-            handleError(AppError.auth(.emailNotVerified))
+            handleError(AppError.auth(.unverifiedEmail))
             showLoading(false)
             throw error
         }
