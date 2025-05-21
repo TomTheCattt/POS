@@ -9,18 +9,9 @@ import Foundation
 import FirebaseFirestore
 
 enum PaymentMethod: String, Codable, CaseIterable {
-    case cash, card, bankTransfer
-    
-    var description: String {
-        switch self {
-        case .cash:
-            return "Tiền mặt"
-        case .card:
-            return "Thẻ"
-        case .bankTransfer:
-            return "Chuyển khoản"
-        }
-    }
+    case cash
+    case card
+    case bankTransfer
 }
 
 enum TemperatureOption: String, CaseIterable, Codable {
@@ -36,23 +27,19 @@ enum ConsumptionOption: String, CaseIterable, Codable {
 struct Order: Codable, Identifiable {
     @DocumentID var id: String?
     let items: [OrderItem]
-    let subTotal: Double
-    let discount: Double
-    let total: Double
+    let totalAmount: Double
     let paymentMethod: PaymentMethod
     let createdAt: Date
+    var updatedAt: Date
     
     var dictionary: [String: Any] {
-        var dict: [String: Any] = [
+        [
             "items": items.map { $0.dictionary },
-            "subTotal": subTotal,
-            "discount": discount,
-            "total": total,
-            "paymentMethod": paymentMethod.description,
-            "createdAt": createdAt
+            "totalAmount": totalAmount,
+            "paymentMethod": paymentMethod.rawValue,
+            "createdAt": createdAt,
+            "updatedAt": updatedAt
         ]
-        
-        return dict
     }
 }
 
@@ -62,37 +49,29 @@ struct OrderItem: Codable, Identifiable {
     var quantity: Int
     let price: Double
     var note: String?
-    var temprature: String
-    var consumption: String
+    let temperature: TemperatureOption
+    let consumption: ConsumptionOption
     
     var dictionary: [String: Any] {
-        var dict: [String: Any] = [
-            "id": id,
+        [
             "name": name,
             "quantity": quantity,
             "price": price,
-            "temprature": temprature,
+            "temperature": temperature,
             "consumption": consumption
         ]
-
-        if let note = note {
-            dict["note"] = note
-        }
-
-        return dict
     }
 }
 
 extension Order {
     init?(document: DocumentSnapshot) {
         guard let data = document.data(),
-              let subTotal = data["subTotal"] as? Double,
-              let total = data["total"] as? Double,
-              let discount = data["discount"] as? Double,
+              let totalAmount = data["totalAmount"] as? Double,
               let paymentMethodRaw = data["paymentMethod"] as? String,
               let paymentMethod = PaymentMethod(rawValue: paymentMethodRaw),
               let itemsData = data["items"] as? [[String: Any]],
-              let createdAt = (data["createdAt"] as? Timestamp)?.dateValue()
+              let createdAt = (data["createdAt"] as? Timestamp)?.dateValue(),
+              let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue()
         else {
             return nil
         }
@@ -102,32 +81,24 @@ extension Order {
                   let name = dict["name"] as? String,
                   let quantity = dict["quantity"] as? Int,
                   let price = dict["price"] as? Double,
-                  let tempRaw = dict["temprature"] as? String,
-                  let temprature = TemperatureOption(rawValue: tempRaw),
-                  let consumpRaw = dict["consumption"] as? String,
-                  let consumption = ConsumptionOption(rawValue: consumpRaw)
+                  let note = dict["note"] as? String,
+                  let temperatureRaw = data["temperature"] as? String,
+                  let temperature = TemperatureOption(rawValue: temperatureRaw),
+                  let consumptionRaw = data["consumption"] as? String,
+                  let consumption = ConsumptionOption(rawValue: consumptionRaw)
             else {
-                return OrderItem(id: "Error", name: "Error", quantity: 0, price: 0, temprature: "Error", consumption: "Error")
+                return nil
             }
 
-            return OrderItem(
-                id: id,
-                name: name,
-                quantity: quantity,
-                price: price,
-                note: dict["note"] as? String,
-                temprature: temprature.rawValue,
-                consumption: consumption.rawValue
-            )
+            return OrderItem(id: id, name: name, quantity: quantity, price: price, note: note, temperature: temperature, consumption: consumption)
         }
 
         self.id = document.documentID
         self.items = items
-        self.subTotal = subTotal
-        self.total = total
-        self.discount = discount
+        self.totalAmount = totalAmount
         self.paymentMethod = paymentMethod
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 

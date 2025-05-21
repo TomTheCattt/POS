@@ -81,8 +81,8 @@ final class MenuViewModel: BaseViewModel {
         if let index = selectedItems.firstIndex(where: {
             $0.name == item.name &&
             $0.price == item.price &&
-            $0.temprature == temperature.rawValue &&
-            $0.consumption == consumption.rawValue
+            $0.temperature == temperature &&
+            $0.consumption == consumption
         }) {
             var updatedItems = selectedItems
             var updatedItem = updatedItems[index]
@@ -95,8 +95,8 @@ final class MenuViewModel: BaseViewModel {
                 name: item.name,
                 quantity: 1,
                 price: item.price,
-                temprature: temperature.rawValue,
-                consumption: consumption.rawValue
+                temperature: temperature,
+                consumption: consumption
             ))
         }
     }
@@ -156,7 +156,7 @@ final class MenuViewModel: BaseViewModel {
             let total = subTotal * discount
 
             let discount = 0.0
-            let newOrder = Order(items: selectedItems, subTotal: subTotal, discount: discount, total: total, paymentMethod: paymentMethod, createdAt: Date())
+            let newOrder = Order(items: selectedItems, totalAmount: total, paymentMethod: paymentMethod, createdAt: Date(), updatedAt: Date())
 
             do {
                 _ = try await environment.orderService.createOrder(newOrder)

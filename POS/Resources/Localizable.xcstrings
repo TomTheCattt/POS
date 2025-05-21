@@ -1447,16 +1447,6 @@
     "Temperature:" : {
 
     },
-    "Temprature: %@, Consumption: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Temprature: %1$@, Consumption: %2$@"
-          }
-        }
-      }
-    },
     "total" : {
       "extractionState" : "manual",
       "localizations" : {

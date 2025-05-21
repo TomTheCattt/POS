@@ -11,37 +11,23 @@ import FirebaseFirestore
 struct MenuItem: Codable, Identifiable {
     @DocumentID var id: String?
     let name: String
-    let description: String?
     let price: Double
     let category: String
-    let imageURL: URL?
-    let ingredients: [IngredientUsage]?
-    let options: [MenuItemOption]?
-    let isAvailable: Bool
+    var ingredients: [IngredientUsage]?
+    var isAvailable: Bool?
+    var imageURL: URL?
     let createdAt: Date
-    let updatedAt: Date
+    var updatedAt: Date
     
     var dictionary: [String: Any] {
-        var dict: [String: Any] = [
+        [
             "name": name,
-            "description": description as Any,
             "price": price,
             "category": category,
             "imageURL": imageURL?.absoluteString as Any,
-            "isAvailable": isAvailable,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]
-        
-        if let ingredients = ingredients {
-            dict["ingredients"] = ingredients.map { $0.dictionary }
-        }
-        
-        if let options = options {
-            dict["options"] = options.map { $0.dictionary }
-        }
-        
-        return dict
     }
 }
 
@@ -55,34 +41,6 @@ struct IngredientUsage: Codable {
             "inventoryItemID": inventoryItemID,
             "quantity": quantity,
             "unit": unit
-        ]
-    }
-}
-
-struct MenuItemOption: Codable {
-    let name: String
-    let choices: [MenuItemChoice]
-    let isRequired: Bool
-    let maxChoices: Int
-    
-    var dictionary: [String: Any] {
-        [
-            "name": name,
-            "choices": choices.map { $0.dictionary },
-            "isRequired": isRequired,
-            "maxChoices": maxChoices
-        ]
-    }
-}
-
-struct MenuItemChoice: Codable {
-    let name: String
-    let price: Double
-    
-    var dictionary: [String: Any] {
-        [
-            "name": name,
-            "price": price
         ]
     }
 }
@@ -128,35 +86,6 @@ extension MenuItem {
             self.imageURL = url
         } else {
             self.imageURL = nil
-        }
-
-        if let description = data["description"] as? String {
-            self.description = description
-        } else {
-            self.description = nil
-        }
-
-        if let optionsData = data["options"] as? [[String: Any]] {
-            self.options = optionsData.compactMap { dict in
-                guard let name = dict["name"] as? String,
-                      let choicesData = dict["choices"] as? [[String: Any]],
-                      let isRequired = dict["isRequired"] as? Bool,
-                      let maxChoices = dict["maxChoices"] as? Int
-                else {
-                    return nil
-                }
-                let choices: [MenuItemChoice] = choicesData.compactMap { choiceDict in
-                    guard let choiceName = choiceDict["name"] as? String,
-                          let choicePrice = choiceDict["price"] as? Double
-                    else {
-                        return nil
-                    }
-                    return MenuItemChoice(name: choiceName, price: choicePrice)
-                }
-                return MenuItemOption(name: name, choices: choices, isRequired: isRequired, maxChoices: maxChoices)
-            }
-        } else {
-            self.options = nil
         }
 
         if let createdAt = data["createdAt"] as? Timestamp {

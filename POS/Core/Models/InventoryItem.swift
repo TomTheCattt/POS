@@ -12,17 +12,16 @@ import FirebaseFirestore
 struct InventoryItem: Codable, Identifiable {
     @DocumentID var id: String?
     let name: String
-    var quantity: Double
     let unit: String
-    let minimumQuantity: Double
-    let lastRestockDate: Date?
+    var quantity: Double
+    let minQuantity: Double
     let createdAt: Date
-    let updatedAt: Date
+    var updatedAt: Date
     
     // MARK: - Computed Properties
     
     var isLowStock: Bool {
-        quantity <= minimumQuantity
+        quantity <= minQuantity
     }
     
     var stockStatus: StockStatus {
@@ -41,8 +40,7 @@ struct InventoryItem: Codable, Identifiable {
         name: String,
         quantity: Double,
         unit: String,
-        minimumQuantity: Double,
-        lastRestockDate: Date? = nil,
+        minQuantity: Double,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -50,10 +48,20 @@ struct InventoryItem: Codable, Identifiable {
         self.name = name
         self.quantity = quantity
         self.unit = unit
-        self.minimumQuantity = minimumQuantity
-        self.lastRestockDate = lastRestockDate
+        self.minQuantity = minQuantity
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+    
+    var dictionary: [String: Any] {
+        [
+            "name": name,
+            "unit": unit,
+            "quantity": quantity,
+            "minQuantity": minQuantity,
+            "createdAt": createdAt,
+            "updatedAt": updatedAt
+        ]
     }
 }
 
@@ -110,7 +118,7 @@ extension InventoryItem {
             let name = data["name"] as? String,
             let quantity = data["quantity"] as? Double,
             let unit = data["unit"] as? String,
-            let minimumQuantity = data["minimumQuantity"] as? Double,
+            let minQuantity = data["minQuantity"] as? Double,
             let createdAt = data["createdAt"] as? Timestamp,
             let updatedAt = data["updatedAt"] as? Timestamp
         else {
@@ -121,26 +129,8 @@ extension InventoryItem {
         self.name = name
         self.quantity = quantity
         self.unit = unit
-        self.minimumQuantity = minimumQuantity
-        self.lastRestockDate = (data["lastRestockDate"] as? Timestamp)?.dateValue()
+        self.minQuantity = minQuantity
         self.createdAt = createdAt.dateValue()
         self.updatedAt = updatedAt.dateValue()
-    }
-    
-    var dictionary: [String: Any] {
-        var dict: [String: Any] = [
-            "name": name,
-            "quantity": quantity,
-            "unit": unit,
-            "minimumQuantity": minimumQuantity,
-            "createdAt": createdAt,
-            "updatedAt": updatedAt
-        ]
-        
-        if let lastRestockDate = lastRestockDate {
-            dict["lastRestockDate"] = lastRestockDate
-        }
-        
-        return dict
     }
 }

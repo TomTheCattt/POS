@@ -12,7 +12,7 @@ struct Shop: Codable, Identifiable {
     @DocumentID var id: String?
     let shopName: String
     let createdAt: Date
-    let updatedAt: Date
+    var updatedAt: Date
     
     var dictionary: [String: Any] {
         [

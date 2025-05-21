@@ -65,7 +65,7 @@ struct OrderItemView: View {
     private func noteSection() -> some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("Temprature: \(orderItem.temprature), Consumption: \(orderItem.consumption)")
+                Text("Temprature: \(orderItem.temperature), Consumption: \(orderItem.consumption)")
                     .font(.footnote)
                     .foregroundStyle(Color.gray)
                 Text(orderItem.note ?? "No note")

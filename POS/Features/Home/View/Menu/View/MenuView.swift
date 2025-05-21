@@ -199,7 +199,7 @@ struct MenuView: View {
             HStack {
                 ForEach(PaymentMethod.allCases, id: \.self) { option in
                     OptionButton(
-                        title: option.description,
+                        title: option.rawValue,
                         isSelected: viewModel.paymentMethod == option
                     ) {
                         viewModel.updatePaymentMethod(option)

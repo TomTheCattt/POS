@@ -99,7 +99,7 @@ final class OrderService: BaseService, OrderServiceProtocol {
         let subTotal = order.items.reduce(0) { result, item in
             result + (item.price * Double(item.quantity))
         }
-        let total = subTotal - order.discount
+        let total = subTotal
         return max(total, 0)
     }
     
