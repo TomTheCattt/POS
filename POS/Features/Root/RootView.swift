@@ -6,25 +6,25 @@
 //
 
 import SwiftUI
+import Combine
 
 struct RootView: View {
     // MARK: - Properties
-    @StateObject private var baseService: BaseService = BaseService()
+    @StateObject private var viewModel: AuthenticationViewModel = ViewModelFactory.shared.makeAuthenticationViewModel()
     @StateObject private var coordinator: AppCoordinator = AppCoordinator()
     
     // MARK: - Body
     var body: some View {
         NavigationStack(path: $coordinator.navigationPath) {
             Group {
-                switch baseService.authState {
-                case .authenticated:
+                if viewModel.isLoading {
+                    LoadingView()
+                        .applyNavigationStyle(.fade)
+                } else if let _ = viewModel.currentUser {
                     coordinator.makeView(for: .home)
                         .applyNavigationStyle(.push)
-                case .unauthenticated, .emailNotVerified:
+                } else {
                     coordinator.makeView(for: .authentication)
-                        .applyNavigationStyle(.fade)
-                case .loading:
-                    LoadingView()
                         .applyNavigationStyle(.fade)
                 }
             }
@@ -67,7 +67,7 @@ struct RootView: View {
                     .applyBackgroundEffect(config.backgroundEffect)
             }
         }
-        .environmentObject(baseService)
+        .environmentObject(viewModel)
         .environmentObject(coordinator)
     }
 }

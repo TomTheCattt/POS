@@ -9,6 +9,7 @@ import Foundation
 import FirebaseFirestore
 
 struct MenuItem: Codable, Identifiable {
+    // MARK: - Properties
     @DocumentID var id: String?
     let name: String
     let price: Double
@@ -19,12 +20,12 @@ struct MenuItem: Codable, Identifiable {
     let createdAt: Date
     var updatedAt: Date
     
+    // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
         [
             "name": name,
             "price": price,
             "category": category,
-            "imageURL": imageURL?.absoluteString as Any,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]
@@ -56,6 +57,7 @@ enum MeasurementUnit: String, Codable, CaseIterable, Hashable {
 extension MenuItem {
     init?(document: DocumentSnapshot) {
         guard let data = document.data(),
+              let id = data["id"] as? String,
               let name = data["name"] as? String,
               let price = data["price"] as? Double,
               let category = data["category"] as? String,
@@ -75,7 +77,7 @@ extension MenuItem {
             return IngredientUsage(inventoryItemID: inventoryItemID, quantity: quantity, unit: unit.rawValue)
         }
 
-        self.id = document.documentID
+        self.id = id
         self.name = name
         self.price = price
         self.category = category

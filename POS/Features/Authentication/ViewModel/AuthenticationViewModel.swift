@@ -8,11 +8,9 @@
 import SwiftUI
 import Combine
 import FirebaseAuth
+import FirebaseFirestore
 
 final class AuthenticationViewModel: BaseViewModel {
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
     @Published var currentSection: AuthenticationSection = .login
@@ -21,102 +19,192 @@ final class AuthenticationViewModel: BaseViewModel {
     @Published var shopName = ""
     @Published var password = ""
     @Published var rePassword = ""
-    @Published var isLoading = false
-    @Published var errorMessage: String?
     @Published var showError = false
     @Published var verifyEmailSent = false
     @Published var forgotPassword = false
     @Published var loginSectionShowed = true
     
-    private let authService: AuthService
-    private let crashlytics: CrashlyticsService
+    /// Firebase Auth state listener
+    private var authStateListener: AuthStateDidChangeListenerHandle?
+    /// Firestore user document listener
+    private var userListener: ListenerRegistration?
     
     // MARK: - Initialization
-    init(environment: AppEnvironment) {
-        self.environment = environment
-        self.authService = environment.authService
-        self.crashlytics = environment.crashlyticsService
-        
-        authService.$authState
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
-                if case .unauthenticated = state {
-                    self?.clearFields()
+    required init(environment: AppEnvironment) {
+        super.init(environment: environment)
+        Task {
+            await fetchStoredUserData()
+        }
+    }
+    
+    // MARK: - Setup Methods
+    private func setupAuthStateListener() {
+        authStateListener = environment.authService.auth.addStateDidChangeListener { [weak self] auth, user in
+            Task { [weak self] in
+                print("DEBUG: [\(#fileID):\(#line)] \(#function) - Auth State Listen to User: \(String(describing: user?.uid ?? "nil"))")
+                print("DEBUG: [\(#fileID):\(#line)] \(#function) - Auth State : \(String(describing: Auth.authStateDidChangeNotification))")
+
+                await self?.handleAuthStateChange(user)
+            }
+        }
+    }
+    
+    // MARK: - Auth State Handling
+    private func handleAuthStateChange(_ user: FirebaseAuth.User?) async {
+        if let user = user {
+            do {
+                try await environment.authService.checkEmailVerification()
+                
+                if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
+                    await setupUserListener(userId: userData.id ?? "")
+//                    await fetchAndSetupShop()
+                } else {
+                    await MainActor.run {
+                        self.currentUserSubject.send(nil)
+                        self.userId = ""
+//                        self.selectedShopId = nil
+                    }
+                }
+            } catch let error as AppError {
+                if case .auth(.unverifiedEmail) = error {
+                    await MainActor.run {
+                        self.currentUserSubject.send(nil)
+                        self.userId = ""
+                    }
+                } else {
+                    await MainActor.run {
+                        self.currentUserSubject.send(nil)
+                        self.userId = ""
+//                        self.selectedShopId = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.currentUserSubject.send(nil)
+                    self.userId = ""
+//                    self.selectedShopId = nil
                 }
             }
-            .store(in: &cancellables)
+        } else {
+            await MainActor.run {
+                self.currentUserSubject.send(nil)
+                self.userId = ""
+//                self.selectedShopId = nil
+            }
+        }
     }
     
-    @MainActor
-    func login() async {
+    private func fetchStoredUserData() async {
         do {
-            showLoading(true)
+            guard let userId else {
+                await MainActor.run {
+                    self.currentUserSubject.send(nil)
+                }
+                return
+            }
             
-            // Validate input
-            try validateLoginInput()
-            
-            try await checkEmailVerification()
-            
-            // Attempt login
-            _ = try await authService.login(email: email, password: password)
-            showLoading(false)
-            
-        } catch let error as AppError {
-            handleError(error)
-            showLoading(false)
+            if let userData: AppUser = try await environment.databaseService.getUser(userId: userId) {
+                await MainActor.run {
+                    self.currentUserSubject.send(userData)
+                }
+                //await fetchAndSetupShop()
+            } else {
+                await MainActor.run {
+                    self.currentUserSubject.send(nil)
+                    self.userId = ""
+                }
+            }
         } catch {
-            handleError(AppError.unknown)
-            showLoading(false)
+            await MainActor.run {
+                self.handleError(error, action: "tải dữ liệu người dùng")
+                self.currentUserSubject.send(nil)
+                self.userId = ""
+            }
+        }
+    }
+    
+    // MARK: - User & Shop Listeners
+    private func setupUserListener(userId: String) async {
+        userListener = environment.databaseService.addDocumentListener(
+            collection: .users,
+            type: .collection,
+            id: userId
+        ) { [weak self] (result: Result<AppUser?, Error>) in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let user):
+                guard let user = user, let id = user.id else {
+                    self.handleError(AppError.auth(.userNotFound))
+                    return
+                }
+                self.currentUserSubject.send(user)
+                self.userId = id
+                
+//                Task {
+//                    await self.fetchAndSetupShop()
+//                }
+                
+            case .failure(let error):
+                self.currentUserSubject.send(nil)
+                self.userId = ""
+                self.handleError(error, action: "tải thông tin người dùng")
+            }
         }
         
+        if let listener = userListener {
+            addToListeners(listener)
+        }
     }
     
-    @MainActor
+    // MARK: - Authentication Methods
+    func login() async throws {
+        do {
+            try validateLoginInput()
+            try await withLoading("Đang đăng nhập...") {
+                let user = try await environment.authService.login(email: email, password: password)
+                await handleAuthStateChange(user)
+            }
+        } catch {
+            handleError(error, action: "đăng nhập")
+        }
+    }
+    
     func register() async throws {
         do {
-            showLoading(true)
-            
-            // Validate input
             try validateRegisterInput()
-            
-            // Attempt registration
-            try await authService.registerAccount(
-                email: email,
-                password: password,
-                displayName: displayName,
-                shopName: shopName
-            )
-            
-            clearFields()
+            try await withLoading("Đang đăng ký...") {
+                let authResult = try await environment.authService.registerAccount(email: email, password: password)
+                
+                let newUser = AppUser(uid: authResult.uid, email: email, displayName: displayName, photoURL: nil, createdAt: Date(), updatedAt: Date())
+                let userId = try await environment.databaseService.createUser(newUser)
+                
+                
+                let shop = Shop(shopName: shopName,createdAt: Date(),updatedAt: Date())
+                let _ = try await environment.databaseService.createShop(shop, userId: userId)
+                
+            }
             verifyEmailSent = true
-            showLoading(false)
+            clearFields()
             loginSectionShowed = true
-            
-        } catch let error as AppError {
-            handleError(error)
-            showLoading(false)
-            throw error
         } catch {
-            let appError = AppError.unknown
-            handleError(appError)
-            showLoading(false)
-            throw appError
+            handleError(error, action: "đăng ký")
         }
-        
     }
     
-    func checkEmailVerification() async throws {
+    func resetPassword() async {
         do {
-            showLoading(true)
-            try await authService.checkEmailVerification()
-            showLoading(false)
+            try await withLoading("Đang gửi email...") {
+                try await environment.authService.resetPassword(email: email)
+            }
+            showSuccess("Email đặt lại mật khẩu đã được gửi")
+            forgotPassword = true
         } catch {
-            handleError(AppError.auth(.unverifiedEmail))
-            showLoading(false)
-            throw error
+            handleError(error, action: "đặt lại mật khẩu")
         }
     }
     
+    // MARK: - Validation Methods
     private func validateLoginInput() throws {
         if email.isEmpty {
             throw AppError.validation(.emptyField(field: "email"))
@@ -156,6 +244,7 @@ final class AuthenticationViewModel: BaseViewModel {
         }
     }
     
+    // MARK: - Helper Methods
     private func isValidEmail(_ email: String) -> Bool {
         let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
         let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)

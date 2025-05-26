@@ -2,13 +2,6 @@ import SwiftUI
 import Combine
 
 final class AnalyticsViewModel: BaseViewModel {
-    var errorMessage: String?
-    
-    var showError: Bool = false
-    
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
     @Published private(set) var totalRevenue: Double = 0
@@ -16,11 +9,10 @@ final class AnalyticsViewModel: BaseViewModel {
     @Published private(set) var averageOrderValue: Double = 0
     @Published private(set) var topSellingItems: [MenuItem] = []
     @Published private(set) var revenueByDay: [Date: Double] = [:]
-    @Published var isLoading: Bool = false
     
     // MARK: - Initialization
-    init(environment: AppEnvironment) {
-        self.environment = environment
+    required init(environment: AppEnvironment) {
+        super.init()
         loadAnalytics()
     }
     

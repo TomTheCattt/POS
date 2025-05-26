@@ -19,8 +19,10 @@ enum AppError: LocalizedError {
     case database(DatabaseError)
     case validation(ValidationError)
     case shop(ShopError)
+    case menu(MenuError)
     case order(OrderError)
     case inventory(InventoryError)
+    case ingredients(IngredientsUsageError)
     case unknown
 }
 
@@ -35,7 +37,7 @@ enum NetworkError: LocalizedError {
     case timeout
     case cancelled
     case unknown(Error)
-
+    
     var localizedDescription: String {
         switch self {
         case .disconnected:
@@ -166,7 +168,6 @@ enum OrderError: LocalizedError {
     case updateFailed
     case deleteFailed
     case notFound
-    case invalidStatus
     
     var errorDescription: String? {
         switch self {
@@ -184,8 +185,33 @@ enum OrderError: LocalizedError {
             return "Không thể xóa đơn hàng"
         case .notFound:
             return "Không tìm thấy đơn hàng"
-        case .invalidStatus:
-            return "Trạng thái đơn hàng không hợp lệ"
+        }
+    }
+}
+
+// MARK: - Menu Errors
+enum MenuError: LocalizedError {
+    case invalidItems
+    case emptyMenu
+    case createFailed
+    case updateFailed
+    case deleteFailed
+    case notFound
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidItems:
+            return "Các món trong thực đơn không hợp lệ"
+        case .emptyMenu:
+            return "Thực đơn trống"
+        case .createFailed:
+            return "Không thể tạo thực đơn"
+        case .updateFailed:
+            return "Không thể cập nhật thực đơn"
+        case .deleteFailed:
+            return "Không thể xóa thực đơn"
+        case .notFound:
+            return "Không tìm thấy thực đơn"
         }
     }
 }
@@ -220,10 +246,40 @@ enum InventoryError: LocalizedError {
     }
 }
 
+// MARK: - Inventory Errors
+enum IngredientsUsageError: LocalizedError {
+    case insufficientStock
+    case invalidQuantity
+    case updateFailed
+    case createFailed
+    case deleteFailed
+    case notFound
+    case invalidUnit
+    
+    var errorDescription: String? {
+        switch self {
+        case .insufficientStock:
+            return "Không đủ số lượng trong kho"
+        case .invalidQuantity:
+            return "Số lượng không hợp lệ"
+        case .updateFailed:
+            return "Không thể cập nhật kho"
+        case .createFailed:
+            return "Không thể tạo mặt hàng mới"
+        case .deleteFailed:
+            return "Không thể xóa mặt hàng"
+        case .notFound:
+            return "Không tìm thấy mặt hàng"
+        case .invalidUnit:
+            return "Đơn vị không hợp lệ"
+        }
+    }
+}
+
 extension AppError {
     var errorDescription: String? {
         Crashlytics.crashlytics().record(error: self)
-
+        
         switch self {
         case .auth(let error):
             return error.localizedDescription
@@ -238,6 +294,10 @@ extension AppError {
         case .order(let error):
             return error.localizedDescription
         case .inventory(let error):
+            return error.localizedDescription
+        case .menu(let error):
+            return error.localizedDescription
+        case .ingredients(let error):
             return error.localizedDescription
         case .unknown:
             return appStrings.errorUnknown
@@ -275,7 +335,7 @@ extension FirebaseAuthError {
         guard let code = AuthErrorCode(rawValue: (error as NSError).code) else {
             return .unknown
         }
-
+        
         switch code {
         case .invalidEmail: return .invalidEmail
         case .wrongPassword: return .wrongPassword

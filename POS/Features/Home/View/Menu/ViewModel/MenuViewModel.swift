@@ -9,13 +9,6 @@ import SwiftUI
 import Combine
 
 final class MenuViewModel: BaseViewModel {
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
-    
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
     @Published private(set) var searchKey: String = ""
@@ -45,23 +38,17 @@ final class MenuViewModel: BaseViewModel {
     }
     
     // MARK: - Initialization
-    init(environment: AppEnvironment) {
-        self.environment = environment
+    required init(environment: AppEnvironment) {
+        super.init()
         setupBindings()
     }
     
     private func setupBindings() {
-        authService.currentUserPublisher
-            .sink { [weak self] user in
-                self?.displayName = user?.displayName ?? "Unknown User"
-            }
-            .store(in: &cancellables)
-        
-        menuService.menuItemsPublisher
-            .sink { [weak self] menuItems in
-                self?.menuItems = menuItems ?? []
-            }
-            .store(in: &cancellables)
+//        currentUserPublisher
+//            .sink { [weak self] user in
+//                self?.displayName = user?.displayName ?? "Unknown User"
+//            }
+//            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -144,10 +131,18 @@ final class MenuViewModel: BaseViewModel {
         objectWillChange.send()
     }
     
-    func createOrder() {
+    func createOrder() async throws {
         let discount = 0.0
         Task { [weak self] in
             guard let self = self else { return }
+            
+            guard let userId = currentUser?.id else {
+                throw AppError.auth(.userNotFound)
+            }
+            
+            guard let shopId = selectedShop?.id else {
+                throw AppError.shop(.notFound)
+            }
 
             let subTotal = self.selectedItems.reduce(0) { _, item in
                 return item.price * Double(item.quantity)
@@ -159,10 +154,9 @@ final class MenuViewModel: BaseViewModel {
             let newOrder = Order(items: selectedItems, totalAmount: total, paymentMethod: paymentMethod, createdAt: Date(), updatedAt: Date())
 
             do {
-                _ = try await environment.orderService.createOrder(newOrder)
+                _ = try await environment.databaseService.createOrder(newOrder, userId: userId, shopId: shopId)
                 self.clearOrder()
             } catch {
-                print("Error creating order: \(error)")
                 self.handleError(error)
             }
         }

@@ -50,62 +50,19 @@ struct AuthenticationView: View {
             
             // Loading View
             if viewModel.isLoading {
-                LoadingView(message: "Đang xử lý...")
+                LoadingView(message: viewModel.loadingText)
                     .transition(.opacity)
                     .animation(.spring(), value: viewModel.isLoading)
             }
             
-            // Error Message Overlay
-            if viewModel.showError {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                        Text(viewModel.errorMessage ?? "")
-                            .foregroundColor(.black)
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white)
-                            .shadow(radius: 5)
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            withAnimation(.spring()) {
-                                viewModel.showError = false
-                            }
-                        }
-                    }
-                }
-                .animation(.spring(), value: viewModel.showError)
-                .zIndex(1)
+            // Toast Message
+            if viewModel.showToast, let toast = viewModel.toastMessage {
+                ToastView(type: toast.type, message: toast.message)
             }
             
+            // Forgot Password Toast
             if viewModel.forgotPassword {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Image(systemName: "envelope")
-                            .foregroundColor(.primary)
-                        Text(strings.forgotPasswordContent)
-                            .foregroundColor(.black)
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white)
-                            .shadow(radius: 5)
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom))
+                ToastView(type: .info, message: strings.forgotPasswordContent)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                             withAnimation(.spring()) {
@@ -113,30 +70,11 @@ struct AuthenticationView: View {
                             }
                         }
                     }
-                }
-                .animation(.spring(), value: viewModel.forgotPassword)
-                .zIndex(1)
             }
             
+            // Verify Email Toast
             if viewModel.verifyEmailSent {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Image(systemName: "envelope")
-                            .foregroundColor(.primary)
-                        Text(strings.verifyEmailSentContent)
-                            .foregroundColor(.black)
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white)
-                            .shadow(radius: 5)
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-                    .transition(.move(edge: .bottom))
+                ToastView(type: .success, message: strings.verifyEmailSentContent)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                             withAnimation(.spring()) {
@@ -144,9 +82,6 @@ struct AuthenticationView: View {
                             }
                         }
                     }
-                }
-                .animation(.spring(), value: viewModel.verifyEmailSent)
-                .zIndex(1)
             }
         }
     }

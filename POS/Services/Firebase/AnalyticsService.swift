@@ -170,7 +170,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     func getProductPerformance(productId: String) async throws -> ProductPerformance {
         let doc = try await db.collection("menu_items").document(productId).getDocument()
         guard let data = doc.data() else {
-            throw AppError.database(.documentNotFound)
+            throw AppError.database(.invalidData)
         }
         
         return ProductPerformance(

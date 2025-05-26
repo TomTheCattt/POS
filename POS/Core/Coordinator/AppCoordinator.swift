@@ -159,6 +159,7 @@ class AppCoordinator: ObservableObject {
     }
     
     // MARK: - View Creation
+    @MainActor
     @ViewBuilder
     func makeView(for route: Route) -> some View {
         Group {
@@ -212,6 +213,7 @@ class AppCoordinator: ObservableObject {
     }
     
     // MARK: - Reset
+    @MainActor
     func reset() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             navigationPath = NavigationPath()

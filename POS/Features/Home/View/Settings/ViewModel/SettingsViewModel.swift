@@ -2,14 +2,6 @@ import Foundation
 import Combine
 
 class SettingsViewModel: BaseViewModel {
-    // MARK: - Properties
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
-    
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
     @Published var selectedLanguage: AppLanguage
@@ -17,11 +9,13 @@ class SettingsViewModel: BaseViewModel {
     
     // MARK: - Initialization
     required init(environment: AppEnvironment) {
-        self.environment = environment
         self.selectedLanguage = environment.settingsService.currentLanguage
         self.selectedTheme = environment.settingsService.currentTheme
-        
-        // Subscribe to changes
+        super.init()
+        setupBindings()
+    }
+    
+    private func setupBindings() {
         environment.settingsService.languagePublisher
             .sink { [weak self] language in
                 self?.selectedLanguage = language

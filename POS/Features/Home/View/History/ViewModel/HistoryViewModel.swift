@@ -2,33 +2,24 @@ import SwiftUI
 import Combine
 
 final class HistoryViewModel: BaseViewModel {
-    var errorMessage: String?
-    
-    var showError: Bool = false
-    
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
-    @Published var orders: [Order] = []
-    @Published var isLoading: Bool = false
     @Published var searchText: String = ""
     @Published var selectedDateRange: DateRange = .today
     
     // MARK: - Computed Properties
     var filteredOrders: [Order] {
-        orders.filter { order in
+        orders?.filter { order in
             if !searchText.isEmpty {
                 return ((order.id?.localizedCaseInsensitiveContains(searchText)) != nil)
             }
             return true
-        }
+        } ?? []
     }
     
     // MARK: - Initialization
     required init(environment: AppEnvironment) {
-        self.environment = environment
+        super.init()
         setupBindings()
         loadOrders()
     }
@@ -49,14 +40,15 @@ final class HistoryViewModel: BaseViewModel {
         
         Task {
             do {
-                let fetchedOrders = try await orderService.fetchOrders()
-                await MainActor.run {
-                    self.orders = fetchedOrders
-                    self.isLoading = false
-                }
+                let orders: [Order] = try await environment.databaseService.getAll(from: .orders, type: .collection)
+                
+//                await MainActor.run {
+//                    self.orders = orders
+//                    self.isLoading = false
+//                }
             } catch {
                 await MainActor.run {
-                    self.isLoading = false
+//                    self.isLoading = false
                     // TODO: Handle error
                     print("Error loading orders: \(error)")
                 }
@@ -64,15 +56,18 @@ final class HistoryViewModel: BaseViewModel {
         }
     }
     
-    func deleteOrder(_ order: Order) {
+    func deleteOrder(_ order: Order) async throws {
         Task {
             do {
-                try await orderService.deleteOrder(order)
-                await MainActor.run {
-                    if let index = orders.firstIndex(where: { $0.id == order.id }) {
-                        orders.remove(at: index)
-                    }
+                guard let orderId = order.id else {
+                    throw AppError.order(.notFound)
                 }
+                try await environment.databaseService.delete(id: orderId, from: .orders, type: .collection)
+//                await MainActor.run {
+//                    if let index = orders.firstIndex(where: { $0.id == order.id }) {
+//                        orders.remove(at: index)
+//                    }
+//                }
             } catch {
                 // TODO: Handle error
                 print("Error deleting order: \(error)")

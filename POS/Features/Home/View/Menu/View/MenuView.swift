@@ -211,7 +211,11 @@ struct MenuView: View {
     
     private func paymentButton() -> some View {
         Button {
-            viewModel.createOrder()
+            Task {
+                do {
+                    try await viewModel.createOrder()
+                }
+            }
         } label: {
             Text("Create Order")
                 .frame(maxWidth: .infinity)

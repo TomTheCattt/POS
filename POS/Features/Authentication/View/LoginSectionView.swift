@@ -55,7 +55,7 @@ struct LoginSectionView: View {
             shakeAnimation = false
         }
         Task {
-            await self.viewModel.login()
+            try await self.viewModel.login()
         }
     }
     

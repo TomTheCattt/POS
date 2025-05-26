@@ -69,6 +69,7 @@ enum Route: Hashable, Identifiable {
 
 // MARK: - ViewModel Factory Extension
 extension Route {
+    @MainActor
     func makeViewModel(factory: ViewModelFactory = .shared) -> Any {
         switch self {
         case .authentication:

@@ -9,22 +9,23 @@ import Foundation
 import FirebaseFirestore
 
 enum PaymentMethod: String, Codable, CaseIterable {
-    case cash
-    case card
-    case bankTransfer
+    case cash = "Tiền mặt"
+    case card = "Thẻ"
+    case bankTransfer = "Chuyển khoản"
 }
 
 enum TemperatureOption: String, CaseIterable, Codable {
-    case hot = "Hot"
-    case cold = "Cold"
+    case hot = "Nóng"
+    case cold = "Lạnh"
 }
 
 enum ConsumptionOption: String, CaseIterable, Codable {
-    case stay = "Stay"
-    case takeAway = "Take Away"
+    case stay = "Tại chỗ"
+    case takeAway = "Mang đi"
 }
 
 struct Order: Codable, Identifiable {
+    // MARK: - Properties
     @DocumentID var id: String?
     let items: [OrderItem]
     let totalAmount: Double
@@ -32,6 +33,7 @@ struct Order: Codable, Identifiable {
     let createdAt: Date
     var updatedAt: Date
     
+    // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
         [
             "items": items.map { $0.dictionary },
@@ -44,6 +46,7 @@ struct Order: Codable, Identifiable {
 }
 
 struct OrderItem: Codable, Identifiable {
+    // MARK: - Properties
     let id: String
     let name: String
     var quantity: Int
@@ -52,14 +55,27 @@ struct OrderItem: Codable, Identifiable {
     let temperature: TemperatureOption
     let consumption: ConsumptionOption
     
+    // MARK: - Computed Properties
+    var subtotal: Double {
+        price * Double(quantity)
+    }
+    
+    // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
-        [
+        var dict: [String: Any] = [
+            "id": id,
             "name": name,
             "quantity": quantity,
             "price": price,
-            "temperature": temperature,
-            "consumption": consumption
+            "temperature": temperature.rawValue,
+            "consumption": consumption.rawValue
         ]
+        
+        if let note = note {
+            dict["note"] = note
+        }
+        
+        return dict
     }
 }
 

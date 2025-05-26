@@ -2,20 +2,11 @@ import SwiftUI
 import Combine
 
 final class InventoryViewModel: BaseViewModel {
-    // MARK: - BaseViewModel Properties
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
-    
-    // MARK: - Dependencies
-    let environment: AppEnvironment
-    var cancellables = Set<AnyCancellable>()
     
     // MARK: - Published Properties
     @Published private(set) var inventoryItems: [InventoryItem] = []
     @Published private(set) var filteredItems: [InventoryItem] = []
     @Published private(set) var lowStockItems: [InventoryItem] = []
-    @Published private(set) var inventoryReport: InventoryReport?
     
     @Published var searchText: String = ""
     @Published var showLowStockOnly: Bool = false
@@ -50,10 +41,12 @@ final class InventoryViewModel: BaseViewModel {
     
     // MARK: - Initialization
     required init(environment: AppEnvironment) {
-        self.environment = environment
+        super.init()
         setupBindings()
         Task {
-            await loadInventory()
+            do {
+                try await loadInventory()
+            }
         }
     }
     
@@ -79,38 +72,42 @@ final class InventoryViewModel: BaseViewModel {
         filteredItems = sortedAndFilteredItems
     }
     
-    @MainActor
-    private func loadInventory() async {
+    private func loadInventory() async throws {
         isLoading = true
         
+        guard let userId = currentUser?.id else {
+            throw AppError.auth(.userNotFound)
+        }
+        
+        guard let shopId = selectedShop?.id else {
+            throw AppError.shop(.notFound)
+        }
         do {
-            // Load inventory items
-            inventoryItems = try await inventoryService.fetchInventoryItems()
-            
-            // Load low stock items
-            lowStockItems = try await inventoryService.getLowStockItems(threshold: 10)
-            
-            // Generate inventory report
-            inventoryReport = try await inventoryService.generateInventoryReport()
+            inventoryItems = try await environment.databaseService.getAllInventoryItems(userId: userId, shopId: shopId)
             
             updateFilteredItems()
-        } catch {
-            handleError(error)
         }
         
         isLoading = false
     }
     
     // MARK: - Public Methods
-    func refresh() async {
-        await loadInventory()
+    func refresh() async throws {
+        try await loadInventory()
     }
     
     func createItem(_ item: InventoryItem) async throws {
         isLoading = true
+        guard let userId = currentUser?.id else {
+            throw AppError.auth(.userNotFound)
+        }
+        
+        guard let shopId = selectedShop?.id else {
+            throw AppError.shop(.notFound)
+        }
         do {
-            try await inventoryService.createInventoryItem(item)
             inventoryItems.append(item)
+            let _ = try await environment.databaseService.createInventoryItem(item, userId: userId, shopId: shopId)
             updateFilteredItems()
         } catch {
             handleError(error)
@@ -121,10 +118,21 @@ final class InventoryViewModel: BaseViewModel {
     func updateItem(_ item: InventoryItem) async throws {
         isLoading = true
         do {
-            try await inventoryService.updateInventoryItem(item)
+            guard let userId = currentUser?.id else {
+                throw AppError.auth(.userNotFound)
+            }
+            
+            guard let shopId = selectedShop?.id else {
+                throw AppError.shop(.notFound)
+            }
+            
+            guard let itemId = selectedItem?.id else {
+                throw AppError.inventory(.notFound)
+            }
             if let index = inventoryItems.firstIndex(where: { $0.id == item.id }) {
                 inventoryItems[index] = item
             }
+            let _ = try await environment.databaseService.updateInventoryItem(item, userId: userId, shopId: shopId, inventoryItemId: itemId)
             updateFilteredItems()
         } catch {
             handleError(error)
@@ -135,8 +143,20 @@ final class InventoryViewModel: BaseViewModel {
     func deleteItem(_ item: InventoryItem) async throws {
         isLoading = true
         do {
-            try await inventoryService.deleteInventoryItem(item)
+            guard let userId = currentUser?.id else {
+                throw AppError.auth(.userNotFound)
+            }
+            
+            guard let shopId = selectedShop?.id else {
+                throw AppError.shop(.notFound)
+            }
+            
+            guard let itemId = selectedItem?.id else {
+                throw AppError.inventory(.notFound)
+            }
+            
             inventoryItems.removeAll { $0.id == item.id }
+            try await environment.databaseService.deleteInventoryItem(userId: userId, shopId: shopId, inventoryItemId: itemId)
             updateFilteredItems()
         } catch {
             handleError(error)
@@ -144,25 +164,25 @@ final class InventoryViewModel: BaseViewModel {
         isLoading = false
     }
     
-    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
-        isLoading = true
-        do {
-            try await inventoryService.adjustQuantity(itemId: item.id ?? "", adjustment: adjustment)
-            await loadInventory() // Reload to get updated quantities
-        } catch {
-            handleError(error)
-        }
-        isLoading = false
-    }
-    
-    func checkStock(itemId: String, requiredQuantity: Double) async throws -> Bool {
-        do {
-            return try await inventoryService.checkStock(itemId: itemId, requiredQuantity: requiredQuantity)
-        } catch {
-            handleError(error)
-            return false
-        }
-    }
+//    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
+//        isLoading = true
+//        do {
+//            //try await environment.inventoryService.adjustQuantity(itemId: item.id ?? "", adjustment: adjustment)
+//            await loadInventory() // Reload to get updated quantities
+//        } catch {
+//            handleError(error)
+//        }
+//        isLoading = false
+//    }
+//    
+//    func checkStock(itemId: String, requiredQuantity: Double) async throws -> Bool {
+//        do {
+//            //return try await environment.inventoryService.checkStock(itemId: itemId, requiredQuantity: requiredQuantity)
+//        } catch {
+//            handleError(error)
+//            return false
+//        }
+//    }
 }
 
 // MARK: - Supporting Types

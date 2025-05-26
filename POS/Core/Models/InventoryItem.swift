@@ -10,11 +10,12 @@ import SwiftUI
 import FirebaseFirestore
 
 struct InventoryItem: Codable, Identifiable {
+    // MARK: - Properties
     @DocumentID var id: String?
     let name: String
+    var quantity: Int
     let unit: String
-    var quantity: Double
-    let minQuantity: Double
+    let minQuantity: Int
     let createdAt: Date
     var updatedAt: Date
     
@@ -38,9 +39,9 @@ struct InventoryItem: Codable, Identifiable {
     init(
         id: String,
         name: String,
-        quantity: Double,
+        quantity: Int,
         unit: String,
-        minQuantity: Double,
+        minQuantity: Int,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -53,11 +54,12 @@ struct InventoryItem: Codable, Identifiable {
         self.updatedAt = updatedAt
     }
     
+    // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
         [
             "name": name,
-            "unit": unit,
             "quantity": quantity,
+            "unit": unit,
             "minQuantity": minQuantity,
             "createdAt": createdAt,
             "updatedAt": updatedAt
@@ -116,9 +118,9 @@ extension InventoryItem {
         guard 
             let data = document.data(),
             let name = data["name"] as? String,
-            let quantity = data["quantity"] as? Double,
+            let quantity = data["quantity"] as? Int,
             let unit = data["unit"] as? String,
-            let minQuantity = data["minQuantity"] as? Double,
+            let minQuantity = data["minQuantity"] as? Int,
             let createdAt = data["createdAt"] as? Timestamp,
             let updatedAt = data["updatedAt"] as? Timestamp
         else {
