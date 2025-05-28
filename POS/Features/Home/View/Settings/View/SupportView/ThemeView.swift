@@ -31,7 +31,7 @@ enum AppTheme: String, CaseIterable {
 
 struct ThemeView: View {
     @ObservedObject var viewModel: SettingsViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {

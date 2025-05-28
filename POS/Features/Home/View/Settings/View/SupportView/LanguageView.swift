@@ -10,7 +10,7 @@ import SwiftUI
 struct LanguageView: View {
 
     @ObservedObject var viewModel: SettingsViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {

@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 
 class AppCoordinator: ObservableObject {
+    
     // MARK: - Properties
     @Published var navigationPath = NavigationPath()
     @Published var presentedRoute: (route: Route, config: NavigationConfig)?
@@ -10,7 +11,11 @@ class AppCoordinator: ObservableObject {
     @Published var slideRoute: (route: Route, config: NavigationConfig)?
     @Published var slideDirection: NavigationStyle?
     
-    private let viewModelFactory = ViewModelFactory.shared
+    private var source: SourceModel?
+    
+    init(source: SourceModel) {
+        self.source = source
+    }
     
     // MARK: - Navigation Methods
     func navigateTo(_ route: Route, using style: NavigationStyle = .push, with config: NavigationConfig = .default) {
@@ -162,53 +167,55 @@ class AppCoordinator: ObservableObject {
     @MainActor
     @ViewBuilder
     func makeView(for route: Route) -> some View {
-        Group {
+        if let source {
             switch route {
-            // Authentication
+                // Authentication
             case .authentication:
-                let viewModel = route.makeViewModel() as! AuthenticationViewModel
-                AuthenticationView(viewModel: viewModel, coordinator: self)
+                let viewModel = AuthenticationViewModel(source: source)
+                AuthenticationView(viewModel: viewModel)
                 
-            // Main Features
+                // Main Features
             case .home:
-                let viewModel = route.makeViewModel() as! HomeViewModel
-                HomeView(viewModel: viewModel, coordinator: self)
+                let viewModel = HomeViewModel(source: source)
+                HomeView(viewModel: viewModel)
             case .menu:
-                let viewModel = route.makeViewModel() as! MenuViewModel
-                MenuView(viewModel: viewModel, coordinator: self)
+                let viewModel = MenuViewModel(source: source)
+                MenuView(viewModel: viewModel)
             case .history:
-                let viewModel = route.makeViewModel() as! HistoryViewModel
-                HistoryView(viewModel: viewModel, coordinator: self)
+                let viewModel = HistoryViewModel(source: source)
+                HistoryView(viewModel: viewModel)
             case .analytics:
-                let viewModel = route.makeViewModel() as! AnalyticsViewModel
-                AnalyticsView(viewModel: viewModel, coordinator: self)
+                let viewModel = AnalyticsViewModel(source: source)
+                AnalyticsView(viewModel: viewModel)
             case .inventory:
-                let viewModel = route.makeViewModel() as! InventoryViewModel
-                InventoryView(viewModel: viewModel, coordinator: self)
+                let viewModel = InventoryViewModel(source: source)
+                InventoryView(viewModel: viewModel)
             case .note(let orderItem):
-                let viewModel = route.makeViewModel() as! MenuViewModel
-                NoteView(viewModel: viewModel, coordinator: self, orderItem: orderItem)
+                let viewModel = MenuViewModel(source: source)
+                NoteView(viewModel: viewModel, orderItem: orderItem)
                 
-            // Settings
+                // Settings
             case .settings:
-                let viewModel = route.makeViewModel() as! SettingsViewModel
-                SettingsView(viewModel: viewModel, coordinator: self)
+                let viewModel = SettingsViewModel(source: source)
+                SettingsView(viewModel: viewModel)
             case .updateInventory:
-                let viewModel = route.makeViewModel() as! InventoryViewModel
-                UpdateInventoryView(viewModel: viewModel, coordinator: self)
+                let viewModel = InventoryViewModel(source: source)
+                UpdateInventoryView(viewModel: viewModel)
             case .updateMenu:
-                let viewModel = route.makeViewModel() as! MenuViewModel
-                UpdateMenuView(viewModel: viewModel, coordinator: self)
+                let viewModel = MenuViewModel(source: source)
+                UpdateMenuView(viewModel: viewModel)
             case .language:
-                let viewModel = route.makeViewModel() as! SettingsViewModel
-                LanguageView(viewModel: viewModel, coordinator: self)
+                let viewModel = SettingsViewModel(source: source)
+                LanguageView(viewModel: viewModel)
             case .theme:
-                let viewModel = route.makeViewModel() as! SettingsViewModel
-                ThemeView(viewModel: viewModel, coordinator: self)
+                let viewModel = SettingsViewModel(source: source)
+                ThemeView(viewModel: viewModel)
             case .setUpPrinter:
-                let viewModel = route.makeViewModel() as! PrinterViewModel
-                PrinterView(viewModel: viewModel, coordinator: self)
+                let viewModel = PrinterViewModel(source: source)
+                PrinterView(viewModel: viewModel)
             }
+        } else {
+            EmptyView()
         }
     }
     
@@ -222,7 +229,6 @@ class AppCoordinator: ObservableObject {
             fullScreenRoute = nil
             slideRoute = nil
             slideDirection = nil
-            viewModelFactory.resetAll()
         }
     }
-} 
+}

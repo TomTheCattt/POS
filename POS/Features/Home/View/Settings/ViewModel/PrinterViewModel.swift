@@ -8,9 +8,9 @@
 import Foundation
 import Combine
 
-final class PrinterViewModel: BaseViewModel {
+final class PrinterViewModel: ObservableObject {
     
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        
     }
 }

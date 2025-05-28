@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
 
     @State private var isUpdateShopExpanded: Bool = false
     @State private var selectedOption: SettingsOption?
@@ -136,11 +136,11 @@ struct SettingsView: View {
     private func contentForOption(_ option: SettingsOption) -> some View {
         switch option {
         case .setUpPrinter:
-            coordinator.makeView(for: .setUpPrinter)
+            appState.coordinator.makeView(for: .setUpPrinter)
         case .language:
-            coordinator.makeView(for: .language)
+            appState.coordinator.makeView(for: .language)
         case .theme:
-            coordinator.makeView(for: .theme)
+            appState.coordinator.makeView(for: .theme)
         case .updateShop:
             if let subOption = selectedSubOption {
                 contentForSubOption(subOption)
@@ -155,9 +155,9 @@ struct SettingsView: View {
     private func contentForSubOption(_ subOption: UpdateShopSubOption) -> some View {
         switch subOption {
         case .updateInventory:
-            coordinator.makeView(for: .updateInventory)
+            appState.coordinator.makeView(for: .updateInventory)
         case .updateMenu:
-            coordinator.makeView(for: .updateMenu)
+            appState.coordinator.makeView(for: .updateMenu)
         }
     }
     
@@ -230,10 +230,10 @@ enum UpdateShopSubOption: String, CaseIterable, Identifiable {
         }
     }
 }
-
-#Preview {
-    SettingsView(
-        viewModel: SettingsViewModel(environment: AppEnvironment()),
-        coordinator: AppCoordinator()
-    )
-}
+//
+//#Preview {
+//    SettingsView(
+//        viewModel: SettingsViewModel(environment: AppEnvironment()),
+//        coordinator: AppCoordinator()
+//    )
+//}

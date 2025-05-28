@@ -1,12 +1,11 @@
 import SwiftUI
 import Combine
 
-final class InventoryViewModel: BaseViewModel {
+final class InventoryViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    @Published private(set) var inventoryItems: [InventoryItem] = []
-    @Published private(set) var filteredItems: [InventoryItem] = []
-    @Published private(set) var lowStockItems: [InventoryItem] = []
+    private var inventoryItems: [InventoryItem] = []
+    private var filteredItems: [InventoryItem] = []
     
     @Published var searchText: String = ""
     @Published var showLowStockOnly: Bool = false
@@ -14,6 +13,8 @@ final class InventoryViewModel: BaseViewModel {
     @Published var showAddItemSheet: Bool = false
     @Published var showEditItemSheet: Bool = false
     @Published var selectedItem: InventoryItem?
+    
+    private var source: SourceModel
     
     // MARK: - Computed Properties
     private var sortedAndFilteredItems: [InventoryItem] {
@@ -40,8 +41,8 @@ final class InventoryViewModel: BaseViewModel {
     }
     
     // MARK: - Initialization
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        self.source = source
         setupBindings()
         Task {
             do {
@@ -52,19 +53,19 @@ final class InventoryViewModel: BaseViewModel {
     
     private func setupBindings() {
         // Observe search text changes
-        $searchText
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateFilteredItems()
-            }
-            .store(in: &cancellables)
-        
-        // Observe filter changes
-        Publishers.CombineLatest3($searchText, $showLowStockOnly, $sortOrder)
-            .sink { [weak self] _ in
-                self?.updateFilteredItems()
-            }
-            .store(in: &cancellables)
+//        $searchText
+//            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+//            .sink { [weak self] _ in
+//                self?.updateFilteredItems()
+//            }
+//            .store(in: &cancellables)
+//        
+//        // Observe filter changes
+//        Publishers.CombineLatest3($searchText, $showLowStockOnly, $sortOrder)
+//            .sink { [weak self] _ in
+//                self?.updateFilteredItems()
+//            }
+//            .store(in: &cancellables)
     }
     
     // MARK: - Private Methods
@@ -73,22 +74,19 @@ final class InventoryViewModel: BaseViewModel {
     }
     
     private func loadInventory() async throws {
-        isLoading = true
         
-        guard let userId = currentUser?.id else {
+        guard let userId = await source.currentUser?.id else {
             throw AppError.auth(.userNotFound)
         }
         
-        guard let shopId = selectedShop?.id else {
+        guard let shopId = await source.selectedShop?.id else {
             throw AppError.shop(.notFound)
         }
         do {
-            inventoryItems = try await environment.databaseService.getAllInventoryItems(userId: userId, shopId: shopId)
+            inventoryItems = try await source.environment.databaseService.getAllInventoryItems(userId: userId, shopId: shopId)
             
             updateFilteredItems()
         }
-        
-        isLoading = false
     }
     
     // MARK: - Public Methods
@@ -97,32 +95,29 @@ final class InventoryViewModel: BaseViewModel {
     }
     
     func createItem(_ item: InventoryItem) async throws {
-        isLoading = true
-        guard let userId = currentUser?.id else {
+        guard let userId = await source.currentUser?.id else {
             throw AppError.auth(.userNotFound)
         }
         
-        guard let shopId = selectedShop?.id else {
+        guard let shopId = await source.selectedShop?.id else {
             throw AppError.shop(.notFound)
         }
         do {
             inventoryItems.append(item)
-            let _ = try await environment.databaseService.createInventoryItem(item, userId: userId, shopId: shopId)
+            let _ = try await source.environment.databaseService.createInventoryItem(item, userId: userId, shopId: shopId)
             updateFilteredItems()
         } catch {
-            handleError(error)
+            await source.handleError(error)
         }
-        isLoading = false
     }
     
     func updateItem(_ item: InventoryItem) async throws {
-        isLoading = true
         do {
-            guard let userId = currentUser?.id else {
+            guard let userId = await source.currentUser?.id else {
                 throw AppError.auth(.userNotFound)
             }
             
-            guard let shopId = selectedShop?.id else {
+            guard let shopId = await source.selectedShop?.id else {
                 throw AppError.shop(.notFound)
             }
             
@@ -132,22 +127,20 @@ final class InventoryViewModel: BaseViewModel {
             if let index = inventoryItems.firstIndex(where: { $0.id == item.id }) {
                 inventoryItems[index] = item
             }
-            let _ = try await environment.databaseService.updateInventoryItem(item, userId: userId, shopId: shopId, inventoryItemId: itemId)
+            let _ = try await source.environment.databaseService.updateInventoryItem(item, userId: userId, shopId: shopId, inventoryItemId: itemId)
             updateFilteredItems()
         } catch {
-            handleError(error)
+            await source.handleError(error)
         }
-        isLoading = false
     }
     
     func deleteItem(_ item: InventoryItem) async throws {
-        isLoading = true
         do {
-            guard let userId = currentUser?.id else {
+            guard let userId = await source.currentUser?.id else {
                 throw AppError.auth(.userNotFound)
             }
             
-            guard let shopId = selectedShop?.id else {
+            guard let shopId = await source.selectedShop?.id else {
                 throw AppError.shop(.notFound)
             }
             
@@ -156,12 +149,11 @@ final class InventoryViewModel: BaseViewModel {
             }
             
             inventoryItems.removeAll { $0.id == item.id }
-            try await environment.databaseService.deleteInventoryItem(userId: userId, shopId: shopId, inventoryItemId: itemId)
+            try await source.environment.databaseService.deleteInventoryItem(userId: userId, shopId: shopId, inventoryItemId: itemId)
             updateFilteredItems()
         } catch {
-            handleError(error)
+            await source.handleError(error)
         }
-        isLoading = false
     }
     
 //    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
@@ -175,9 +167,9 @@ final class InventoryViewModel: BaseViewModel {
 //        isLoading = false
 //    }
 //    
-//    func checkStock(itemId: String, requiredQuantity: Double) async throws -> Bool {
+//    func checkStock(itemId: String, privateQuantity: Double) async throws -> Bool {
 //        do {
-//            //return try await environment.inventoryService.checkStock(itemId: itemId, requiredQuantity: requiredQuantity)
+//            //return try await environment.inventoryService.checkStock(itemId: itemId, privateQuantity: privateQuantity)
 //        } catch {
 //            handleError(error)
 //            return false

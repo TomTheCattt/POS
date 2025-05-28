@@ -5,7 +5,7 @@ struct MenuView: View {
     private let strings = AppLocalizedString()
     
     @ObservedObject var viewModel: MenuViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         GeometryReader { geometry in
@@ -166,7 +166,6 @@ struct MenuView: View {
     private func orderItemView(for item: OrderItem) -> some View {
         return OrderItemView(
             orderItem: item,
-            coordinator: coordinator,
             name: item.name,
             price: "$\(String(format: "%.2f", item.price))",
             updateQuantity: { increment in

@@ -8,13 +8,16 @@
 import SwiftUI
 import Combine
 
-final class HomeViewModel: BaseViewModel {
+final class HomeViewModel: ObservableObject {
+    
+    private var source: SourceModel
+    
     @Published var selectedTab: HomeTab = .menu
     @Published var userName: String = "Unknown User"
     
     // MARK: - Initialization
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        self.source = source
         setupBindings()
     }
     
@@ -28,9 +31,6 @@ final class HomeViewModel: BaseViewModel {
     
     // MARK: - Public Methods
     func signOut() async {
-        try? await environment.authService.logout()
-        await MainActor.run {
-            self.userId = ""
-        }
+        try? await source.environment.authService.logout()
     }
 }

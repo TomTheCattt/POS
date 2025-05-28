@@ -67,31 +67,3 @@ enum Route: Hashable, Identifiable {
     }
 }
 
-// MARK: - ViewModel Factory Extension
-extension Route {
-    @MainActor
-    func makeViewModel(factory: ViewModelFactory = .shared) -> Any {
-        switch self {
-        case .authentication:
-            return factory.makeAuthenticationViewModel()
-        case .home:
-            return factory.makeHomeViewModel()
-        case .menu:
-            return factory.makeMenuViewModel()
-        case .history:
-            return factory.makeHistoryViewModel()
-        case .analytics:
-            return factory.makeAnalyticsViewModel()
-        case .inventory, .updateInventory:
-            return factory.makeInventoryViewModel()
-        case .settings, .language, .theme:
-            return factory.makeSettingsViewModel()
-        case .updateMenu:
-            return factory.makeMenuViewModel()
-        case .note:
-            return factory.makeMenuViewModel()
-        case .setUpPrinter:
-            return factory.makePrinterViewModel()
-        }
-    }
-}

@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct OrderItemView: View {
+    
+    @EnvironmentObject private var appState: AppState
+    
     let orderItem: OrderItem
-    let coordinator: AppCoordinator
     let name: String
     let price: String
     let updateQuantity: (Bool) -> Void
@@ -74,7 +76,7 @@ struct OrderItemView: View {
             }
             Spacer()
             Button {
-                coordinator.navigateTo(.note(orderItem), using: .overlay, with: NavigationConfig(autoDismiss: false))
+                appState.coordinator.navigateTo(.note(orderItem), using: .overlay, with: NavigationConfig(autoDismiss: false))
             } label: {
                 Image(systemName: "note.text")
                     .foregroundStyle(Color.blue)

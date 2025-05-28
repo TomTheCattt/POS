@@ -40,14 +40,14 @@ struct LoginSectionView: View {
         isLoginPressed = true
         
         guard !viewModel.email.isEmpty else {
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyEmail
+//            viewModel.showError = true
+//            $viewModel.errorMessage = validationStrings.authErrorEmptyEmail
             shakeAnimation = true
             return
         }
         guard !viewModel.password.isEmpty else {
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
             shakeAnimation = true
             return
         }

@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-final class AnalyticsViewModel: BaseViewModel {
+final class AnalyticsViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published private(set) var totalRevenue: Double = 0
@@ -10,15 +10,16 @@ final class AnalyticsViewModel: BaseViewModel {
     @Published private(set) var topSellingItems: [MenuItem] = []
     @Published private(set) var revenueByDay: [Date: Double] = [:]
     
+    private var source: SourceModel
+    
     // MARK: - Initialization
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        self.source = source
         loadAnalytics()
     }
     
     // MARK: - Private Methods
     private func loadAnalytics() {
-        isLoading = true
         
         // Load analytics data from database service
 //        databaseService.getAnalytics()

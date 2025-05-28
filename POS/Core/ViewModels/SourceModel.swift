@@ -7,7 +7,7 @@ import FirebaseCrashlytics
 /// Base view model class providing common functionality for all view models
 /// Implements authentication, loading, error handling, and real-time data synchronization
 @MainActor
-class BaseViewModel: ObservableObject {
+class SourceModel: ObservableObject {
 
     // MARK: - Dependencies
     let environment: AppEnvironment
@@ -47,7 +47,7 @@ class BaseViewModel: ObservableObject {
     @Published var successMessage: String?
 
     // MARK: - Persistence
-    @AppStorage("userId") var userId: String?
+    @AppStorage("userId") var userId: String = ""
     /// Persisted selected shop ID
     @AppStorage("selectedShopId") private var selectedShopId: String?
 
@@ -117,16 +117,16 @@ class BaseViewModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    required init(environment: AppEnvironment = AppEnvironment()) {
+    init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
-        //setupAuthStateListener()
-        //setupInitialState()
-        currentUserSubject
-            .sink { user in
-                self.currentUser = user
-            }
-            .store(in: &cancellables)
-        currentUserSubject.assign(to: &$currentUser)
+        setupAuthStateListener()
+        setupInitialState()
+//        currentUserSubject
+//            .sink { user in
+//                self.currentUser = user
+//            }
+//            .store(in: &cancellables)
+//        currentUserSubject.assign(to: &$currentUser)
     }
 
     deinit {
@@ -154,16 +154,16 @@ class BaseViewModel: ObservableObject {
 
     private func fetchStoredUserData() async {
         do {
-            guard !userId!.isEmpty else {
+            guard !userId.isEmpty else {
                 await MainActor.run {
-                    self.currentUserSubject.send(nil)
+                    self.currentUser = nil
                 }
                 return
             }
             
-            if let userData: AppUser = try await environment.databaseService.getUser(userId: userId!) {
+            if let userData: AppUser = try await environment.databaseService.getUser(userId: userId) {
                 await MainActor.run {
-                    self.currentUserSubject.send(userData)
+                    self.currentUser = userData
                 }
                 await fetchAndSetupShop()
             } else {
@@ -175,7 +175,7 @@ class BaseViewModel: ObservableObject {
         } catch {
             await MainActor.run {
                 self.handleError(error, action: "tải dữ liệu người dùng")
-                self.currentUserSubject.send(nil)
+                self.currentUser = nil
                 self.userId = ""
             }
         }
@@ -183,7 +183,7 @@ class BaseViewModel: ObservableObject {
 
     private func fetchAndSetupShop() async {
         do {
-            let shops: [Shop] = try await environment.databaseService.getAllShops(userId: userId!)
+            let shops: [Shop] = try await environment.databaseService.getAllShops(userId: userId)
             
             if let storedShopId = selectedShopId {
                 if let shop = shops.first(where: { $0.id == storedShopId }) {
@@ -235,7 +235,7 @@ class BaseViewModel: ObservableObject {
                 
                 if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
                     await MainActor.run {
-                        self.currentUserSubject.send(userData)
+                        self.currentUser = userData
                         self.userId = user.uid
                     }
                     
@@ -243,7 +243,7 @@ class BaseViewModel: ObservableObject {
                     await fetchAndSetupShop()
                 } else {
                     await MainActor.run {
-                        self.currentUserSubject.send(nil)
+                        self.currentUser = nil
                         self.userId = ""
                         self.selectedShopId = nil
                     }
@@ -251,26 +251,26 @@ class BaseViewModel: ObservableObject {
             } catch let error as AppError {
                 if case .auth(.unverifiedEmail) = error {
                     await MainActor.run {
-                        self.currentUserSubject.send(nil)
+                        self.currentUser = nil
                         self.userId = user.uid
                     }
                 } else {
                     await MainActor.run {
-                        self.currentUserSubject.send(nil)
+                        self.currentUser = nil
                         self.userId = ""
                         self.selectedShopId = nil
                     }
                 }
             } catch {
                 await MainActor.run {
-                    self.currentUserSubject.send(nil)
+                    self.currentUser = nil
                     self.userId = ""
                     self.selectedShopId = nil
                 }
             }
         } else {
             await MainActor.run {
-                self.currentUserSubject.send(nil)
+                self.currentUser = nil
                 self.userId = ""
                 self.selectedShopId = nil
             }
@@ -314,7 +314,7 @@ class BaseViewModel: ObservableObject {
         
         shopListener = environment.databaseService.addDocumentListener(
             collection: .shops,
-            type: .subcollection(parentId: userId!),
+            type: .subcollection(parentId: userId),
             id: shopId
         ) { [weak self] (result: Result<Shop?, Error>) in
             guard let self = self else { return }
@@ -346,7 +346,7 @@ class BaseViewModel: ObservableObject {
         
         menuListener = environment.databaseService.addDocumentListener(
             collection: .menu,
-            type: .nestedSubcollection(userId: userId!, shopId: shopId),
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
             id: shopId
         ) { [weak self] (result: Result<[MenuItem]?, Error>) in
             guard let self = self else { return }
@@ -377,7 +377,7 @@ class BaseViewModel: ObservableObject {
         
         ordersListener = environment.databaseService.addDocumentListener(
             collection: .orders,
-            type: .nestedSubcollection(userId: userId!, shopId: shopId),
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
             id: shopId
         ) { [weak self] (result: Result<[Order]?, Error>) in
             guard let self = self else { return }
@@ -408,7 +408,7 @@ class BaseViewModel: ObservableObject {
         
         inventoryListener = environment.databaseService.addDocumentListener(
             collection: .inventory,
-            type: .nestedSubcollection(userId: userId!, shopId: shopId),
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
             id: shopId
         ) { [weak self] (result: Result<[InventoryItem]?, Error>) in
             guard let self = self else { return }
@@ -439,7 +439,7 @@ class BaseViewModel: ObservableObject {
         
         ingredientsListener = environment.databaseService.addDocumentListener(
             collection: .ingredientsUsage,
-            type: .nestedSubcollection(userId: userId!, shopId: shopId),
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
             id: shopId
         ) { [weak self] (result: Result<[IngredientUsage]?, Error>) in
             guard let self = self else { return }

@@ -12,7 +12,7 @@ import FirebaseAuth
 
 // MARK: - 1. Handle Auth Service
 protocol AuthServiceProtocol {
-    func login(email: String, password: String) async throws -> FirebaseAuth.User
+    func login(email: String, password: String) async throws
     func registerAccount(email: String, password: String) async throws -> FirebaseAuth.User
     func logout() async throws
     func resetPassword(email: String) async throws

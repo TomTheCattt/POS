@@ -10,8 +10,8 @@ import SwiftUI
 struct AuthenticationView: View {
     private let strings = AppLocalizedString()
     
+    @EnvironmentObject private var appState: AppState
     @ObservedObject var viewModel: AuthenticationViewModel
-    @ObservedObject var coordinator: AppCoordinator
     
     var body: some View {
         ZStack {
@@ -49,14 +49,14 @@ struct AuthenticationView: View {
             }
             
             // Loading View
-            if viewModel.isLoading {
-                LoadingView(message: viewModel.loadingText)
+            if appState.sourceModel.isLoading {
+                LoadingView(message: appState.sourceModel.loadingText)
                     .transition(.opacity)
-                    .animation(.spring(), value: viewModel.isLoading)
+                    .animation(.spring(), value: appState.sourceModel.isLoading)
             }
             
             // Toast Message
-            if viewModel.showToast, let toast = viewModel.toastMessage {
+            if appState.sourceModel.showToast, let toast = appState.sourceModel.toastMessage {
                 ToastView(type: toast.type, message: toast.message)
             }
             

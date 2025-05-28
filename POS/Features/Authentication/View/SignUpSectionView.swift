@@ -41,39 +41,39 @@ struct SignUpSectionView: View {
         
         guard !viewModel.shopName.isEmpty else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyShopName
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorEmptyShopName
             return
         }
         
         guard !viewModel.email.isEmpty else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyEmail
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorEmptyEmail
             return
         }
         guard !viewModel.displayName.isEmpty else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyDisplayName
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorEmptyDisplayName
             return
         }
         guard !viewModel.password.isEmpty else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
             return
         }
         guard !viewModel.rePassword.isEmpty else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorReEnterPasswordEmpty
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorReEnterPasswordEmpty
             return
         }
         guard viewModel.password == viewModel.rePassword else {
             shakeAnimation = true
-            viewModel.showError = true
-            viewModel.errorMessage = validationStrings.authErrorValidatePasswordFailed
+//            viewModel.showError = true
+//            viewModel.errorMessage = validationStrings.authErrorValidatePasswordFailed
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

@@ -10,13 +10,13 @@ import SwiftUI
 struct PrinterView: View {
     
     @ObservedObject var viewModel: PrinterViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         Text("Printer View")
     }
 }
 
-#Preview {
-    PrinterView(viewModel: PrinterViewModel(environment: AppEnvironment()), coordinator: AppCoordinator())
-}
+//#Preview {
+//    PrinterView(viewModel: PrinterViewModel(environment: AppEnvironment()), coordinator: AppCoordinator())
+//}

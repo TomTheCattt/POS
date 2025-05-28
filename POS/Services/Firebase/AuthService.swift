@@ -20,7 +20,7 @@ final class AuthService: AuthServiceProtocol {
     let auth = Auth.auth()
     
     // MARK: - Authentication Methods
-    func login(email: String, password: String) async throws -> FirebaseAuth.User {
+    func login(email: String, password: String) async throws {
         let authResult = try await auth.signIn(withEmail: email, password: password)
         let user = authResult.user
         
@@ -30,8 +30,6 @@ final class AuthService: AuthServiceProtocol {
             try auth.signOut()
             throw AppError.auth(.unverifiedEmail)
         }
-        
-        return user
     }
     
     func registerAccount(email: String, password: String) async throws -> FirebaseAuth.User {

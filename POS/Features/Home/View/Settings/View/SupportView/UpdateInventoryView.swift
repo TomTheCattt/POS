@@ -10,13 +10,13 @@ import SwiftUI
 struct UpdateInventoryView: View {
     
     @ObservedObject var viewModel: InventoryViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         Text("Inventory View")
     }
 }
 
-#Preview {
-    UpdateInventoryView(viewModel: InventoryViewModel(environment: AppEnvironment()), coordinator: AppCoordinator())
-}
+//#Preview {
+//    UpdateInventoryView(viewModel: InventoryViewModel(environment: AppEnvironment()), coordinator: AppCoordinator())
+//}

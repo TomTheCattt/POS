@@ -10,7 +10,7 @@ import SwiftUI
 struct NoteView: View {
     // MARK: - Properties
     @ObservedObject var viewModel: MenuViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     let orderItem: OrderItem
     @State private var noteText: String
     @State private var offset: CGFloat = 1000
@@ -21,9 +21,8 @@ struct NoteView: View {
     
     private let maxCharacterCount = 200
     
-    init(viewModel: MenuViewModel, coordinator: AppCoordinator, orderItem: OrderItem) {
+    init(viewModel: MenuViewModel, orderItem: OrderItem) {
         self.viewModel = viewModel
-        self.coordinator = coordinator
         self.orderItem = orderItem
         self._noteText = State(initialValue: orderItem.note ?? "")
     }
@@ -199,7 +198,7 @@ struct NoteView: View {
             opacity = 0
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            coordinator.dismiss(style: .overlay)
+            appState.coordinator.dismiss(style: .overlay)
         }
     }
     

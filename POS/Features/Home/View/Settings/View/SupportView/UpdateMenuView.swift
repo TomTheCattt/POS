@@ -10,7 +10,7 @@ import SwiftUI
 struct UpdateMenuView: View {
     
     @ObservedObject var viewModel: MenuViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         Text("Update Menu View")
@@ -18,5 +18,5 @@ struct UpdateMenuView: View {
 }
 
 #Preview {
-    UpdateMenuView(viewModel: MenuViewModel(environment: AppEnvironment()), coordinator: AppCoordinator())
+    UpdateMenuView(viewModel: MenuViewModel(source: SourceModel()))
 }

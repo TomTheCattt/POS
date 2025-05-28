@@ -8,7 +8,7 @@
 import SwiftUI
 import Combine
 
-final class MenuViewModel: BaseViewModel {
+final class MenuViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published private(set) var searchKey: String = ""
@@ -20,6 +20,7 @@ final class MenuViewModel: BaseViewModel {
     
     // MARK: - Constants
     private(set) var categories = ["All", "Coffee", "Tea", "Pastries", "Sandwiches", "Drinks"]
+    private var source: SourceModel
     
     // MARK: - Computed Properties
     var filteredMenuItems: [MenuItem] {
@@ -38,8 +39,8 @@ final class MenuViewModel: BaseViewModel {
     }
     
     // MARK: - Initialization
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        self.source = source
         setupBindings()
     }
     
@@ -136,11 +137,11 @@ final class MenuViewModel: BaseViewModel {
         Task { [weak self] in
             guard let self = self else { return }
             
-            guard let userId = currentUser?.id else {
+            guard let userId = await source.currentUser?.id else {
                 throw AppError.auth(.userNotFound)
             }
             
-            guard let shopId = selectedShop?.id else {
+            guard let shopId = await source.selectedShop?.id else {
                 throw AppError.shop(.notFound)
             }
 
@@ -154,10 +155,10 @@ final class MenuViewModel: BaseViewModel {
             let newOrder = Order(items: selectedItems, totalAmount: total, paymentMethod: paymentMethod, createdAt: Date(), updatedAt: Date())
 
             do {
-                _ = try await environment.databaseService.createOrder(newOrder, userId: userId, shopId: shopId)
+                _ = try await source.environment.databaseService.createOrder(newOrder, userId: userId, shopId: shopId)
                 self.clearOrder()
             } catch {
-                self.handleError(error)
+                await source.handleError(error)
             }
         }
     }

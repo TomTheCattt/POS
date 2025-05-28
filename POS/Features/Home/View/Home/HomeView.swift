@@ -50,10 +50,10 @@ struct HomeView: View {
     @State private var selectedTab: HomeTab = HomeTab.allCases.first!
     @State private var measuredMenuWidth: CGFloat = 0
     @ObservedObject var viewModel: HomeViewModel
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject var appState: AppState
     
     private let isIphone = UIDevice.current.userInterfaceIdiom == .phone
-    private let viewModelFactory = ViewModelFactory.shared
+//    private let viewModelFactory = ViewModelFactory.shared
     
     var body: some View {
         GeometryReader { geometry in
@@ -112,15 +112,15 @@ struct HomeView: View {
     private func contentView(for tab: HomeTab) -> some View {
         switch tab {
         case .menu:
-            coordinator.makeView(for: .menu)
+            appState.coordinator.makeView(for: .menu)
         case .history:
-            coordinator.makeView(for: .history)
+            appState.coordinator.makeView(for: .history)
         case .inventory:
-            coordinator.makeView(for: .inventory)
+            appState.coordinator.makeView(for: .inventory)
         case .analytics:
-            coordinator.makeView(for: .analytics)
+            appState.coordinator.makeView(for: .analytics)
         case .settings:
-            coordinator.makeView(for: .settings)
+            appState.coordinator.makeView(for: .settings)
         }
     }
 }

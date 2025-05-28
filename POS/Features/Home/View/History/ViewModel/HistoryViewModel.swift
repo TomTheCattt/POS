@@ -1,25 +1,33 @@
 import SwiftUI
 import Combine
 
-final class HistoryViewModel: BaseViewModel {
+final class HistoryViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published var searchText: String = ""
     @Published var selectedDateRange: DateRange = .today
     
+    private var source: SourceModel
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - Computed Properties
     var filteredOrders: [Order] {
-        orders?.filter { order in
-            if !searchText.isEmpty {
-                return ((order.id?.localizedCaseInsensitiveContains(searchText)) != nil)
-            }
-            return true
-        } ?? []
+//        source.ordersPublisher
+//            .sink { orders in
+//                orders?.filter { order in
+//                    if !searchText.isEmpty {
+//                        return ((order.id?.localizedCaseInsensitiveContains(searchText)) != nil)
+//                    }
+//                    return true
+//                }
+//            }
+//            .store(in: &cancellables)
+        []
     }
     
     // MARK: - Initialization
-    required init(environment: AppEnvironment) {
-        super.init()
+    init(source: SourceModel) {
+        self.source = source
         setupBindings()
         loadOrders()
     }
@@ -36,11 +44,10 @@ final class HistoryViewModel: BaseViewModel {
     
     // MARK: - Public Methods
     func loadOrders() {
-        isLoading = true
         
         Task {
             do {
-                let orders: [Order] = try await environment.databaseService.getAll(from: .orders, type: .collection)
+                let orders: [Order] = try await source.environment.databaseService.getAll(from: .orders, type: .collection)
                 
 //                await MainActor.run {
 //                    self.orders = orders
@@ -62,7 +69,7 @@ final class HistoryViewModel: BaseViewModel {
                 guard let orderId = order.id else {
                     throw AppError.order(.notFound)
                 }
-                try await environment.databaseService.delete(id: orderId, from: .orders, type: .collection)
+                try await source.environment.databaseService.delete(id: orderId, from: .orders, type: .collection)
 //                await MainActor.run {
 //                    if let index = orders.firstIndex(where: { $0.id == order.id }) {
 //                        orders.remove(at: index)
