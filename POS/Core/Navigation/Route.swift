@@ -22,6 +22,9 @@ enum Route: Hashable, Identifiable {
     case setUpPrinter
     case language
     case theme
+    case accountDetail
+    case password
+    case manageShops
 
     // MARK: - Identifiable
 
@@ -53,6 +56,12 @@ enum Route: Hashable, Identifiable {
             return "theme"
         case .setUpPrinter:
             return "setUpPrinter"
+        case .accountDetail:
+            return "accountDetail"
+        case .password:
+            return "password"
+        case .manageShops:
+            return "manageShops"
         }
     }
 

@@ -110,17 +110,19 @@ struct HomeView: View {
     
     @ViewBuilder
     private func contentView(for tab: HomeTab) -> some View {
-        switch tab {
-        case .menu:
-            appState.coordinator.makeView(for: .menu)
-        case .history:
-            appState.coordinator.makeView(for: .history)
-        case .inventory:
-            appState.coordinator.makeView(for: .inventory)
-        case .analytics:
-            appState.coordinator.makeView(for: .analytics)
-        case .settings:
-            appState.coordinator.makeView(for: .settings)
+        Group {
+            switch tab {
+            case .menu:
+                appState.coordinator.makeView(for: .menu)
+            case .history:
+                appState.coordinator.makeView(for: .history)
+            case .inventory:
+                appState.coordinator.makeView(for: .inventory)
+            case .analytics:
+                appState.coordinator.makeView(for: .analytics)
+            case .settings:
+                appState.coordinator.makeView(for: .settings)
+            }
         }
     }
 }

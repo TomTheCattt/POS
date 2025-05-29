@@ -11,18 +11,17 @@ struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @EnvironmentObject var appState: AppState
 
-    @State private var isUpdateShopExpanded: Bool = false
+    @State private var isAccountExpanded: Bool = false
     @State private var selectedOption: SettingsOption?
-    @State private var selectedSubOption: UpdateShopSubOption?
+    @State private var selectedSubOption: AccountSubOption?
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
+            HStack {
                 // MARK: - Sidebar
                 sidebarView(width: geometry.size.width * 0.25)
                 
                 // MARK: - Content Area
-                Divider()
                 contentAreaView()
             }
         }
@@ -46,8 +45,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             optionButton(for: option)
             
-            // Sub-options for Update Shop
-            if option == .updateShop, isUpdateShopExpanded {
+            // Sub-options for Account
+            if option == .account, isAccountExpanded {
                 subOptionsView(for: option)
             }
         }
@@ -62,9 +61,9 @@ struct SettingsView: View {
                 Text(option.title)
                     .font(.headline)
                 Spacer()
-                if option == .updateShop {
-                    Image(systemName: isUpdateShopExpanded ? "chevron.down" : "chevron.right")
-                        .animation(.easeInOut(duration: 0.2), value: isUpdateShopExpanded)
+                if option == .account {
+                    Image(systemName: isAccountExpanded ? "chevron.down" : "chevron.right")
+                        .animation(.easeInOut(duration: 0.2), value: isAccountExpanded)
                 } else {
                     Image(systemName: "chevron.right")
                 }
@@ -90,11 +89,11 @@ struct SettingsView: View {
     }
     
     // MARK: - Sub Option Button
-    private func subOptionButton(for subOption: UpdateShopSubOption) -> some View {
+    private func subOptionButton(for subOption: AccountSubOption) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.25)) {
                 selectedSubOption = subOption
-                selectedOption = .updateShop
+                selectedOption = .account
             }
         } label: {
             HStack {
@@ -135,29 +134,31 @@ struct SettingsView: View {
     @ViewBuilder
     private func contentForOption(_ option: SettingsOption) -> some View {
         switch option {
+        case .account:
+            if let subOption = selectedSubOption {
+                contentForSubOption(subOption)
+            } else {
+                placeholderView("Chọn một tùy chọn tài khoản")
+            }
+        case .manageShops:
+            appState.coordinator.makeView(for: .manageShops)
         case .setUpPrinter:
             appState.coordinator.makeView(for: .setUpPrinter)
         case .language:
             appState.coordinator.makeView(for: .language)
         case .theme:
             appState.coordinator.makeView(for: .theme)
-        case .updateShop:
-            if let subOption = selectedSubOption {
-                contentForSubOption(subOption)
-            } else {
-                placeholderView("Chọn một tùy chọn cập nhật")
-            }
         }
     }
     
     // MARK: - Content For Sub Option
     @ViewBuilder
-    private func contentForSubOption(_ subOption: UpdateShopSubOption) -> some View {
+    private func contentForSubOption(_ subOption: AccountSubOption) -> some View {
         switch subOption {
-        case .updateInventory:
-            appState.coordinator.makeView(for: .updateInventory)
-        case .updateMenu:
-            appState.coordinator.makeView(for: .updateMenu)
+        case .accountDetail:
+            appState.coordinator.makeView(for: .accountDetail)
+        case .password:
+            appState.coordinator.makeView(for: .password)
         }
     }
     
@@ -177,10 +178,10 @@ struct SettingsView: View {
     
     // MARK: - Handle Option Tap
     private func handleOptionTap(_ option: SettingsOption) {
-        if option == .updateShop {
+        if option == .account {
             withAnimation(.easeInOut(duration: 0.25)) {
-                isUpdateShopExpanded.toggle()
-                if !isUpdateShopExpanded {
+                isAccountExpanded.toggle()
+                if !isAccountExpanded {
                     selectedSubOption = nil
                 }
             }
@@ -188,45 +189,45 @@ struct SettingsView: View {
             withAnimation(.easeInOut(duration: 0.25)) {
                 selectedOption = option
                 selectedSubOption = nil
-                isUpdateShopExpanded = false
+                isAccountExpanded = false
             }
         }
     }
 }
 
 enum SettingsOption: CaseIterable {
-    case updateShop, setUpPrinter, language, theme
+    case account, manageShops, setUpPrinter, language, theme
     
     var title: String {
         switch self {
-        case .updateShop: return "Update Shop"
-        case .setUpPrinter: return "Set Up Printer"
-        case .language: return "Language"
-        case .theme: return "Theme"
+        case .account: return "Tài khoản"
+        case .manageShops: return "Quản lý cửa hàng"
+        case .setUpPrinter: return "Cài đặt máy in"
+        case .language: return "Ngôn ngữ"
+        case .theme: return "Giao diện"
         }
     }
 
-    /// Các tùy chọn con (chỉ áp dụng cho updateShop)
-    var subOptions: [UpdateShopSubOption]? {
+    var subOptions: [AccountSubOption]? {
         switch self {
-        case .updateShop:
-            return UpdateShopSubOption.allCases
+        case .account:
+            return AccountSubOption.allCases
         default:
             return nil
         }
     }
 }
 
-enum UpdateShopSubOption: String, CaseIterable, Identifiable {
-    case updateInventory
-    case updateMenu
+enum AccountSubOption: String, CaseIterable, Identifiable {
+    case accountDetail
+    case password
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .updateInventory: return "Update Inventory"
-        case .updateMenu: return "Update Menu"
+        case .accountDetail: return "Thông tin tài khoản"
+        case .password: return "Đổi mật khẩu"
         }
     }
 }

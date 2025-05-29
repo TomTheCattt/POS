@@ -145,7 +145,7 @@ struct MenuView: View {
             VStack(alignment: .leading) {
                 Text("Good morning,")
                     .foregroundColor(.secondary)
-                Text(viewModel.displayName)
+                Text(appState.sourceModel.currentUser?.displayName ?? "Unknown User")
                     .font(.headline)
             }
         }

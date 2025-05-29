@@ -72,8 +72,8 @@ protocol MessagingServiceProtocol {
 
 // MARK: - 6. Storage: Save image menu items, receipts...
 protocol StorageServiceProtocol {
-    func uploadImage(_ image: UIImage, path: String, completion: @escaping (Result<URL, AppError>) -> Void)
-    func deleteImage(at path: String, completion: @escaping (Result<Void, AppError>) -> Void)
+    func uploadImage(_ imageData: Data, path: String) async throws -> URL
+    func deleteImage(at url: URL) async throws
 }
 
 // MARK: - 10. Analytics Service

@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 
+@MainActor
 final class MenuViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -17,10 +18,10 @@ final class MenuViewModel: ObservableObject {
     @Published private(set) var selectedCategory: String = "All"
     @Published private(set) var displayName: String = "Unknown User"
     @Published private(set) var menuItems: [MenuItem] = []
+    @Published private(set) var categories: [String] = ["All"]
     
-    // MARK: - Constants
-    private(set) var categories = ["All", "Coffee", "Tea", "Pastries", "Sandwiches", "Drinks"]
-    private var source: SourceModel
+    // MARK: - Dependencies
+    private let source: SourceModel
     
     // MARK: - Computed Properties
     var filteredMenuItems: [MenuItem] {
@@ -31,7 +32,6 @@ final class MenuViewModel: ObservableObject {
     }
     
     var totalPrice: String {
-        //Bổ sung tính discount
         let total = selectedItems.reduce(0) { result, item in
             result + (item.price * Double(item.quantity))
         }
@@ -45,11 +45,30 @@ final class MenuViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-//        currentUserPublisher
-//            .sink { [weak self] user in
-//                self?.displayName = user?.displayName ?? "Unknown User"
-//            }
-//            .store(in: &cancellables)
+        // Lắng nghe thay đổi của menu từ SourceModel
+        source.menuPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] menuItems in
+                guard let self = self,
+                      let items = menuItems else { return }
+                self.menuItems = items
+                self.updateCategories(from: items)
+            }
+            .store(in: &source.cancellables)
+        
+        // Lắng nghe thay đổi của user từ SourceModel
+        source.currentUserPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] user in
+                self?.displayName = user?.displayName ?? "Unknown User"
+            }
+            .store(in: &source.cancellables)
+    }
+    
+    private func updateCategories(from items: [MenuItem]) {
+        var uniqueCategories = Set(items.map { $0.category })
+        uniqueCategories.insert("All")
+        categories = Array(uniqueCategories).sorted()
     }
     
     // MARK: - Public Methods
@@ -134,37 +153,161 @@ final class MenuViewModel: ObservableObject {
     
     func createOrder() async throws {
         let discount = 0.0
-        Task { [weak self] in
-            guard let self = self else { return }
-            
-            guard let userId = await source.currentUser?.id else {
-                throw AppError.auth(.userNotFound)
-            }
-            
-            guard let shopId = await source.selectedShop?.id else {
-                throw AppError.shop(.notFound)
-            }
+        
+        guard let userId = source.currentUser?.id else {
+            throw AppError.auth(.userNotFound)
+        }
+        
+        guard let shopId = source.selectedShop?.id else {
+            throw AppError.shop(.notFound)
+        }
 
-            let subTotal = self.selectedItems.reduce(0) { _, item in
-                return item.price * Double(item.quantity)
-            }
-            
-            let total = subTotal * discount
+        let subTotal = selectedItems.reduce(0) { _, item in
+            return item.price * Double(item.quantity)
+        }
+        
+        let total = subTotal * (1 - discount)
 
-            let discount = 0.0
-            let newOrder = Order(items: selectedItems, totalAmount: total, paymentMethod: paymentMethod, createdAt: Date(), updatedAt: Date())
+        let newOrder = Order(
+            items: selectedItems,
+            totalAmount: total,
+            paymentMethod: paymentMethod,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
 
-            do {
-                _ = try await source.environment.databaseService.createOrder(newOrder, userId: userId, shopId: shopId)
-                self.clearOrder()
-            } catch {
-                await source.handleError(error)
-            }
+        do {
+            _ = try await source.environment.databaseService.createOrder(newOrder, userId: userId, shopId: shopId)
+            clearOrder()
+        } catch {
+            source.handleError(error)
         }
     }
     
     func getMenuItem(by id: String) -> MenuItem? {
         return menuItems.first(where: { $0.id == id })
+    }
+    
+    // MARK: - Menu Item Management
+    func createMenuItem(_ item: MenuItem, imageData: Data?) async {
+        do {
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id else { return }
+            
+            var menuItem = item
+            
+            // Upload ảnh nếu có
+            if let imageData = imageData {
+                let imageURL = try await source.environment.storageService.uploadImage(
+                    imageData,
+                    path: "menu/\(shopId)/\(UUID().uuidString)"
+                )
+                menuItem = MenuItem(
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    category: item.category,
+                    ingredients: item.ingredients,
+                    isAvailable: item.isAvailable,
+                    imageURL: imageURL,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt
+                )
+            }
+            
+            _ = try await source.environment.databaseService.createMenuItem(
+                menuItem,
+                userId: userId,
+                shopId: shopId
+            )
+        } catch {
+            source.handleError(error, action: "thêm món mới")
+        }
+    }
+    
+    func updateMenuItem(_ item: MenuItem, imageData: Data?) async {
+        do {
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id,
+                  let itemId = item.id else { return }
+            
+            var menuItem = item
+            
+            // Upload ảnh mới nếu có
+            if let imageData = imageData {
+                let imageURL = try await source.environment.storageService.uploadImage(
+                    imageData,
+                    path: "menu/\(shopId)/\(UUID().uuidString)"
+                )
+                menuItem = MenuItem(
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    category: item.category,
+                    ingredients: item.ingredients,
+                    isAvailable: item.isAvailable,
+                    imageURL: imageURL,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt
+                )
+            }
+            
+            _ = try await source.environment.databaseService.updateMenuItem(
+                menuItem,
+                userId: userId,
+                shopId: shopId,
+                menuItemId: itemId
+            )
+        } catch {
+            source.handleError(error, action: "cập nhật món")
+        }
+    }
+    
+    func deleteMenuItem(_ item: MenuItem) async {
+        do {
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id,
+                  let itemId = item.id else { return }
+            
+            // Xóa ảnh nếu có
+            if let imageURL = item.imageURL {
+                try await source.environment.storageService.deleteImage(at: imageURL)
+            }
+            
+            try await source.environment.databaseService.deleteMenuItem(
+                userId: userId,
+                shopId: shopId,
+                menuItemId: itemId
+            )
+        } catch {
+            source.handleError(error, action: "xóa món")
+        }
+    }
+    
+    func importMenuItems(from url: URL) async {
+        do {
+            let data = try Data(contentsOf: url)
+            let items = try parseMenuItemsFromCSV(data)
+            
+            for item in items {
+                await createMenuItem(item, imageData: nil)
+            }
+        } catch {
+            source.handleError(error, action: "nhập danh sách món từ file")
+        }
+    }
+    
+    private func parseMenuItemsFromCSV(_ data: Data) throws -> [MenuItem] {
+        // Implement CSV parsing logic here
+        // Return array of MenuItem
+        return []
+    }
+    
+    func getInventoryItem(by id: String) async throws -> InventoryItem? {
+        guard let userId = source.currentUser?.id, let selectedShopId = source.selectedShop?.id else {
+            return nil
+        }
+        return try await source.environment.databaseService.getInventoryItem(userId: userId, shopId: selectedShopId, inventoryItemId: id)
     }
 }
 

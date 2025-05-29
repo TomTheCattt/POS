@@ -13,9 +13,10 @@ struct InventoryItem: Codable, Identifiable {
     // MARK: - Properties
     @DocumentID var id: String?
     let name: String
-    var quantity: Int
+    var quantity: Double
     let unit: String
-    let minQuantity: Int
+    let minQuantity: Double
+    let costPrice: Double
     let createdAt: Date
     var updatedAt: Date
     
@@ -26,7 +27,7 @@ struct InventoryItem: Codable, Identifiable {
     }
     
     var stockStatus: StockStatus {
-        if quantity <= 0 {
+        if quantity <= 0.0 {
             return .outOfStock
         } else if isLowStock {
             return .lowStock
@@ -37,19 +38,19 @@ struct InventoryItem: Codable, Identifiable {
     
     // MARK: - Initialization
     init(
-        id: String,
         name: String,
-        quantity: Int,
+        quantity: Double,
         unit: String,
-        minQuantity: Int,
+        minQuantity: Double,
+        costPrice: Double,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
-        self.id = id
         self.name = name
         self.quantity = quantity
         self.unit = unit
         self.minQuantity = minQuantity
+        self.costPrice = costPrice
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -61,6 +62,7 @@ struct InventoryItem: Codable, Identifiable {
             "quantity": quantity,
             "unit": unit,
             "minQuantity": minQuantity,
+            "costPrice": costPrice,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]
@@ -118,9 +120,10 @@ extension InventoryItem {
         guard 
             let data = document.data(),
             let name = data["name"] as? String,
-            let quantity = data["quantity"] as? Int,
+            let quantity = data["quantity"] as? Double,
             let unit = data["unit"] as? String,
-            let minQuantity = data["minQuantity"] as? Int,
+            let minQuantity = data["minQuantity"] as? Double,
+            let costPrice = data["costPrice"] as? Double,
             let createdAt = data["createdAt"] as? Timestamp,
             let updatedAt = data["updatedAt"] as? Timestamp
         else {
@@ -132,6 +135,7 @@ extension InventoryItem {
         self.quantity = quantity
         self.unit = unit
         self.minQuantity = minQuantity
+        self.costPrice = costPrice
         self.createdAt = createdAt.dateValue()
         self.updatedAt = updatedAt.dateValue()
     }

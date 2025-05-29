@@ -10,7 +10,7 @@ import SwiftUI
 struct SignUpSectionView: View {
     
     enum SignUpField {
-        case shopName, email, displayName, password, rePassword
+        case shopName, email, displayName, ownerPassword, password, rePassword
     }
     
     private let strings = AppLocalizedString()
@@ -131,6 +131,21 @@ struct SignUpSectionView: View {
                 .focused($focusedField, equals: .email)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+            // Owner Password
+            SecureField("Shop Owner Password", text: $viewModel.ownerPassword)
+                .padding()
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                      .stroke(lineWidth: 2)
+                      .foregroundColor(borderColor(for: viewModel.ownerPassword))
+                  )
+                .padding(.leading)
+                .padding(.trailing)
+                .padding(.bottom)
+                .modifier(ShakeEffect(shake: $shakeAnimation))
+                .focused($focusedField, equals: .ownerPassword)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             // Password
             SecureField(strings.passwordPlaceholder, text: $viewModel.password)
                 .padding()
@@ -205,6 +220,8 @@ struct SignUpSectionView: View {
             case .displayName:
                 focusedField = .email
             case .email:
+                focusedField = .ownerPassword
+            case .ownerPassword:
                 focusedField = .password
             case .password:
                 focusedField = .rePassword
@@ -217,6 +234,7 @@ struct SignUpSectionView: View {
         }
         .onAppear {
             viewModel.email = ""
+            viewModel.ownerPassword = ""
             viewModel.password = ""
             viewModel.rePassword = ""
             viewModel.displayName = ""

@@ -167,56 +167,68 @@ class AppCoordinator: ObservableObject {
     @MainActor
     @ViewBuilder
     func makeView(for route: Route) -> some View {
-        if let source {
-            switch route {
-                // Authentication
-            case .authentication:
-                let viewModel = AuthenticationViewModel(source: source)
-                AuthenticationView(viewModel: viewModel)
-                
-                // Main Features
-            case .home:
-                let viewModel = HomeViewModel(source: source)
-                HomeView(viewModel: viewModel)
-            case .menu:
-                let viewModel = MenuViewModel(source: source)
-                MenuView(viewModel: viewModel)
-            case .history:
-                let viewModel = HistoryViewModel(source: source)
-                HistoryView(viewModel: viewModel)
-            case .analytics:
-                let viewModel = AnalyticsViewModel(source: source)
-                AnalyticsView(viewModel: viewModel)
-            case .inventory:
-                let viewModel = InventoryViewModel(source: source)
-                InventoryView(viewModel: viewModel)
-            case .note(let orderItem):
-                let viewModel = MenuViewModel(source: source)
-                NoteView(viewModel: viewModel, orderItem: orderItem)
-                
-                // Settings
-            case .settings:
-                let viewModel = SettingsViewModel(source: source)
-                SettingsView(viewModel: viewModel)
-            case .updateInventory:
-                let viewModel = InventoryViewModel(source: source)
-                UpdateInventoryView(viewModel: viewModel)
-            case .updateMenu:
-                let viewModel = MenuViewModel(source: source)
-                UpdateMenuView(viewModel: viewModel)
-            case .language:
-                let viewModel = SettingsViewModel(source: source)
-                LanguageView(viewModel: viewModel)
-            case .theme:
-                let viewModel = SettingsViewModel(source: source)
-                ThemeView(viewModel: viewModel)
-            case .setUpPrinter:
-                let viewModel = PrinterViewModel(source: source)
-                PrinterView(viewModel: viewModel)
+        Group {
+            if let source {
+                switch route {
+                    // Authentication
+                case .authentication:
+                    let viewModel = AuthenticationViewModel(source: source)
+                    AuthenticationView(viewModel: viewModel)
+                    
+                    // Main Features
+                case .home:
+                    let viewModel = HomeViewModel(source: source)
+                    HomeView(viewModel: viewModel)
+                case .menu:
+                    let viewModel = MenuViewModel(source: source)
+                    MenuView(viewModel: viewModel)
+                case .history:
+                    let viewModel = HistoryViewModel(source: source)
+                    HistoryView(viewModel: viewModel)
+                case .analytics:
+                    let viewModel = AnalyticsViewModel(source: source)
+                    AnalyticsView(viewModel: viewModel)
+                case .inventory:
+                    let viewModel = InventoryViewModel(source: source)
+                    InventoryView(viewModel: viewModel)
+                case .note(let orderItem):
+                    let viewModel = MenuViewModel(source: source)
+                    NoteView(viewModel: viewModel, orderItem: orderItem)
+                    
+                    // Settings
+                case .settings:
+                    let viewModel = SettingsViewModel(source: source)
+                    SettingsView(viewModel: viewModel)
+                case .accountDetail:
+                    let viewModel = ProfileViewModel(source: source)
+                    AccountDetailView(viewModel: viewModel)
+                case .updateInventory:
+                    let viewModel = InventoryViewModel(source: source)
+                    UpdateInventoryView(viewModel: viewModel)
+                case .updateMenu:
+                    let viewModel = MenuViewModel(source: source)
+                    UpdateMenuView(viewModel: viewModel)
+                case .language:
+                    let viewModel = SettingsViewModel(source: source)
+                    LanguageView(viewModel: viewModel)
+                case .theme:
+                    let viewModel = SettingsViewModel(source: source)
+                    ThemeView(viewModel: viewModel)
+                case .setUpPrinter:
+                    let viewModel = PrinterViewModel(source: source)
+                    PrinterView(viewModel: viewModel)
+                case .password:
+                    let viewModel = PasswordViewModel(source: source)
+                    PasswordView(viewModel: viewModel)
+                case .manageShops:
+                    let viewModel = ShopManagementViewModel(source: source)
+                    ShopManagementView(viewModel: viewModel)
+                }
+            } else {
+                EmptyView()
             }
-        } else {
-            EmptyView()
         }
+        .ignoresSafeArea(.keyboard)
     }
     
     // MARK: - Reset

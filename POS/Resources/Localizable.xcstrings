@@ -1,7 +1,33 @@
 {
   "sourceLanguage" : "vi",
   "strings" : {
+    "" : {
+
+    },
+    "%.1f %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$.1f %2$@"
+          }
+        }
+      }
+    },
+    "%lf %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lf %2$@"
+          }
+        }
+      }
+    },
     "%lld" : {
+
+    },
+    "%lld items được chọn" : {
 
     },
     "%lld/%lld" : {
@@ -14,7 +40,23 @@
         }
       }
     },
+    "• %lf %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "• %1$lf %2$@"
+          }
+        }
+      }
+    },
     "$%@" : {
+
+    },
+    "₫" : {
+
+    },
+    "0" : {
 
     },
     "add_item" : {
@@ -51,6 +93,12 @@
         }
       }
     },
+    "Bạn có chắc chắn muốn xóa món này không?" : {
+
+    },
+    "Bạn có chắc chắn muốn xóa sản phẩm này không?" : {
+
+    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -67,6 +115,33 @@
           }
         }
       }
+    },
+    "Cập nhật" : {
+
+    },
+    "Cập nhật %lld sản phẩm" : {
+
+    },
+    "Cập nhật hàng loạt" : {
+
+    },
+    "Cập nhật lần cuối:" : {
+
+    },
+    "Cập nhật mật khẩu chủ cửa hàng" : {
+
+    },
+    "Cập nhật mật khẩu tài khoản" : {
+
+    },
+    "Cập nhật món" : {
+
+    },
+    "Cập nhật sản phẩm" : {
+
+    },
+    "Cập nhật thông tin" : {
+
     },
     "cashier_role" : {
       "extractionState" : "manual",
@@ -85,13 +160,49 @@
         }
       }
     },
+    "Chi tiết sản phẩm" : {
+
+    },
+    "Chỉnh sửa món" : {
+
+    },
+    "Chỉnh sửa sản phẩm" : {
+
+    },
+    "Chọn ảnh" : {
+
+    },
+    "Chọn file" : {
+
+    },
     "Chọn giao diện" : {
+
+    },
+    "Chọn kiểu" : {
+
+    },
+    "Chọn nguyên liệu" : {
 
     },
     "Choose Category" : {
 
     },
+    "Chưa chọn file" : {
+
+    },
+    "Chưa có món nào trong menu" : {
+
+    },
+    "Chưa có sản phẩm nào trong kho" : {
+
+    },
     "Clear All" : {
+
+    },
+    "Còn hàng" : {
+
+    },
+    "Còn món" : {
 
     },
     "Consumption:" : {
@@ -144,6 +255,12 @@
         }
       }
     },
+    "Danh mục" : {
+
+    },
+    "Danh mục: %@" : {
+
+    },
     "delete_item" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -177,6 +294,12 @@
           }
         }
       }
+    },
+    "Đơn vị" : {
+
+    },
+    "Đóng" : {
+
     },
     "dont_have_an_account" : {
       "extractionState" : "manual",
@@ -796,6 +919,12 @@
         }
       }
     },
+    "Export" : {
+
+    },
+    "File được chọn: %@" : {
+
+    },
     "Find item..." : {
 
     },
@@ -839,10 +968,34 @@
     "Ghi chú đặc biệt, yêu cầu riêng..." : {
 
     },
+    "Giá" : {
+
+    },
+    "Giá nhập:" : {
+
+    },
+    "Giá trị" : {
+
+    },
+    "Giá trị tuyệt đối" : {
+
+    },
+    "Giá:" : {
+
+    },
     "Good morning," : {
 
     },
     "Hello, World!" : {
+
+    },
+    "Hết hàng" : {
+
+    },
+    "Hết món" : {
+
+    },
+    "Hình ảnh" : {
 
     },
     "hint.shop.name_format" : {
@@ -865,6 +1018,9 @@
     "Huỷ" : {
 
     },
+    "Hủy" : {
+
+    },
     "inventory" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -881,9 +1037,6 @@
           }
         }
       }
-    },
-    "Inventory View" : {
-
     },
     "item_name" : {
       "extractionState" : "manual",
@@ -918,6 +1071,15 @@
           }
         }
       }
+    },
+    "Không tìm thấy nguyên liệu" : {
+
+    },
+    "Kiểu cập nhật" : {
+
+    },
+    "Lịch sử thay đổi" : {
+
     },
     "Log Out" : {
 
@@ -972,6 +1134,33 @@
           }
         }
       }
+    },
+    "Lưu" : {
+
+    },
+    "Lưu ý: File cần có các cột: Tên món, Giá, Danh mục" : {
+
+    },
+    "Lưu ý: File cần có các cột: Tên sản phẩm, Số lượng, Đơn vị, Giá nhập, Danh mục" : {
+
+    },
+    "Mật khẩu chủ cửa hàng" : {
+
+    },
+    "Mật khẩu chủ cửa hàng hiện tại" : {
+
+    },
+    "Mật khẩu chủ cửa hàng mới" : {
+
+    },
+    "Mật khẩu hiện tại" : {
+
+    },
+    "Mật khẩu mới" : {
+
+    },
+    "Mật khẩu tài khoản" : {
+
     },
     "measure.gram" : {
       "extractionState" : "manual",
@@ -1108,6 +1297,27 @@
           }
         }
       }
+    },
+    "Ngày tạo:" : {
+
+    },
+    "Nguyên liệu" : {
+
+    },
+    "Nhập danh sách món từ file Excel hoặc CSV" : {
+
+    },
+    "Nhập danh sách sản phẩm từ file Excel hoặc CSV" : {
+
+    },
+    "Nhập dữ liệu" : {
+
+    },
+    "Nhập từ Excel/CSV" : {
+
+    },
+    "Nhập từ file" : {
+
     },
     "no" : {
       "extractionState" : "manual",
@@ -1305,6 +1515,12 @@
         }
       }
     },
+    "Quản lý kho" : {
+
+    },
+    "Quản lý thực đơn" : {
+
+    },
     "re_enter_password_placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1339,6 +1555,9 @@
         }
       }
     },
+    "Sắp hết" : {
+
+    },
     "Select Language" : {
 
     },
@@ -1358,6 +1577,9 @@
           }
         }
       }
+    },
+    "Shop Owner Password" : {
+
     },
     "shop_name_placeholder" : {
       "extractionState" : "manual",
@@ -1410,6 +1632,27 @@
         }
       }
     },
+    "Số lượng tối thiểu" : {
+
+    },
+    "Số lượng tối thiểu:" : {
+
+    },
+    "Số lượng tối thiểu: %lf" : {
+
+    },
+    "Số lượng tối thiểu: %lld" : {
+
+    },
+    "Số lượng:" : {
+
+    },
+    "Số lượng: %lf" : {
+
+    },
+    "Số lượng: %lld" : {
+
+    },
     "staff_management" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1444,7 +1687,67 @@
         }
       }
     },
+    "Tất cả" : {
+
+    },
     "Temperature:" : {
+
+    },
+    "Tên món" : {
+
+    },
+    "Tên sản phẩm" : {
+
+    },
+    "Tên sản phẩm:" : {
+
+    },
+    "Thao tác" : {
+
+    },
+    "Thay đổi %lld%%" : {
+
+    },
+    "Thêm" : {
+
+    },
+    "Thêm món mới" : {
+
+    },
+    "Thêm nguyên liệu" : {
+
+    },
+    "Thêm nguyên liệu mới" : {
+
+    },
+    "Thêm sản phẩm" : {
+
+    },
+    "Thêm sản phẩm mới" : {
+
+    },
+    "Theo phần trăm" : {
+
+    },
+    "Thời gian" : {
+
+    },
+    "Thông tin bổ sung" : {
+
+    },
+    "Thông tin cơ bản" : {
+
+    },
+    "Thông tin món" : {
+
+    },
+    "Thông tin sản phẩm" : {
+
+    },
+    "Tìm kiếm món..." : {
+
+    },
+    "Tìm kiếm sản phẩm..." : {
 
     },
     "total" : {
@@ -1463,9 +1766,6 @@
           }
         }
       }
-    },
-    "Update Menu View" : {
-
     },
     "verify_email_sent" : {
       "extractionState" : "manual",
@@ -1536,6 +1836,24 @@
       }
     },
     "Xác nhận" : {
+
+    },
+    "Xác nhận mật khẩu chủ cửa hàng mới" : {
+
+    },
+    "Xác nhận mật khẩu mới" : {
+
+    },
+    "Xóa" : {
+
+    },
+    "Xóa món" : {
+
+    },
+    "Xóa sản phẩm" : {
+
+    },
+    "Xuất dữ liệu" : {
 
     },
     "yes" : {

@@ -339,8 +339,8 @@ extension DatabaseService {
         return try await getAll(from: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func updateInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String, inventoryItemId: String) async throws -> T {
-        return try await update(inventoryItem, id: inventoryItemId, in: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func updateInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String, inventoryItemId: String) async throws {
+        let _ = try await update(inventoryItem, id: inventoryItemId, in: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
     func deleteInventoryItem(userId: String, shopId: String, inventoryItemId: String) async throws {

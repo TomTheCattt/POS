@@ -1,85 +1,122 @@
 import SwiftUI
 import Combine
 
+@MainActor
 final class HistoryViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published var searchText: String = ""
     @Published var selectedDateRange: DateRange = .today
+    @Published private(set) var orders: [Order] = []
+    @Published private(set) var filteredOrders: [Order] = []
+    @Published private(set) var isLoading: Bool = false
     
-    private var source: SourceModel
+    // MARK: - Dependencies
+    private let source: SourceModel
     private var cancellables = Set<AnyCancellable>()
-    
-    // MARK: - Computed Properties
-    var filteredOrders: [Order] {
-//        source.ordersPublisher
-//            .sink { orders in
-//                orders?.filter { order in
-//                    if !searchText.isEmpty {
-//                        return ((order.id?.localizedCaseInsensitiveContains(searchText)) != nil)
-//                    }
-//                    return true
-//                }
-//            }
-//            .store(in: &cancellables)
-        []
-    }
     
     // MARK: - Initialization
     init(source: SourceModel) {
         self.source = source
         setupBindings()
-        loadOrders()
     }
     
     private func setupBindings() {
-        // Observe date range changes
-        $selectedDateRange
-            .dropFirst()
+        source.ordersPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] orders in
+                guard let self = self else { return }
+                self.orders = orders ?? []
+                self.filterOrders()
+            }
+            .store(in: &cancellables)
+        
+        // Lắng nghe thay đổi từ searchText
+        $searchText
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.loadOrders()
+                self?.filterOrders()
+            }
+            .store(in: &cancellables)
+        
+        // Lắng nghe thay đổi từ selectedDateRange
+        $selectedDateRange
+            .sink { [weak self] _ in
+                self?.filterOrders()
+            }
+            .store(in: &cancellables)
+            
+        // Lắng nghe trạng thái loading từ SourceModel
+        source.loadingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loading, _ in
+                self?.isLoading = loading
             }
             .store(in: &cancellables)
     }
     
-    // MARK: - Public Methods
-    func loadOrders() {
+    // MARK: - Private Methods
+    private func filterOrders() {
+        let dateInterval = selectedDateRange.dateInterval
         
-        Task {
-            do {
-                let orders: [Order] = try await source.environment.databaseService.getAll(from: .orders, type: .collection)
-                
-//                await MainActor.run {
-//                    self.orders = orders
-//                    self.isLoading = false
-//                }
-            } catch {
-                await MainActor.run {
-//                    self.isLoading = false
-                    // TODO: Handle error
-                    print("Error loading orders: \(error)")
-                }
+        filteredOrders = orders.filter { order in
+            var matchesSearch = true
+            var matchesDate = true
+            
+            // Lọc theo từ khóa tìm kiếm
+            if !searchText.isEmpty {
+                matchesSearch = order.id?.localizedCaseInsensitiveContains(searchText) ?? false ||
+                              order.items.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
             }
+            
+            // Lọc theo khoảng thời gian
+            if let interval = dateInterval {
+                matchesDate = interval.contains(order.createdAt)
+            }
+            
+            return matchesSearch && matchesDate
+        }
+        
+        // Sắp xếp theo thời gian mới nhất
+        filteredOrders.sort { $0.createdAt > $1.createdAt }
+    }
+    
+    // MARK: - Public Methods
+    func deleteOrder(_ order: Order) async throws {
+        guard let orderId = order.id else {
+            throw AppError.order(.notFound)
+        }
+        
+        guard let userId = source.currentUser?.id else {
+            throw AppError.auth(.userNotFound)
+        }
+        
+        guard let shopId = source.selectedShop?.id else {
+            throw AppError.shop(.notFound)
+        }
+        
+        do {
+            try await source.environment.databaseService.delete(
+                id: orderId,
+                from: .orders,
+                type: .nestedSubcollection(userId: userId, shopId: shopId)
+            )
+        } catch {
+            source.handleError(error, action: "xóa đơn hàng")
+            throw error
         }
     }
     
-    func deleteOrder(_ order: Order) async throws {
-        Task {
-            do {
-                guard let orderId = order.id else {
-                    throw AppError.order(.notFound)
-                }
-                try await source.environment.databaseService.delete(id: orderId, from: .orders, type: .collection)
-//                await MainActor.run {
-//                    if let index = orders.firstIndex(where: { $0.id == order.id }) {
-//                        orders.remove(at: index)
-//                    }
-//                }
-            } catch {
-                // TODO: Handle error
-                print("Error deleting order: \(error)")
-            }
-        }
+    func formatPrice(_ price: Double) -> String {
+        return String(format: "%.2f", price)
+    }
+    
+    func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "vi_VN")
+        return formatter.string(from: date)
     }
 }
 

@@ -1,180 +1,187 @@
 import SwiftUI
 import Combine
 
+@MainActor
 final class InventoryViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    private var inventoryItems: [InventoryItem] = []
-    private var filteredItems: [InventoryItem] = []
+    @Published private(set) var searchKey: String = ""
+    @Published private(set) var selectedCategory: String = "All"
+    @Published private(set) var inventoryItems: [InventoryItem] = []
+    @Published private(set) var categories: [String] = ["All"]
+    @Published private(set) var filteredItems: [InventoryItem] = []
+    @Published private(set) var isLoading: Bool = false
     
-    @Published var searchText: String = ""
     @Published var showLowStockOnly: Bool = false
     @Published var sortOrder: SortOrder = .name
     @Published var showAddItemSheet: Bool = false
     @Published var showEditItemSheet: Bool = false
     @Published var selectedItem: InventoryItem?
     
-    private var source: SourceModel
-    
-    // MARK: - Computed Properties
-    private var sortedAndFilteredItems: [InventoryItem] {
-        var items = inventoryItems
-        
-        if !searchText.isEmpty {
-            items = items.filter { item in
-                item.name.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-        
-        if showLowStockOnly {
-            items = items.filter { $0.isLowStock }
-        }
-        
-        switch sortOrder {
-        case .name:
-            items.sort { $0.name < $1.name }
-        case .quantity:
-            items.sort { $0.quantity > $1.quantity }
-        }
-        
-        return items
-    }
+    // MARK: - Dependencies
+    private let source: SourceModel
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     init(source: SourceModel) {
         self.source = source
         setupBindings()
-        Task {
-            do {
-                try await loadInventory()
-            }
-        }
     }
     
     private func setupBindings() {
-        // Observe search text changes
-//        $searchText
-//            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-//            .sink { [weak self] _ in
-//                self?.updateFilteredItems()
-//            }
-//            .store(in: &cancellables)
-//        
-//        // Observe filter changes
-//        Publishers.CombineLatest3($searchText, $showLowStockOnly, $sortOrder)
-//            .sink { [weak self] _ in
-//                self?.updateFilteredItems()
-//            }
-//            .store(in: &cancellables)
+        // Lắng nghe thay đổi của inventory từ SourceModel
+        source.inventoryPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] items in
+                guard let self = self,
+                      let items = items else { return }
+                self.inventoryItems = items
+            }
+            .store(in: &source.cancellables)
+        
+        // Lắng nghe thay đổi từ showLowStockOnly
+        $showLowStockOnly
+            .sink { [weak self] _ in
+                self?.filterAndSortItems()
+            }
+            .store(in: &cancellables)
+        
+        // Lắng nghe thay đổi từ sortOrder
+        $sortOrder
+            .sink { [weak self] _ in
+                self?.filterAndSortItems()
+            }
+            .store(in: &cancellables)
+            
+        // Lắng nghe trạng thái loading từ SourceModel
+        source.loadingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loading, _ in
+                self?.isLoading = loading
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Private Methods
-    private func updateFilteredItems() {
-        filteredItems = sortedAndFilteredItems
-    }
-    
-    private func loadInventory() async throws {
+    private func filterAndSortItems() {
+        var items = inventoryItems
         
-        guard let userId = await source.currentUser?.id else {
-            throw AppError.auth(.userNotFound)
+        // Lọc theo từ khóa tìm kiếm
+        if !searchKey.isEmpty {
+            items = items.filter { item in
+                item.name.localizedCaseInsensitiveContains(searchKey)
+            }
         }
         
-        guard let shopId = await source.selectedShop?.id else {
-            throw AppError.shop(.notFound)
+        // Lọc các mặt hàng sắp hết
+        if showLowStockOnly {
+            items = items.filter { $0.isLowStock }
         }
-        do {
-            inventoryItems = try await source.environment.databaseService.getAllInventoryItems(userId: userId, shopId: shopId)
-            
-            updateFilteredItems()
+        
+        // Sắp xếp theo tiêu chí đã chọn
+        switch sortOrder {
+        case .name:
+            items.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        case .quantity:
+            items.sort { $0.quantity > $1.quantity }
+        case .lastUpdated:
+            items.sort { $0.updatedAt > $1.updatedAt }
         }
+        
+        filteredItems = items
     }
     
     // MARK: - Public Methods
-    func refresh() async throws {
-        try await loadInventory()
+    func updateSearchKey(_ newValue: String) {
+        searchKey = newValue
     }
     
-    func createItem(_ item: InventoryItem) async throws {
-        guard let userId = await source.currentUser?.id else {
-            throw AppError.auth(.userNotFound)
-        }
-        
-        guard let shopId = await source.selectedShop?.id else {
-            throw AppError.shop(.notFound)
-        }
+    func updateSelectedCategory(_ category: String) {
+        selectedCategory = category
+    }
+    
+    // MARK: - Inventory Item Management
+    func createInventoryItem(_ item: InventoryItem) async {
         do {
-            inventoryItems.append(item)
-            let _ = try await source.environment.databaseService.createInventoryItem(item, userId: userId, shopId: shopId)
-            updateFilteredItems()
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id else { return }
+            
+            _ = try await source.environment.databaseService.createInventoryItem(
+                item,
+                userId: userId,
+                shopId: shopId
+            )
         } catch {
-            await source.handleError(error)
+            source.handleError(error, action: "thêm sản phẩm mới")
         }
     }
     
-    func updateItem(_ item: InventoryItem) async throws {
+    func updateInventoryItem(_ item: InventoryItem) async {
         do {
-            guard let userId = await source.currentUser?.id else {
-                throw AppError.auth(.userNotFound)
-            }
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id,
+                  let itemId = item.id else { return }
             
-            guard let shopId = await source.selectedShop?.id else {
-                throw AppError.shop(.notFound)
-            }
-            
-            guard let itemId = selectedItem?.id else {
-                throw AppError.inventory(.notFound)
-            }
-            if let index = inventoryItems.firstIndex(where: { $0.id == item.id }) {
-                inventoryItems[index] = item
-            }
-            let _ = try await source.environment.databaseService.updateInventoryItem(item, userId: userId, shopId: shopId, inventoryItemId: itemId)
-            updateFilteredItems()
+            try await source.environment.databaseService.updateInventoryItem(
+                item,
+                userId: userId,
+                shopId: shopId,
+                inventoryItemId: itemId
+            )
         } catch {
-            await source.handleError(error)
+            source.handleError(error, action: "cập nhật sản phẩm")
         }
     }
     
-    func deleteItem(_ item: InventoryItem) async throws {
+    func deleteInventoryItem(_ item: InventoryItem) async {
         do {
-            guard let userId = await source.currentUser?.id else {
-                throw AppError.auth(.userNotFound)
-            }
+            guard let userId = source.currentUser?.id,
+                  let shopId = source.selectedShop?.id,
+                  let itemId = item.id else { return }
             
-            guard let shopId = await source.selectedShop?.id else {
-                throw AppError.shop(.notFound)
-            }
-            
-            guard let itemId = selectedItem?.id else {
-                throw AppError.inventory(.notFound)
-            }
-            
-            inventoryItems.removeAll { $0.id == item.id }
-            try await source.environment.databaseService.deleteInventoryItem(userId: userId, shopId: shopId, inventoryItemId: itemId)
-            updateFilteredItems()
+            try await source.environment.databaseService.deleteInventoryItem(
+                userId: userId,
+                shopId: shopId,
+                inventoryItemId: itemId
+            )
         } catch {
-            await source.handleError(error)
+            source.handleError(error, action: "xóa sản phẩm")
         }
     }
     
-//    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
-//        isLoading = true
-//        do {
-//            //try await environment.inventoryService.adjustQuantity(itemId: item.id ?? "", adjustment: adjustment)
-//            await loadInventory() // Reload to get updated quantities
-//        } catch {
-//            handleError(error)
-//        }
-//        isLoading = false
-//    }
-//    
-//    func checkStock(itemId: String, privateQuantity: Double) async throws -> Bool {
-//        do {
-//            //return try await environment.inventoryService.checkStock(itemId: itemId, privateQuantity: privateQuantity)
-//        } catch {
-//            handleError(error)
-//            return false
-//        }
-//    }
+    func importInventoryItems(from url: URL) async {
+        do {
+            let data = try Data(contentsOf: url)
+            let items = try parseInventoryItemsFromCSV(data)
+            
+            for item in items {
+                await createInventoryItem(item)
+            }
+        } catch {
+            source.handleError(error, action: "nhập danh sách sản phẩm từ file")
+        }
+    }
+    
+    private func parseInventoryItemsFromCSV(_ data: Data) throws -> [InventoryItem] {
+        // Implement CSV parsing logic here
+        // Return array of InventoryItem
+        return []
+    }
+    
+    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
+        var updatedItem = item
+        updatedItem.quantity += adjustment
+        updatedItem.updatedAt = Date()
+        await updateInventoryItem(updatedItem)
+    }
+    
+    func checkLowStock(_ item: InventoryItem) -> Bool {
+        return item.quantity <= item.minQuantity
+    }
+    
+    func formatQuantity(_ quantity: Double) -> String {
+        return String(format: "%.2f", quantity)
+    }
 }
 
 // MARK: - Supporting Types
@@ -182,5 +189,6 @@ extension InventoryViewModel {
     enum SortOrder {
         case name
         case quantity
+        case lastUpdated
     }
 }

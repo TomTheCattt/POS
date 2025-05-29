@@ -14,6 +14,7 @@ struct AppUser: Codable, Identifiable, Equatable {
     let email: String
     let displayName: String
     let photoURL: URL?
+    var ownerPassword: String
     let createdAt: Date
     let updatedAt: Date
     
@@ -23,6 +24,7 @@ struct AppUser: Codable, Identifiable, Equatable {
             "email": email,
             "displayName": displayName,
             "photoURL": photoURL?.absoluteString as Any,
+            "ownerPassword": ownerPassword,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]

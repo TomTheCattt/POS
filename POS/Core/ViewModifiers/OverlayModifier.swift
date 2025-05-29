@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct OverlayModifier: ViewModifier {
     let config: NavigationConfig
@@ -75,4 +76,33 @@ extension View {
             onDismiss: onDismiss
         ))
     }
-} 
+}
+
+struct KeyboardResponsiveModifier: ViewModifier {
+    @State private var keyboardHeight: CGFloat = 0
+    private var cancellable: AnyCancellable?
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.bottom, keyboardHeight)
+            .onReceive(Publishers.keyboardHeight) { self.keyboardHeight = $0 }
+    }
+}
+
+extension Publishers {
+    static var keyboardHeight: AnyPublisher<CGFloat, Never> {
+        let willShow = NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .map { ($0.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0 }
+
+        let willHide = NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .map { _ in CGFloat(0) }
+
+        return MergeMany(willShow, willHide).eraseToAnyPublisher()
+    }
+}
+
+extension View {
+    func keyboardResponsive() -> some View {
+        self.modifier(KeyboardResponsiveModifier())
+    }
+}
