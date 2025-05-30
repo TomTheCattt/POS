@@ -2,8 +2,6 @@ import SwiftUI
 
 struct MenuView: View {
     
-    private let strings = AppLocalizedString()
-    
     @ObservedObject var viewModel: MenuViewModel
     @EnvironmentObject var appState: AppState
     
@@ -45,6 +43,7 @@ struct MenuView: View {
                 get: { viewModel.searchKey },
                 set: { viewModel.updateSearchKey($0) }
             ))
+            .keyboardType(.default)
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .disableAutocorrection(true)
@@ -180,7 +179,7 @@ struct MenuView: View {
     
     private func orderTotalSection() -> some View {
         HStack {
-            Text(strings.total)
+            Text(AppLocalizedString.total)
                 .font(.headline)
             Spacer()
             Text(viewModel.totalPrice)
@@ -234,8 +233,6 @@ struct MenuView: View {
 
 // MARK: - Supporting Views
 struct ItemView: View {
-    
-    private let strings = AppLocalizedString()
     
     let menuItem: MenuItem
     let addAction: (_ temperature: TemperatureOption, _ consumption: ConsumptionOption) -> Void
@@ -327,7 +324,7 @@ struct ItemView: View {
             temperature = .hot
             consumption = .stay
         }) {
-            Text(strings.addItem)
+            Text(AppLocalizedString.addItem)
                 .frame(maxWidth: width)
                 .padding(8)
                 .background(

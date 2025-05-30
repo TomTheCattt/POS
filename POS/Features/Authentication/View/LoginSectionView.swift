@@ -13,9 +13,6 @@ struct LoginSectionView: View {
         case userName, password
     }
     
-    private let strings = AppLocalizedString()
-    private let validationStrings = ValidationLocalizedString()
-    
     @Binding var login: Bool
     
     @State private var isLoginPressed = false
@@ -41,17 +38,18 @@ struct LoginSectionView: View {
         
         guard !viewModel.email.isEmpty else {
 //            viewModel.showError = true
-//            $viewModel.errorMessage = validationStrings.authErrorEmptyEmail
+//            $viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyEmail
             shakeAnimation = true
             return
         }
         guard !viewModel.password.isEmpty else {
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyPassword
             shakeAnimation = true
             return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             shakeAnimation = false
         }
         Task {
@@ -62,7 +60,8 @@ struct LoginSectionView: View {
     var body: some View {
         VStack {
             // Email
-            TextField(strings.emailPlaceholder, text: $viewModel.email)
+            TextField(AppLocalizedString.emailPlaceholder, text: $viewModel.email)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -79,7 +78,8 @@ struct LoginSectionView: View {
             
             // Password
             VStack {
-                SecureField(strings.passwordPlaceholder, text: $viewModel.password)
+                SecureField(AppLocalizedString.passwordPlaceholder, text: $viewModel.password)
+                    .keyboardType(.default)
                     .padding()
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
@@ -98,7 +98,7 @@ struct LoginSectionView: View {
                         // Forgot password action
                         viewModel.forgotPassword = true
                     } label: {
-                        Text(strings.forgotPassword)
+                        Text(AppLocalizedString.forgotPassword)
                             .fontWeight(.bold)
                             .font(.footnote)
                             .italic()
@@ -115,7 +115,7 @@ struct LoginSectionView: View {
                 focusedField = nil
                 handleLogin()
             } label: {
-                Text(strings.login)
+                Text(AppLocalizedString.login)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(
@@ -136,11 +136,11 @@ struct LoginSectionView: View {
             
             // Sign Up
             HStack {
-                Text(strings.dontHaveAnAccount)
+                Text(AppLocalizedString.dontHaveAnAccount)
                 Button {
                     login = false
                 } label: {
-                    Text(strings.signUp)
+                    Text(AppLocalizedString.signUp)
                         .fontWeight(.bold)
                 }
             }

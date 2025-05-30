@@ -9,9 +9,6 @@ import Foundation
 import FirebaseAuth
 import FirebaseCrashlytics
 
-private let appStrings = AppLocalizedString()
-private let validationStrings = ValidationLocalizedString()
-
 // MARK: - Tổng hợp lỗi toàn app
 enum AppError: LocalizedError {
     case auth(FirebaseAuthError)
@@ -300,7 +297,7 @@ extension AppError {
         case .ingredients(let error):
             return error.localizedDescription
         case .unknown:
-            return appStrings.errorUnknown
+            return AppLocalizedString.errorUnknown 
         }
     }
 }
@@ -358,37 +355,37 @@ extension FirebaseAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidEmail:
-            return validationStrings.authErrorInvalidEmail
+            return ValidationLocalizedString.authErrorInvalidEmail
         case .wrongPassword:
-            return validationStrings.authErrorWrongPassword
+            return ValidationLocalizedString.authErrorWrongPassword
         case .userNotFound:
-            return validationStrings.authErrorUserNotFound
+            return ValidationLocalizedString.authErrorUserNotFound
         case .emailAlreadyInUse:
-            return validationStrings.authErrorEmailInUse
+            return ValidationLocalizedString.authErrorEmailInUse
         case .unverifiedEmailResent:
-            return validationStrings.verifyEmailSent
+            return ValidationLocalizedString.verifyEmailSent
         case .networkError:
-            return appStrings.errorNetwork
+            return AppLocalizedString.errorNetwork
         case .tooManyRequests:
-            return validationStrings.authErrorTooManyRequest
+            return ValidationLocalizedString.authErrorTooManyRequest
         case .weakPassword:
-            return validationStrings.authErrorValidatePasswordFailed
+            return ValidationLocalizedString.authErrorValidatePasswordFailed
         case .operationNotAllowed:
-            return appStrings.permissionDenied
+            return AppLocalizedString.permissionDenied
         case .accountExistsWithDifferentCredential:
-            return validationStrings.authErrorEmailInUse
+            return ValidationLocalizedString.authErrorEmailInUse
         case .requiresRecentLogin:
-            return validationStrings.authErrorValidatePasswordFailed
+            return ValidationLocalizedString.authErrorValidatePasswordFailed
         case .credentialAlreadyInUse:
-            return validationStrings.authErrorEmailInUse
+            return ValidationLocalizedString.authErrorEmailInUse
         case .unknown:
-            return validationStrings.authErrorUnknown
+            return ValidationLocalizedString.authErrorUnknown
         case .unverifiedEmail:
-            return validationStrings.verifyEmailSent
+            return ValidationLocalizedString.verifyEmailSent
         case .tokenError:
-            return validationStrings.authErrorUnknown
+            return ValidationLocalizedString.authErrorUnknown
         case .invalidCredential:
-            return validationStrings.authErrorValidatePasswordFailed
+            return ValidationLocalizedString.authErrorValidatePasswordFailed
         }
     }
 }
@@ -407,17 +404,17 @@ extension FirestoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .documentNotFound:
-            return appStrings.firestoreErrorNotFound
+            return AppLocalizedString.firestoreErrorNotFound
         case .encodingFailed:
-            return appStrings.firestoreErrorUnknown
+            return AppLocalizedString.firestoreErrorUnknown
         case .decodingFailed:
-            return appStrings.firestoreErrorDecoding
+            return AppLocalizedString.firestoreErrorDecoding
         case .permissionDenied:
-            return appStrings.firestoreErrorPermission
+            return AppLocalizedString.firestoreErrorPermission
         case .networkError:
-            return appStrings.errorNetwork
+            return AppLocalizedString.errorNetwork
         case .unknown:
-            return appStrings.firestoreErrorUnknown
+            return AppLocalizedString.firestoreErrorUnknown
         }
     }
 }
@@ -435,15 +432,15 @@ extension StorageError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .uploadFailed:
-            return appStrings.storageErrorUploadFailed
+            return AppLocalizedString.storageErrorUploadFailed
         case .downloadFailed:
-            return appStrings.storageErrorDownloadFailed
+            return AppLocalizedString.storageErrorDownloadFailed
         case .fileNotFound:
-            return appStrings.storageErrorFileNotFound
+            return AppLocalizedString.storageErrorFileNotFound
         case .permissionDenied:
-            return appStrings.storageErrorPermission
+            return AppLocalizedString.storageErrorPermission
         case .unknown:
-            return appStrings.storageErrorUnknown
+            return AppLocalizedString.storageErrorUnknown
         }
     }
 }
@@ -460,13 +457,13 @@ extension FunctionsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .timeout:
-            return appStrings.functionsErrorTimeOut
+            return AppLocalizedString.functionsErrorTimeOut
         case .internalError:
-            return appStrings.functionsErrorInternal
+            return AppLocalizedString.functionsErrorInternal
         case .invalidArgument:
-            return appStrings.functionsErrorInvalidArgument
+            return AppLocalizedString.functionsErrorInvalidArgument
         case .unknown:
-            return appStrings.functionsErrorUnknown
+            return AppLocalizedString.functionsErrorUnknown
         }
     }
 }
@@ -482,11 +479,11 @@ extension MessagingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tokenFetchFailed:
-            return appStrings.messagingErrorTokenFailed
+            return AppLocalizedString.messagingErrorTokenFailed
         case .permissionDenied:
-            return appStrings.messagingErrorPermission
+            return AppLocalizedString.messagingErrorPermission
         case .unknown:
-            return appStrings.messagingErrorUnknown
+            return AppLocalizedString.messagingErrorUnknown
         }
     }
 }

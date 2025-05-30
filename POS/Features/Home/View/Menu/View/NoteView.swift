@@ -78,6 +78,7 @@ struct NoteView: View {
                         get: { noteText },
                         set: { noteText = String($0.prefix(maxCharacterCount)) }
                     ))
+                    .keyboardType(.default)
                     .focused($isTextFieldFocused)
                     .frame(height: 100)
                     .padding(12)
@@ -197,7 +198,8 @@ struct NoteView: View {
             offset = 1000
             opacity = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        Task {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
             appState.coordinator.dismiss(style: .overlay)
         }
     }

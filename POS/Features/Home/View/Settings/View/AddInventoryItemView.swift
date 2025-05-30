@@ -21,6 +21,7 @@ struct AddInventoryItemView: View {
             Form {
                 Section(header: Text("Thông tin cơ bản")) {
                     TextField("Tên sản phẩm", text: $name)
+                        .keyboardType(.default)
                     
                     HStack {
                         Text("Số lượng:")

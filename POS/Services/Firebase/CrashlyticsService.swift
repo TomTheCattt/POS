@@ -11,17 +11,24 @@ import FirebaseCrashlytics
 final class CrashlyticsService: CrashlyticsServiceProtocol {
     
     static let shared = CrashlyticsService()
+    private let crashlytics = Crashlytics.crashlytics()
+    
+    private init() {}
 
     func log(_ message: String) {
-        Crashlytics.crashlytics().log(message)
+        crashlytics.log(message)
     }
 
     func record(error: Error) {
-        Crashlytics.crashlytics().record(error: error)
+        crashlytics.record(error: error)
     }
 
     func setUserID(_ id: String) {
-        Crashlytics.crashlytics().setUserID(id)
+        crashlytics.setUserID(id)
+    }
+    
+    deinit {
+        // Cleanup any resources if needed
     }
 }
 

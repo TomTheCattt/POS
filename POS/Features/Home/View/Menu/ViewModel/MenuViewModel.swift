@@ -47,7 +47,7 @@ final class MenuViewModel: ObservableObject {
     private func setupBindings() {
         // Lắng nghe thay đổi của menu từ SourceModel
         source.menuPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] menuItems in
                 guard let self = self,
                       let items = menuItems else { return }
@@ -58,7 +58,7 @@ final class MenuViewModel: ObservableObject {
         
         // Lắng nghe thay đổi của user từ SourceModel
         source.currentUserPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] user in
                 self?.displayName = user?.displayName ?? "Unknown User"
             }

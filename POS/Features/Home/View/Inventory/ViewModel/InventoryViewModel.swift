@@ -31,7 +31,7 @@ final class InventoryViewModel: ObservableObject {
     private func setupBindings() {
         // Lắng nghe thay đổi của inventory từ SourceModel
         source.inventoryPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] items in
                 guard let self = self,
                       let items = items else { return }
@@ -55,7 +55,7 @@ final class InventoryViewModel: ObservableObject {
             
         // Lắng nghe trạng thái loading từ SourceModel
         source.loadingPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] loading, _ in
                 self?.isLoading = loading
             }

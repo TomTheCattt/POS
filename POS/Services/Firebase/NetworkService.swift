@@ -36,6 +36,7 @@ final class NetworkService: NetworkServiceProtocol {
     
     // MARK: - Initialization
     private init() {
+        self.webSocketTask = nil
         setupNetworkMonitoring()
     }
     
@@ -50,7 +51,7 @@ final class NetworkService: NetworkServiceProtocol {
                 status = .disconnected
             }
             
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.connectionSubject.send(status)
             }
         }
@@ -153,7 +154,6 @@ final class NetworkService: NetworkServiceProtocol {
             throw AppError.network(.httpError(statusCode: httpResponse.statusCode))
         }
         
-        // Assuming the response contains the URL of the uploaded file
         guard let urlString = String(data: responseData, encoding: .utf8),
               let fileURL = URL(string: urlString) else {
             throw AppError.network(.invalidResponse)

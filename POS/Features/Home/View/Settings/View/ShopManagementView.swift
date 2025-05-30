@@ -137,7 +137,7 @@ struct ShopManagementView: View {
     
     private var shopListOverlay: some View {
         ZStack {
-            Color.black.opacity(0.3)
+            Color.white.opacity(0.3)
                 .ignoresSafeArea()
                 .onTapGesture {
                     withAnimation(.spring()) {
@@ -170,10 +170,6 @@ struct ShopManagementView: View {
                                         Text(shop.shopName)
                                             .font(.body)
                                             .foregroundColor(.primary)
-                                        
-                                        Text("ID: \(shop.id)")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
                                     }
                                     
                                     Spacer()
@@ -216,7 +212,7 @@ struct ShopManagementView: View {
             .padding(.top, 70)
             .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
         }
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(.move(edge: .trailing).combined(with: .opacity))
     }
     
     private var contentView: some View {

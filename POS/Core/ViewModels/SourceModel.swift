@@ -22,11 +22,7 @@ class SourceModel: ObservableObject {
     /// Currently selected shop's menu
     @Published private(set) var menu: [MenuItem]?
     /// Currently selected shop's inventory
-    @Published private(set) var inventory: [InventoryItem]? {
-        didSet {
-            print(inventory)
-        }
-    }
+    @Published private(set) var inventory: [InventoryItem]?
     /// Currently selected shop's ingredients usage
     @Published private(set) var ingredients: [IngredientUsage]?
 
@@ -125,29 +121,95 @@ class SourceModel: ObservableObject {
         self.environment = environment
         setupAuthStateListener()
         setupInitialState()
-//        currentUserSubject
-//            .sink { user in
-//                self.currentUser = user
-//            }
-//            .store(in: &cancellables)
-//        currentUserSubject.assign(to: &$currentUser)
     }
 
     deinit {
-        if let listener = authStateListener {
-            environment.authService.auth.removeStateDidChangeListener(listener)
+        // Chuyển cleanup sang nonisolated context
+        Task { @MainActor [weak self] in
+            await self?.cleanupResources()
         }
+    }
+    
+    // MARK: - Resource Management
+    private func cleanupResources() async {
+        // Remove auth state listener
+        environment.authService.removeAuthStateListener()
+        
+        // Remove all Firestore listeners
+        await removeAllListeners()
+        
+        // Cancel all subscriptions
         cancellables.removeAll()
+        
+        // Reset state
+        await resetState()
+    }
+    
+    private func removeAllListeners() async {
+        // Remove individual listeners
+        if let userListener = userListener {
+            environment.databaseService.removeListener(forKey: userListener.description)
+        }
+        userListener = nil
+        
+        if let shopListener = shopListener {
+            environment.databaseService.removeListener(forKey: shopListener.description)
+        }
+        shopListener = nil
+        
+        if let ordersListener = ordersListener {
+            environment.databaseService.removeListener(forKey: ordersListener.description)
+        }
+        ordersListener = nil
+        
+        if let menuListener = menuListener {
+            environment.databaseService.removeListener(forKey: menuListener.description)
+        }
+        menuListener = nil
+        
+        if let inventoryListener = inventoryListener {
+            environment.databaseService.removeListener(forKey: inventoryListener.description)
+        }
+        inventoryListener = nil
+        
+        if let ingredientsListener = ingredientsListener {
+            environment.databaseService.removeListener(forKey: ingredientsListener.description)
+        }
+        ingredientsListener = nil
+        
+        // Remove all remaining listeners
+        listeners.forEach { listener in
+            environment.databaseService.removeListener(forKey: listener.description)
+        }
         listeners.removeAll()
     }
 
     // MARK: - Setup Methods
     private func setupAuthStateListener() {
-        authStateListener = environment.authService.auth.addStateDidChangeListener { [weak self] _, user in
-            Task { [weak self] in
-                await self?.handleAuthStateChange(user)
+        environment.authService.setupAuthStateListener { [weak self] state in
+            Task { @MainActor [weak self] in
+                switch state {
+                case .authenticated:
+                    if let user = self?.environment.authService.auth.currentUser {
+                        await self?.handleAuthStateChange(user)
+                    }
+                case .unauthenticated:
+                    await self?.handleAuthStateChange(nil)
+                case .emailNotVerified:
+                    await self?.handleEmailNotVerified()
+                case .loading:
+                    self?.isLoading = true
+                }
             }
         }
+    }
+    
+    private func handleEmailNotVerified() async {
+        currentUser = nil
+        if let uid = environment.authService.auth.currentUser?.uid {
+            userId = uid
+        }
+        isLoading = false
     }
     
     private func setupInitialState() {
@@ -283,6 +345,12 @@ class SourceModel: ObservableObject {
 
     // MARK: - User & Shop Listeners
     private func setupUserListener(userId: String) async {
+        // Remove existing listener
+        if let userListener = userListener {
+            environment.databaseService.removeListener(forKey: userListener.description)
+        }
+        userListener = nil
+        
         userListener = environment.databaseService.addDocumentListener(
             collection: .users,
             type: .collection,
@@ -290,21 +358,21 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<AppUser?, Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let user):
-                guard let user = user, let id = user.id else {
-                    self.handleError(AppError.auth(.userNotFound))
-                    return
-                }
-                self.currentUser = user
-                self.userId = id
-                
-                Task {
+            Task { @MainActor in
+                switch result {
+                case .success(let user):
+                    guard let user = user, let id = user.id else {
+                        self.handleError(AppError.auth(.userNotFound))
+                        return
+                    }
+                    
+                    self.currentUser = user
+                    self.userId = id
                     await self.fetchAndSetupShop()
+                    
+                case .failure(let error):
+                    self.handleError(error, action: "tải thông tin người dùng")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "tải thông tin người dùng")
             }
         }
         
@@ -314,7 +382,10 @@ class SourceModel: ObservableObject {
     }
     
     private func setupShopListener(shopId: String) {
-        shopListener?.remove()
+        if let shopListener = shopListener {
+            environment.databaseService.removeListener(forKey: shopListener.description)
+        }
+        shopListener = nil
         
         shopListener = environment.databaseService.addDocumentListener(
             collection: .shops,
@@ -323,20 +394,20 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<Shop?, Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let shop):
-                guard let shop = shop else {
-                    self.handleError(AppError.shop(.notFound))
-                    return
-                }
-                
-                Task { @MainActor in
+            Task { @MainActor in
+                switch result {
+                case .success(let shop):
+                    guard let shop = shop else {
+                        self.handleError(AppError.shop(.notFound))
+                        return
+                    }
+                    
                     self.selectedShop = shop
                     self.selectedShopId = shop.id
+                    
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi cửa hàng")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "lắng nghe thay đổi cửa hàng")
             }
         }
         
@@ -346,7 +417,10 @@ class SourceModel: ObservableObject {
     }
     
     private func setupMenuListener(shopId: String) {
-        menuListener?.remove()
+        if let menuListener = menuListener {
+            environment.databaseService.removeListener(forKey: menuListener.description)
+        }
+        menuListener = nil
         
         menuListener = environment.databaseService.addListener(
             collection: .menu,
@@ -355,15 +429,13 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<[MenuItem], Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let menu):
-                
-                Task { @MainActor in
+            Task { @MainActor in
+                switch result {
+                case .success(let menu):
                     self.menu = menu
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi của thực đơn")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "lắng nghe thay đổi của thực đơn")
             }
         }
         
@@ -373,7 +445,10 @@ class SourceModel: ObservableObject {
     }
     
     private func setupOrdersListener(shopId: String) {
-        ordersListener?.remove()
+        if let ordersListener = ordersListener {
+            environment.databaseService.removeListener(forKey: ordersListener.description)
+        }
+        ordersListener = nil
         
         ordersListener = environment.databaseService.addListener(
             collection: .orders,
@@ -382,15 +457,13 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<[Order], Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let order):
-                
-                Task { @MainActor in
-                    self.orders = order
+            Task { @MainActor in
+                switch result {
+                case .success(let orders):
+                    self.orders = orders
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
             }
         }
         
@@ -400,7 +473,10 @@ class SourceModel: ObservableObject {
     }
     
     private func setupInventoryListener(shopId: String) {
-        inventoryListener?.remove()
+        if let inventoryListener = inventoryListener {
+            environment.databaseService.removeListener(forKey: inventoryListener.description)
+        }
+        inventoryListener = nil
         
         inventoryListener = environment.databaseService.addListener(
             collection: .inventory,
@@ -409,15 +485,13 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<[InventoryItem], Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let inventory):
-                
-                Task { @MainActor in
+            Task { @MainActor in
+                switch result {
+                case .success(let inventory):
                     self.inventory = inventory
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi kho")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "lắng nghe thay đổi kho")
             }
         }
         
@@ -427,7 +501,10 @@ class SourceModel: ObservableObject {
     }
     
     private func setupIngredientsListener(shopId: String) {
-        ingredientsListener?.remove()
+        if let ingredientsListener = ingredientsListener {
+            environment.databaseService.removeListener(forKey: ingredientsListener.description)
+        }
+        ingredientsListener = nil
         
         ingredientsListener = environment.databaseService.addListener(
             collection: .ingredientsUsage,
@@ -436,15 +513,13 @@ class SourceModel: ObservableObject {
         ) { [weak self] (result: Result<[IngredientUsage], Error>) in
             guard let self = self else { return }
             
-            switch result {
-            case .success(let ingredients):
-                
-                Task { @MainActor in
+            Task { @MainActor in
+                switch result {
+                case .success(let ingredients):
                     self.ingredients = ingredients
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi nguyên liệu")
                 }
-                
-            case .failure(let error):
-                self.handleError(error, action: "lắng nghe thay đổi cửa hàng")
             }
         }
         
@@ -455,29 +530,37 @@ class SourceModel: ObservableObject {
 
     // MARK: - Loading State Management
     func withLoading<T>(_ text: String? = nil, operation: () async throws -> T) async throws -> T {
-        await MainActor.run {
-            isLoading = true
-            loadingText = text
+        await MainActor.run { [weak self] in
+            self?.isLoading = true
+            self?.loadingText = text
         }
+        
         defer {
-            Task { @MainActor in
-                isLoading = false
-                loadingText = nil
+            Task { @MainActor [weak self] in
+                self?.isLoading = false
+                self?.loadingText = nil
             }
         }
+        
         return try await operation()
     }
     
     func withProgress<T>(_ operation: (@escaping (Double) -> Void) async throws -> T) async throws -> T {
-        await MainActor.run { isLoading = true }
+        await MainActor.run { [weak self] in 
+            self?.isLoading = true 
+        }
+        
         defer {
-            Task { @MainActor in
-                isLoading = false
-                progress = nil
+            Task { @MainActor [weak self] in
+                self?.isLoading = false
+                self?.progress = nil
             }
         }
+        
         return try await operation { [weak self] value in
-            Task { @MainActor in self?.progress = value }
+            Task { @MainActor in 
+                self?.progress = value 
+            }
         }
     }
     
@@ -517,7 +600,8 @@ class SourceModel: ObservableObject {
     }
     
     private func hideToastAfterDelay() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
             withAnimation(.spring()) {
                 self?.showToast = false
             }
@@ -559,14 +643,18 @@ class SourceModel: ObservableObject {
         listeners.append(listener)
     }
     
-    func resetState() {
+    func resetState() async {
         currentUser = nil
         selectedShop = nil
+        orders = nil
+        menu = nil
+        inventory = nil
+        ingredients = nil
         error = nil
         alert = nil
         userId = ""
-        selectedShopId = ""
-        listeners.removeAll()
+        selectedShopId = nil
+        await removeAllListeners()
     }
     
     func addSubscription(_ subscription: AnyCancellable) {

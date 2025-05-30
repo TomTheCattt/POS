@@ -23,7 +23,7 @@ final class HistoryViewModel: ObservableObject {
     
     private func setupBindings() {
         source.ordersPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] orders in
                 guard let self = self else { return }
                 self.orders = orders ?? []
@@ -33,7 +33,7 @@ final class HistoryViewModel: ObservableObject {
         
         // Lắng nghe thay đổi từ searchText
         $searchText
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.filterOrders()
             }
@@ -48,7 +48,7 @@ final class HistoryViewModel: ObservableObject {
             
         // Lắng nghe trạng thái loading từ SourceModel
         source.loadingPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] loading, _ in
                 self?.isLoading = loading
             }

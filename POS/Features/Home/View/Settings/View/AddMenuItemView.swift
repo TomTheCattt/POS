@@ -41,6 +41,7 @@ struct AddMenuItemView: View {
             Form {
                 Section(header: Text("Thông tin cơ bản")) {
                     TextField("Tên món", text: $name)
+                        .keyboardType(.default)
                     
                     HStack {
                         Text("Giá:")
@@ -51,6 +52,7 @@ struct AddMenuItemView: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         TextField("Danh mục", text: $category)
+                            .keyboardType(.default)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         
                         if category.isEmpty {
@@ -335,7 +337,13 @@ struct ImportMenuItemsView: View {
     
     private func importFile(at url: URL) async {
         isLoading = true
-        defer { isLoading = false }
+        defer { 
+            isLoading = false
+            // Đảm bảo giải phóng tài nguyên
+            if FileManager.default.fileExists(atPath: url.path) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
         
         do {
             await viewModel.importMenuItems(from: url)

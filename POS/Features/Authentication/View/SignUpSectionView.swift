@@ -13,9 +13,6 @@ struct SignUpSectionView: View {
         case shopName, email, displayName, ownerPassword, password, rePassword
     }
     
-    private let strings = AppLocalizedString()
-    private let validationStrings = ValidationLocalizedString()
-    
     @Binding var login: Bool
     
     @State private var isSignUpPressed = false
@@ -42,41 +39,42 @@ struct SignUpSectionView: View {
         guard !viewModel.shopName.isEmpty else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorEmptyShopName
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyShopName
             return
         }
         
         guard !viewModel.email.isEmpty else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorEmptyEmail
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyEmail
             return
         }
         guard !viewModel.displayName.isEmpty else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorEmptyDisplayName
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyDisplayName
             return
         }
         guard !viewModel.password.isEmpty else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorEmptyPassword
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyPassword
             return
         }
         guard !viewModel.rePassword.isEmpty else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorReEnterPasswordEmpty
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorReEnterPasswordEmpty
             return
         }
         guard viewModel.password == viewModel.rePassword else {
             shakeAnimation = true
 //            viewModel.showError = true
-//            viewModel.errorMessage = validationStrings.authErrorValidatePasswordFailed
+//            viewModel.errorMessage = ValidationLocalizedString.authErrorValidatePasswordFailed
             return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             shakeAnimation = false
         }
         Task {
@@ -87,7 +85,8 @@ struct SignUpSectionView: View {
     var body: some View {
         VStack {
             // Shop Name
-            TextField(strings.shopNamePlaceholder, text: $viewModel.shopName)
+            TextField(AppLocalizedString.shopNamePlaceholder, text: $viewModel.shopName)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -102,7 +101,8 @@ struct SignUpSectionView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             // Display Name
-            TextField(strings.displayNamePlaceholder, text: $viewModel.displayName)
+            TextField(AppLocalizedString.displayNamePlaceholder, text: $viewModel.displayName)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -117,7 +117,8 @@ struct SignUpSectionView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             // Email
-            TextField(strings.emailPlaceholder, text: $viewModel.email)
+            TextField(AppLocalizedString.emailPlaceholder, text: $viewModel.email)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -133,6 +134,7 @@ struct SignUpSectionView: View {
                 .autocorrectionDisabled()
             // Owner Password
             SecureField("Shop Owner Password", text: $viewModel.ownerPassword)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -147,7 +149,8 @@ struct SignUpSectionView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             // Password
-            SecureField(strings.passwordPlaceholder, text: $viewModel.password)
+            SecureField(AppLocalizedString.passwordPlaceholder, text: $viewModel.password)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -162,7 +165,8 @@ struct SignUpSectionView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             // Re-Enter Password
-            SecureField(strings.reEnterPasswordPlaceholder, text: $viewModel.rePassword)
+            SecureField(AppLocalizedString.reEnterPasswordPlaceholder, text: $viewModel.rePassword)
+                .keyboardType(.default)
                 .padding()
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -182,7 +186,7 @@ struct SignUpSectionView: View {
                 focusedField = nil
                 handleSignUp()
             } label: {
-                Text(strings.signUp)
+                Text(AppLocalizedString.signUp)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(
@@ -202,11 +206,11 @@ struct SignUpSectionView: View {
             .padding(.bottom)
             // Login
             HStack {
-                Text(strings.alreadyHaveAnAccount)
+                Text(AppLocalizedString.alreadyHaveAnAccount)
                 Button {
                     login = true
                 } label: {
-                    Text(strings.login)
+                    Text(AppLocalizedString.login)
                         .fontWeight(.bold)
                 }
             }

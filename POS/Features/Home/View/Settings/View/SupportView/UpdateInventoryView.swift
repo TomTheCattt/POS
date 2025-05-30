@@ -223,6 +223,7 @@ struct SearchBar: View {
                 .foregroundColor(.gray)
             
             TextField(placeholder, text: $text)
+                .keyboardType(.default)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
         }
     }
@@ -252,6 +253,7 @@ struct InventoryItemFormView: View {
             Form {
                 Section("Thông tin sản phẩm") {
                     TextField("Tên sản phẩm", text: $name)
+                        .keyboardType(.default)
                     
                     HStack {
                         Text("Số lượng:")

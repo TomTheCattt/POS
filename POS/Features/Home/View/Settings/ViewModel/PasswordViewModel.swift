@@ -51,7 +51,7 @@ final class PasswordViewModel: ObservableObject {
     
     // MARK: - Public Methods
     func updateAccountPassword() async throws {
-        guard let user = source.currentUser else {
+        guard let _ = source.currentUser else {
             throw AppError.auth(.userNotFound)
         }
         

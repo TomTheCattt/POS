@@ -22,9 +22,32 @@ final class StorageService: StorageServiceProtocol {
             let metadata = StorageMetadata()
             metadata.contentType = "image/jpeg"
             
-            let _ = try await imageRef.putDataAsync(imageData, metadata: metadata)
-            let downloadURL = try await imageRef.downloadURL()
-            return downloadURL
+            return try await withCheckedThrowingContinuation { continuation in
+                let uploadTask = imageRef.putData(imageData, metadata: metadata) { metadata, error in
+                    if let error = error {
+                        continuation.resume(throwing: StorageError.uploadFailed)
+                        return
+                    }
+                    
+                    imageRef.downloadURL { url, error in
+                        if let error = error {
+                            continuation.resume(throwing: StorageError.downloadFailed)
+                            return
+                        }
+                        
+                        guard let downloadURL = url else {
+                            continuation.resume(throwing: StorageError.downloadFailed)
+                            return
+                        }
+                        
+                        continuation.resume(returning: downloadURL)
+                    }
+                }
+                
+                uploadTask.observe(.failure) { _ in
+                    continuation.resume(throwing: StorageError.uploadFailed)
+                }
+            }
         } catch {
             throw StorageError.uploadFailed
         }
@@ -38,10 +61,14 @@ final class StorageService: StorageServiceProtocol {
         let storageRef = storage.reference()
         let imageRef = storageRef.child(path)
         
-        do {
-            try await imageRef.delete()
-        } catch {
-            throw StorageError.permissionDenied
+        return try await withCheckedThrowingContinuation { continuation in
+            imageRef.delete { error in
+                if let error = error {
+                    continuation.resume(throwing: StorageError.permissionDenied)
+                    return
+                }
+                continuation.resume()
+            }
         }
     }
 }

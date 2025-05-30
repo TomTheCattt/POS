@@ -89,14 +89,15 @@ class AppCoordinator: ObservableObject {
         
         // Xử lý auto-dismiss nếu được cấu hình
         if config.autoDismiss {
-            DispatchQueue.main.asyncAfter(deadline: .now() + config.autoDismissDelay) {
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(config.autoDismissDelay * 1_000_000_000))
                 self.dismiss(style: style)
             }
         }
         
         // Gọi completion handler nếu có
         if let completion = config.completion {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 completion()
             }
         }

@@ -17,7 +17,49 @@ final class AuthService: AuthServiceProtocol {
     
     // MARK: - Properties
     static let shared = AuthService()
-    let auth = Auth.auth()
+    private(set) var auth = Auth.auth()
+    private var authStateListener: AuthStateDidChangeListenerHandle?
+    
+    private init() {}
+    
+    deinit {
+        removeAuthStateListener()
+    }
+    
+    // MARK: - Auth State Management
+    func removeAuthStateListener() {
+        if let listener = authStateListener {
+            auth.removeStateDidChangeListener(listener)
+            authStateListener = nil
+        }
+    }
+    
+    func setupAuthStateListener(callback: @escaping (AuthState) -> Void) {
+        // Remove existing listener if any
+        removeAuthStateListener()
+        
+        // Add new listener
+        authStateListener = auth.addStateDidChangeListener { [weak self] _, user in
+            guard self != nil else { return }
+            
+            if let user = user {
+                Task {
+                    do {
+                        try await user.reload()
+                        if user.isEmailVerified {
+                            callback(.authenticated)
+                        } else {
+                            callback(.emailNotVerified)
+                        }
+                    } catch {
+                        callback(.unauthenticated)
+                    }
+                }
+            } else {
+                callback(.unauthenticated)
+            }
+        }
+    }
     
     // MARK: - Authentication Methods
     func login(email: String, password: String) async throws {
@@ -89,8 +131,22 @@ final class AuthService: AuthServiceProtocol {
             if let photoURL = photoURL {
                 changeRequest.photoURL = photoURL
             }
-            try await changeRequest.commitChanges()
             
+            // Sử dụng weak self để tránh retain cycle trong closure
+            try await withCheckedThrowingContinuation { [weak self] (continuation: CheckedContinuation<Void, Error>) in
+                guard self != nil else {
+                    continuation.resume(throwing: AppError.auth(.unknown))
+                    return
+                }
+                
+                changeRequest.commitChanges { error in
+                    if let error = error {
+                        continuation.resume(throwing: AppError.auth(.map(error)))
+                    } else {
+                        continuation.resume()
+                    }
+                }
+            }
         } catch {
             throw AppError.auth(.map(error))
         }

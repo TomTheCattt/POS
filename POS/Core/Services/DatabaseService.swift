@@ -7,7 +7,28 @@ final class DatabaseService: DatabaseServiceProtocol {
     
     private let db = Firestore.firestore()
     
+    private var listeners: [String: ListenerRegistration] = [:]
+    
     private init() {}
+    
+    deinit {
+        removeAllListeners()
+    }
+    
+    private func removeAllListeners() {
+        listeners.values.forEach { $0.remove() }
+        listeners.removeAll()
+    }
+    
+    private func storeListener(_ listener: ListenerRegistration, forKey key: String) {
+        listeners[key]?.remove()
+        listeners[key] = listener
+    }
+    
+    func removeListener(forKey key: String) {
+        listeners[key]?.remove()
+        listeners.removeValue(forKey: key)
+    }
     
     // MARK: - Collection Operations
     func create<T: Codable>(_ item: T, in collection: DatabaseCollection, type: DatabaseCollection.PathType) async throws -> String {
@@ -185,6 +206,9 @@ final class DatabaseService: DatabaseServiceProtocol {
             completion(.success(items))
         }
         
+        let listenerKey = "\(path)_\(UUID().uuidString)"
+        storeListener(listener, forKey: listenerKey)
+        
         return listener
     }
     
@@ -221,12 +245,16 @@ final class DatabaseService: DatabaseServiceProtocol {
                 }
             }
         
+        let listenerKey = "\(path)_\(id)_\(UUID().uuidString)"
+        storeListener(listener, forKey: listenerKey)
+        
         return listener
     }
     
     // MARK: - Transaction
     func runTransaction<T>(_ updateBlock: @escaping (inout T.Type) -> Void) async throws {
-        try await db.runTransaction { transaction, errorPointer in
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard self != nil else { return nil }
             var value = T.self
             updateBlock(&value)
             return nil

@@ -26,7 +26,8 @@ struct ShakeEffect: ViewModifier {
                     }
                     
                     // Use a delayed action to reset the state
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    Task {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
                         animationAmount = 0
                         if self.shake {
                             self.shake = false

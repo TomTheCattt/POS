@@ -23,14 +23,17 @@ struct PasswordView: View {
                         .font(.headline)
                     
                     SecureField("Mật khẩu hiện tại", text: $viewModel.currentPassword)
+                        .keyboardType(.default)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .focused($focusedField, equals: .currentPassword)
                     
                     SecureField("Mật khẩu mới", text: $viewModel.newPassword)
+                        .keyboardType(.default)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .focused($focusedField, equals: .newPassword)
                     
                     SecureField("Xác nhận mật khẩu mới", text: $viewModel.confirmPassword)
+                        .keyboardType(.default)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .focused($focusedField, equals: .confirmPassword)
                     
@@ -65,13 +68,16 @@ struct PasswordView: View {
                     
                     SecureField("Mật khẩu chủ cửa hàng hiện tại", text: $viewModel.currentOwnerPassword)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.default)
                         .focused($focusedField, equals: .currentOwnerPassword)
                     
                     SecureField("Mật khẩu chủ cửa hàng mới", text: $viewModel.newOwnerPassword)
+                        .keyboardType(.default)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .focused($focusedField, equals: .newOwnerPassword)
                     
                     SecureField("Xác nhận mật khẩu chủ cửa hàng mới", text: $viewModel.confirmOwnerPassword)
+                        .keyboardType(.default)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .focused($focusedField, equals: .confirmOwnerPassword)
                     

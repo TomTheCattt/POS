@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct AuthenticationView: View {
-    private let strings = AppLocalizedString()
-    
     @EnvironmentObject private var appState: AppState
     @ObservedObject var viewModel: AuthenticationViewModel
     
@@ -62,9 +60,10 @@ struct AuthenticationView: View {
             
             // Forgot Password Toast
             if viewModel.forgotPassword {
-                ToastView(type: .info, message: strings.forgotPasswordContent)
+                ToastView(type: .info, message: AppLocalizedString.forgotPasswordContent)
                     .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        Task {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
                             withAnimation(.spring()) {
                                 viewModel.forgotPassword = false
                             }
@@ -74,9 +73,10 @@ struct AuthenticationView: View {
             
             // Verify Email Toast
             if viewModel.verifyEmailSent {
-                ToastView(type: .success, message: strings.verifyEmailSentContent)
+                ToastView(type: .success, message: AppLocalizedString.verifyEmailSentContent)
                     .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        Task {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
                             withAnimation(.spring()) {
                                 viewModel.verifyEmailSent = false
                             }
