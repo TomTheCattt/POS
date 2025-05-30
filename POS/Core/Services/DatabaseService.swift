@@ -191,7 +191,7 @@ final class DatabaseService: DatabaseServiceProtocol {
             query = builder(query)
         }
         
-        let listener = query.addSnapshotListener { snapshot, error in
+        let listener = query.addSnapshotListener(includeMetadataChanges: false) { snapshot, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -226,7 +226,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
         
         let listener = db.collection(path).document(id)
-            .addSnapshotListener { snapshot, error in
+            .addSnapshotListener(includeMetadataChanges: false) { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return

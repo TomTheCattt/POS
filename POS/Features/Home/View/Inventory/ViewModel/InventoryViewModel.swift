@@ -9,7 +9,6 @@ final class InventoryViewModel: ObservableObject {
     @Published private(set) var selectedCategory: String = "All"
     @Published private(set) var inventoryItems: [InventoryItem] = []
     @Published private(set) var categories: [String] = ["All"]
-    @Published private(set) var filteredItems: [InventoryItem] = []
     @Published private(set) var isLoading: Bool = false
     
     @Published var showLowStockOnly: Bool = false
@@ -17,10 +16,45 @@ final class InventoryViewModel: ObservableObject {
     @Published var showAddItemSheet: Bool = false
     @Published var showEditItemSheet: Bool = false
     @Published var selectedItem: InventoryItem?
+    @Published var selectedStockStatus: InventoryItem.StockStatus?
     
     // MARK: - Dependencies
     private let source: SourceModel
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Computed Properties
+    var filteredAndSortedItems: [InventoryItem] {
+        var items = inventoryItems
+        
+        // Lọc theo từ khóa tìm kiếm
+        if !searchKey.isEmpty {
+            items = items.filter { item in
+                item.name.localizedCaseInsensitiveContains(searchKey)
+            }
+        }
+        
+        // Lọc theo trạng thái kho
+        if let stockStatus = selectedStockStatus {
+            items = items.filter { $0.stockStatus == stockStatus }
+        }
+        
+        // Lọc các mặt hàng sắp hết
+        if showLowStockOnly {
+            items = items.filter { $0.isLowStock }
+        }
+        
+        // Sắp xếp theo tiêu chí đã chọn
+        switch sortOrder {
+        case .name:
+            items.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        case .quantity:
+            items.sort { $0.quantity > $1.quantity }
+        case .lastUpdated:
+            items.sort { $0.updatedAt > $1.updatedAt }
+        }
+        
+        return items
+    }
     
     // MARK: - Initialization
     init(source: SourceModel) {
@@ -41,15 +75,15 @@ final class InventoryViewModel: ObservableObject {
         
         // Lắng nghe thay đổi từ showLowStockOnly
         $showLowStockOnly
-            .sink { [weak self] _ in
-                self?.filterAndSortItems()
+            .sink { _ in
+                // Không cần làm gì vì computed property sẽ tự cập nhật
             }
-            .store(in: &cancellables)
+            .store(in: &source.cancellables)
         
         // Lắng nghe thay đổi từ sortOrder
         $sortOrder
-            .sink { [weak self] _ in
-                self?.filterAndSortItems()
+            .sink { _ in
+                // Không cần làm gì vì computed property sẽ tự cập nhật
             }
             .store(in: &cancellables)
             
@@ -59,36 +93,7 @@ final class InventoryViewModel: ObservableObject {
             .sink { [weak self] loading, _ in
                 self?.isLoading = loading
             }
-            .store(in: &cancellables)
-    }
-    
-    // MARK: - Private Methods
-    private func filterAndSortItems() {
-        var items = inventoryItems
-        
-        // Lọc theo từ khóa tìm kiếm
-        if !searchKey.isEmpty {
-            items = items.filter { item in
-                item.name.localizedCaseInsensitiveContains(searchKey)
-            }
-        }
-        
-        // Lọc các mặt hàng sắp hết
-        if showLowStockOnly {
-            items = items.filter { $0.isLowStock }
-        }
-        
-        // Sắp xếp theo tiêu chí đã chọn
-        switch sortOrder {
-        case .name:
-            items.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
-        case .quantity:
-            items.sort { $0.quantity > $1.quantity }
-        case .lastUpdated:
-            items.sort { $0.updatedAt > $1.updatedAt }
-        }
-        
-        filteredItems = items
+            .store(in: &source.cancellables)
     }
     
     // MARK: - Public Methods
@@ -98,6 +103,10 @@ final class InventoryViewModel: ObservableObject {
     
     func updateSelectedCategory(_ category: String) {
         selectedCategory = category
+    }
+    
+    func updateSelectedStockStatus(_ status: InventoryItem.StockStatus?) {
+        selectedStockStatus = status
     }
     
     // MARK: - Inventory Item Management

@@ -11,10 +11,6 @@ struct UpdateInventoryView: View {
     @ObservedObject var viewModel: InventoryViewModel
     @EnvironmentObject var appState: AppState
     
-    @State private var searchText = ""
-    @State private var selectedFilter: InventoryItem.StockStatus?
-    @State private var showingAddEditSheet = false
-    @State private var selectedItem: InventoryItem?
     @State private var isMultiSelectMode = false
     @State private var selectedItems: Set<InventoryItem> = []
     @State private var showingBatchUpdateSheet = false
@@ -34,7 +30,7 @@ struct UpdateInventoryView: View {
             
             // Inventory List
             List {
-                ForEach(filteredItems) { item in
+                ForEach(viewModel.filteredAndSortedItems) { item in
                     InventoryItemRow(
                         item: item,
                         isSelected: selectedItems.contains(item),
@@ -43,20 +39,24 @@ struct UpdateInventoryView: View {
                         if isMultiSelectMode {
                             toggleItemSelection(item)
                         } else {
-                            selectedItem = item
-                            showingAddEditSheet = true
+                            viewModel.selectedItem = item
+                            viewModel.showEditItemSheet = true
                         }
                     }
                 }
+            }
+            .listStyle(PlainListStyle())
+            .refreshable {
+                // Thêm logic refresh nếu cần
             }
             
             // Bottom Toolbar
             bottomToolbarView
         }
         .navigationTitle("Quản lý kho")
-        .sheet(isPresented: $showingAddEditSheet) {
+        .sheet(isPresented: $viewModel.showEditItemSheet) {
             InventoryItemFormView(
-                item: selectedItem,
+                item: viewModel.selectedItem,
                 onSave: handleSaveItem
             )
         }
@@ -69,25 +69,63 @@ struct UpdateInventoryView: View {
         .sheet(isPresented: $showingHistorySheet) {
             InventoryHistoryView()
         }
+        .overlay {
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.2))
+            }
+        }
     }
     
     private var toolbarView: some View {
-        HStack {
-            SearchBar(text: $searchText, placeholder: "Tìm kiếm sản phẩm...")
+        VStack(spacing: 12) {
+            // Search bar
+            SearchBar(
+                text: Binding(
+                    get: { viewModel.searchKey },
+                    set: { viewModel.updateSearchKey($0) }
+                ),
+                placeholder: "Tìm kiếm sản phẩm..."
+            )
             
-            Picker("", selection: $selectedFilter) {
-                Text("Tất cả").tag(Optional<InventoryItem.StockStatus>.none)
-                Text("Còn hàng").tag(Optional<InventoryItem.StockStatus>.some(.inStock))
-                Text("Sắp hết").tag(Optional<InventoryItem.StockStatus>.some(.lowStock))
-                Text("Hết hàng").tag(Optional<InventoryItem.StockStatus>.some(.outOfStock))
-            }
-            .pickerStyle(MenuPickerStyle())
-            
-            Button(action: { isMultiSelectMode.toggle() }) {
-                Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
+            // Filters
+            HStack {
+                // Stock status filter
+                Picker("", selection: Binding(
+                    get: { viewModel.selectedStockStatus },
+                    set: { viewModel.updateSelectedStockStatus($0) }
+                )) {
+                    Text("Tất cả").tag(Optional<InventoryItem.StockStatus>.none)
+                    Text("Còn hàng").tag(Optional<InventoryItem.StockStatus>.some(.inStock))
+                    Text("Sắp hết").tag(Optional<InventoryItem.StockStatus>.some(.lowStock))
+                    Text("Hết hàng").tag(Optional<InventoryItem.StockStatus>.some(.outOfStock))
+                }
+                .pickerStyle(MenuPickerStyle())
+                
+                Spacer()
+                
+                // Sort order
+                Picker("", selection: $viewModel.sortOrder) {
+                    Text("Tên A-Z").tag(InventoryViewModel.SortOrder.name)
+                    Text("Số lượng").tag(InventoryViewModel.SortOrder.quantity)
+                    Text("Cập nhật").tag(InventoryViewModel.SortOrder.lastUpdated)
+                }
+                .pickerStyle(MenuPickerStyle())
+                
+                Toggle(isOn: $viewModel.showLowStockOnly) {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .toggleStyle(ButtonToggleStyle())
+                
+                // Multi-select mode
+                Button(action: { isMultiSelectMode.toggle() }) {
+                    Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
+                }
             }
         }
-        .padding()
+        .padding(.horizontal)
     }
     
     private var multiSelectActionView: some View {
@@ -121,28 +159,14 @@ struct UpdateInventoryView: View {
             Spacer()
             
             Button(action: {
-                selectedItem = nil
-                showingAddEditSheet = true
+                viewModel.selectedItem = nil
+                viewModel.showEditItemSheet = true
             }) {
                 Label("Thêm sản phẩm", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.borderedProminent)
         }
         .padding()
-    }
-    
-    private var filteredItems: [InventoryItem] {
-        var items = [InventoryItem(name: "", quantity: 0, unit: MeasurementUnit.gram, measurement: Measurement(value: 0, unit: .gram), minQuantity: 0, costPrice: 0)]
-        
-        if !searchText.isEmpty {
-            items = items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
-        
-        if let filter = selectedFilter {
-            items = items.filter { $0.stockStatus == filter }
-        }
-        
-        return items
     }
     
     private func toggleItemSelection(_ item: InventoryItem) {
@@ -155,13 +179,13 @@ struct UpdateInventoryView: View {
     
     private func handleSaveItem(_ item: InventoryItem) {
         Task {
-            if let existingItem = selectedItem {
+            if let existingItem = viewModel.selectedItem {
                 await viewModel.updateInventoryItem(existingItem)
             } else {
                 await viewModel.createInventoryItem(item)
             }
         }
-        showingAddEditSheet = false
+        viewModel.showEditItemSheet = false
     }
 }
 
