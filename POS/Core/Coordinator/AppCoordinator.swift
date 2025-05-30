@@ -223,6 +223,9 @@ class AppCoordinator: ObservableObject {
                 case .manageShops:
                     let viewModel = ShopManagementViewModel(source: source)
                     ShopManagementView(viewModel: viewModel)
+                case .menuContent(let searchText):
+                    let viewModel = MenuViewModel(source: source)
+                    MenuContentView(viewModel: viewModel, searchText: .constant(searchText))
                 }
             } else {
                 EmptyView()

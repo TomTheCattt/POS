@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum Route: Hashable, Identifiable {
     
@@ -25,6 +26,7 @@ enum Route: Hashable, Identifiable {
     case accountDetail
     case password
     case manageShops
+    case menuContent(String)
 
     // MARK: - Identifiable
 
@@ -62,6 +64,8 @@ enum Route: Hashable, Identifiable {
             return "password"
         case .manageShops:
             return "manageShops"
+        case .menuContent(let searchText):
+            return "menuContent-\(searchText)"
         }
     }
 

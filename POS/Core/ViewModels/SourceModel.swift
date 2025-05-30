@@ -22,7 +22,11 @@ class SourceModel: ObservableObject {
     /// Currently selected shop's menu
     @Published private(set) var menu: [MenuItem]?
     /// Currently selected shop's inventory
-    @Published private(set) var inventory: [InventoryItem]?
+    @Published private(set) var inventory: [InventoryItem]? {
+        didSet {
+            print(inventory)
+        }
+    }
     /// Currently selected shop's ingredients usage
     @Published private(set) var ingredients: [IngredientUsage]?
 
@@ -344,19 +348,15 @@ class SourceModel: ObservableObject {
     private func setupMenuListener(shopId: String) {
         menuListener?.remove()
         
-        menuListener = environment.databaseService.addDocumentListener(
+        menuListener = environment.databaseService.addListener(
             collection: .menu,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
-            id: shopId
-        ) { [weak self] (result: Result<[MenuItem]?, Error>) in
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[MenuItem], Error>) in
             guard let self = self else { return }
             
             switch result {
             case .success(let menu):
-                guard let menu = menu else {
-                    self.handleError(AppError.menu(.notFound))
-                    return
-                }
                 
                 Task { @MainActor in
                     self.menu = menu
@@ -375,19 +375,15 @@ class SourceModel: ObservableObject {
     private func setupOrdersListener(shopId: String) {
         ordersListener?.remove()
         
-        ordersListener = environment.databaseService.addDocumentListener(
+        ordersListener = environment.databaseService.addListener(
             collection: .orders,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
-            id: shopId
-        ) { [weak self] (result: Result<[Order]?, Error>) in
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[Order], Error>) in
             guard let self = self else { return }
             
             switch result {
             case .success(let order):
-                guard let order = order else {
-                    self.handleError(AppError.order(.notFound))
-                    return
-                }
                 
                 Task { @MainActor in
                     self.orders = order
@@ -406,19 +402,15 @@ class SourceModel: ObservableObject {
     private func setupInventoryListener(shopId: String) {
         inventoryListener?.remove()
         
-        inventoryListener = environment.databaseService.addDocumentListener(
+        inventoryListener = environment.databaseService.addListener(
             collection: .inventory,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
-            id: shopId
-        ) { [weak self] (result: Result<[InventoryItem]?, Error>) in
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[InventoryItem], Error>) in
             guard let self = self else { return }
             
             switch result {
             case .success(let inventory):
-                guard let inventory = inventory else {
-                    self.handleError(AppError.inventory(.notFound))
-                    return
-                }
                 
                 Task { @MainActor in
                     self.inventory = inventory
@@ -437,19 +429,15 @@ class SourceModel: ObservableObject {
     private func setupIngredientsListener(shopId: String) {
         ingredientsListener?.remove()
         
-        ingredientsListener = environment.databaseService.addDocumentListener(
+        ingredientsListener = environment.databaseService.addListener(
             collection: .ingredientsUsage,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
-            id: shopId
-        ) { [weak self] (result: Result<[IngredientUsage]?, Error>) in
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[IngredientUsage], Error>) in
             guard let self = self else { return }
             
             switch result {
             case .success(let ingredients):
-                guard let ingredients = ingredients else {
-                    self.handleError(AppError.ingredients(.notFound))
-                    return
-                }
                 
                 Task { @MainActor in
                     self.ingredients = ingredients

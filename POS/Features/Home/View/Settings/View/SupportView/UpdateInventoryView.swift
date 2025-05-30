@@ -22,50 +22,14 @@ struct UpdateInventoryView: View {
     @State private var showingHistorySheet = false
     @State private var selectedAction: ActionType?
     
-    enum ActionType {
-        case `import`
-        case export
-        case history
-    }
-    
     var body: some View {
         VStack(spacing: 16) {
             // Toolbar
-            HStack {
-                TextField("Tìm kiếm sản phẩm...", text: $searchText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                
-                Picker("", selection: $selectedFilter) {
-                    Text("Tất cả").tag(Optional<InventoryItem.StockStatus>.none)
-                    Text("Còn hàng").tag(Optional<InventoryItem.StockStatus>.some(.inStock))
-                    Text("Sắp hết").tag(Optional<InventoryItem.StockStatus>.some(.lowStock))
-                    Text("Hết hàng").tag(Optional<InventoryItem.StockStatus>.some(.outOfStock))
-                }
-                .pickerStyle(MenuPickerStyle())
-                
-                Button(action: { isMultiSelectMode.toggle() }) {
-                    Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
-                }
-            }
-            .padding()
+            toolbarView
             
             // Action Buttons when in multi-select mode
             if isMultiSelectMode && !selectedItems.isEmpty {
-                HStack {
-                    Text("\(selectedItems.count) items được chọn")
-                    
-                    Spacer()
-                    
-                    Button("Cập nhật hàng loạt") {
-                        showingBatchUpdateSheet = true
-                    }
-                    
-                    Button("Xóa", role: .destructive) {
-                        // Show delete confirmation
-                        //viewModel.showDeleteConfirmation(items: Array(selectedItems))
-                    }
-                }
-                .padding(.horizontal)
+                multiSelectActionView
             }
             
             // Inventory List
@@ -87,45 +51,13 @@ struct UpdateInventoryView: View {
             }
             
             // Bottom Toolbar
-            HStack {
-                Picker("", selection: $selectedAction) {
-                    Text("Thao tác").tag(Optional<ActionType>.none)
-                    Text("Nhập từ Excel/CSV").tag(Optional<ActionType>.some(.import))
-                    Text("Xuất dữ liệu").tag(Optional<ActionType>.some(.export))
-                    Text("Lịch sử thay đổi").tag(Optional<ActionType>.some(.history))
-                }
-                .pickerStyle(MenuPickerStyle())
-                .onChange(of: selectedAction) { newValue in
-                    if let action = newValue {
-                        handleAction(action)
-                        selectedAction = nil
-                    }
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    selectedItem = nil
-                    showingAddEditSheet = true
-                }) {
-                    Label("Thêm sản phẩm", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
+            bottomToolbarView
         }
         .navigationTitle("Quản lý kho")
         .sheet(isPresented: $showingAddEditSheet) {
             InventoryItemFormView(
                 item: selectedItem,
-                onSave: { newItem in
-                    if let existingItem = selectedItem {
-                        //viewModel.updateItem(existingItem, with: newItem)
-                    } else {
-                        //viewModel.addItem(newItem)
-                    }
-                    showingAddEditSheet = false
-                }
+                onSave: handleSaveItem
             )
         }
         .sheet(isPresented: $showingBatchUpdateSheet) {
@@ -135,12 +67,72 @@ struct UpdateInventoryView: View {
             ImportDataView()
         }
         .sheet(isPresented: $showingHistorySheet) {
-            //HistoryView()
+            InventoryHistoryView()
         }
     }
     
+    private var toolbarView: some View {
+        HStack {
+            SearchBar(text: $searchText, placeholder: "Tìm kiếm sản phẩm...")
+            
+            Picker("", selection: $selectedFilter) {
+                Text("Tất cả").tag(Optional<InventoryItem.StockStatus>.none)
+                Text("Còn hàng").tag(Optional<InventoryItem.StockStatus>.some(.inStock))
+                Text("Sắp hết").tag(Optional<InventoryItem.StockStatus>.some(.lowStock))
+                Text("Hết hàng").tag(Optional<InventoryItem.StockStatus>.some(.outOfStock))
+            }
+            .pickerStyle(MenuPickerStyle())
+            
+            Button(action: { isMultiSelectMode.toggle() }) {
+                Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
+            }
+        }
+        .padding()
+    }
+    
+    private var multiSelectActionView: some View {
+        HStack {
+            Text("\(selectedItems.count) items được chọn")
+            
+            Spacer()
+            
+            Button("Cập nhật hàng loạt") {
+                showingBatchUpdateSheet = true
+            }
+            
+            Button("Xóa", role: .destructive) {
+                // Show delete confirmation
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var bottomToolbarView: some View {
+        HStack {
+            Menu {
+                Button("Nhập từ Excel/CSV") { selectedAction = .import }
+                Button("Xuất dữ liệu") { selectedAction = .export }
+                Button("Lịch sử thay đổi") { selectedAction = .history }
+            } label: {
+                Text("Thao tác")
+                Image(systemName: "chevron.down")
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                selectedItem = nil
+                showingAddEditSheet = true
+            }) {
+                Label("Thêm sản phẩm", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+    
     private var filteredItems: [InventoryItem] {
-        var items = [InventoryItem(name: "", quantity: 0, unit: "", minQuantity: 0, costPrice: 0)]
+        var items = [InventoryItem(name: "", quantity: 0, unit: MeasurementUnit.gram, measurement: Measurement(value: 0, unit: .gram), minQuantity: 0, costPrice: 0)]
         
         if !searchText.isEmpty {
             items = items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
@@ -161,16 +153,15 @@ struct UpdateInventoryView: View {
         }
     }
     
-    private func handleAction(_ action: ActionType) {
-        switch action {
-        case .import:
-            showingImportSheet = true
-        case .export:
-            //viewModel.exportData()
-            Text("Export")
-        case .history:
-            showingHistorySheet = true
+    private func handleSaveItem(_ item: InventoryItem) {
+        Task {
+            if let existingItem = selectedItem {
+                await viewModel.updateInventoryItem(existingItem)
+            } else {
+                await viewModel.createInventoryItem(item)
+            }
         }
+        showingAddEditSheet = false
     }
 }
 
@@ -191,20 +182,18 @@ struct InventoryItemRow: View {
             VStack(alignment: .leading) {
                 Text(item.name)
                     .font(.headline)
-                Text("\(item.quantity) \(item.unit)")
-                    .font(.subheadline)
+                HStack {
+                    Text("\(String(format: "%.1f", item.quantity)) \(item.unit.displayName)")
+                        .font(.subheadline)
+                    Text("(\(String(format: "%.1f", item.totalMeasurement)) \(item.measurement.unit.displayName))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()
             
-            // Stock Status Badge
-            Text(item.stockStatus.description)
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(item.stockStatus.color.opacity(0.2))
-                .foregroundColor(item.stockStatus.color)
-                .clipShape(Capsule())
+            stockStatusBadge
         }
         .padding(.vertical, 8)
         .contentShape(Rectangle())
@@ -212,6 +201,37 @@ struct InventoryItemRow: View {
             onTap(item)
         }
     }
+    
+    private var stockStatusBadge: some View {
+        Text(item.stockStatus.description)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(item.stockStatus.color.opacity(0.2))
+            .foregroundColor(item.stockStatus.color)
+            .clipShape(Capsule())
+    }
+}
+
+struct SearchBar: View {
+    @Binding var text: String
+    let placeholder: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+            
+            TextField(placeholder, text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+        }
+    }
+}
+
+enum ActionType {
+    case `import`
+    case export
+    case history
 }
 
 struct InventoryItemFormView: View {
@@ -221,7 +241,9 @@ struct InventoryItemFormView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var quantity = 0.0
-    @State private var unit = ""
+    @State private var selectedUnit: MeasurementUnit = .gram
+    @State private var measurementValue = 1.0
+    @State private var selectedMeasurementUnit: MeasurementUnit = .gram
     @State private var minQuantity = 0.0
     @State private var costPrice = 0.0
     
@@ -230,20 +252,65 @@ struct InventoryItemFormView: View {
             Form {
                 Section("Thông tin sản phẩm") {
                     TextField("Tên sản phẩm", text: $name)
-                    Stepper("Số lượng: \(quantity)", value: $quantity)
-                    TextField("Đơn vị", text: $unit)
-                    Stepper("Số lượng tối thiểu: \(minQuantity)", value: $minQuantity)
+                    
+                    HStack {
+                        Text("Số lượng:")
+                        TextField("0", value: $quantity, format: .number)
+                            .keyboardType(.decimalPad)
+                    }
+                    
+                    Picker("Đơn vị", selection: $selectedUnit) {
+                        ForEach(MeasurementUnit.allCases) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                }
+                
+                Section("Định lượng cho 1 đơn vị") {
+                    HStack {
+                        Text("Giá trị:")
+                        TextField("1", value: $measurementValue, format: .number)
+                            .keyboardType(.decimalPad)
+                    }
+                    
+                    Picker("Đơn vị đo", selection: $selectedMeasurementUnit) {
+                        ForEach(MeasurementUnit.allCases) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                }
+                
+                Section("Thông tin bổ sung") {
+                    HStack {
+                        Text("Giá nhập:")
+                        TextField("0", value: $costPrice, format: .number)
+                            .keyboardType(.decimalPad)
+                        Text("₫")
+                    }
+                    
+                    HStack {
+                        Text("Số lượng tối thiểu:")
+                        TextField("0", value: $minQuantity, format: .number)
+                            .keyboardType(.decimalPad)
+                    }
                 }
             }
             .navigationTitle(item == nil ? "Thêm sản phẩm" : "Cập nhật sản phẩm")
             .navigationBarItems(
                 leading: Button("Hủy") { dismiss() },
                 trailing: Button("Lưu") {
+                    let measurement = Measurement(
+                        value: measurementValue,
+                        unit: selectedMeasurementUnit
+                    )
+                    
                     let newItem = InventoryItem(
                         name: name,
                         quantity: quantity,
-                        unit: unit,
-                        minQuantity: minQuantity, costPrice: costPrice
+                        unit: selectedUnit,
+                        measurement: measurement,
+                        minQuantity: minQuantity,
+                        costPrice: costPrice
                     )
                     onSave(newItem)
                     dismiss()
@@ -253,8 +320,11 @@ struct InventoryItemFormView: View {
                 if let item = item {
                     name = item.name
                     quantity = item.quantity
-                    unit = item.unit
+                    selectedUnit = item.unit
+                    measurementValue = item.measurement.value
+                    selectedMeasurementUnit = item.measurement.unit
                     minQuantity = item.minQuantity
+                    costPrice = item.costPrice
                 }
             }
         }
@@ -349,21 +419,6 @@ struct InventoryHistoryView: View {
         }
     }
 }
-
-//struct SearchBar: View {
-//    @Binding var text: String
-//    let placeholder: String
-//    
-//    var body: some View {
-//        HStack {
-//            Image(systemName: "magnifyingglass")
-//                .foregroundColor(.gray)
-//            
-//            TextField(placeholder, text: $text)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//        }
-//    }
-//}
 
 //#Preview {
 //    UpdateInventoryView(viewModel: InventoryViewModel(source: SourceModel()))

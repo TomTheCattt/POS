@@ -3,9 +3,19 @@ import SwiftUI
 struct MenuItemDetailView: View {
     let item: MenuItem
     @ObservedObject var viewModel: MenuViewModel
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
+    @State private var ingredients: [IngredientWithDetails] = []
+    
+    struct IngredientWithDetails: Identifiable {
+        let id: String
+        let name: String
+        let quantity: Double
+        let unit: MeasurementUnit
+        let isAvailable: Bool
+    }
     
     var body: some View {
         NavigationView {
@@ -43,34 +53,46 @@ struct MenuItemDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        if let isAvailable = item.isAvailable {
-                            HStack {
-                                Image(systemName: isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(isAvailable ? .green : .red)
-                                Text(isAvailable ? "Còn món" : "Hết món")
+                        HStack {
+                            Image(systemName: item.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(item.isAvailable ? .green : .red)
+                            Text(item.isAvailable ? "Còn món" : "Hết món")
+                            if !item.isAvailable {
+                                Text("(Thiếu nguyên liệu)")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
                             }
                         }
                     }
                     .padding(.horizontal)
                     
                     // Nguyên liệu
-                    if let ingredients = item.ingredients, !ingredients.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                    if !ingredients.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
                             Text("Nguyên liệu")
                                 .font(.headline)
                             
-                            ForEach(ingredients, id: \.inventoryItemID) { ingredient in
+                            ForEach(ingredients) { ingredient in
                                 HStack {
-                                    Text("• \(ingredient.quantity) \(ingredient.unit)")
-//                                    if let inventoryItem = try await viewModel.getInventoryItem(by: ingredient.inventoryItemID) {
-//                                        Text(inventoryItem.name)
-//                                    }
+                                    Image(systemName: ingredient.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(ingredient.isAvailable ? .green : .red)
+                                        .font(.caption)
+                                    
+                                    Text(ingredient.name)
+                                        .fontWeight(.medium)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(String(format: "%.1f", ingredient.quantity)) \(ingredient.unit.displayName)")
+                                        .foregroundColor(.secondary)
                                 }
-                                .font(.subheadline)
+                                .padding(.vertical, 4)
                             }
                         }
                         .padding(.horizontal)
+                        .padding(.top)
                     }
+                    
                     Spacer()
                 }
             }
@@ -108,6 +130,27 @@ struct MenuItemDetailView: View {
             .sheet(isPresented: $showingEditSheet) {
                 AddMenuItemView(viewModel: viewModel)
             }
+            .task {
+                await loadIngredientDetails()
+            }
         }
+    }
+    
+    private func loadIngredientDetails() async {
+        //guard let itemIngredients = item.ingredients else { return }
+        
+        var loadedIngredients: [IngredientWithDetails] = []
+        for ingredient in item.ingredients {
+            if let inventoryItem = appState.sourceModel.inventory?.first(where: { $0.id == ingredient.inventoryItemID }) {
+                loadedIngredients.append(IngredientWithDetails(
+                    id: inventoryItem.id ?? "",
+                    name: inventoryItem.name,
+                    quantity: ingredient.quantity,
+                    unit: ingredient.unit,
+                    isAvailable: inventoryItem.stockStatus != .outOfStock
+                ))
+            }
+        }
+        ingredients = loadedIngredients
     }
 } 

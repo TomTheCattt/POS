@@ -1,165 +1,243 @@
 import SwiftUI
 
+extension View {
+    func optimizedShadow() -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.systemBackground))
+                .shadow(
+                    color: Color.black.opacity(0.1),
+                    radius: 1,
+                    x: 0,
+                    y: 1
+                )
+        )
+    }
+}
+
 struct ShopManagementView: View {
     @StateObject var viewModel: ShopManagementViewModel
     @EnvironmentObject private var appState: AppState
     @State private var isShowingShopList = false
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
                 // Top Bar
-                VStack(spacing: 16) {
-                    // Shop Selector
-                    Button {
-                        withAnimation(.spring()) {
-                            isShowingShopList.toggle()
-                        }
-                    } label: {
-                        HStack {
-                            Text(viewModel.selectedShop?.shopName ?? "Chọn cửa hàng")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 14, weight: .semibold))
-                                .rotationEffect(.degrees(isShowingShopList ? 180 : 0))
-                        }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 1)
-                    }
-                    
-                    // Search Bar
-                    HStack(spacing: 16) {
-                        // Search Field
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.gray)
-                            TextField(viewModel.searchPlaceholder, text: $viewModel.searchText)
-                        }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 1)
-                        
-                        // Toggle Buttons
-                        HStack(spacing: 0) {
-                            toggleButton(
-                                title: "Menu",
-                                systemImage: "list.bullet",
-                                isSelected: viewModel.currentView == .menu
-                            ) {
-                                if viewModel.currentView != .menu {
-                                    viewModel.toggleView()
-                                }
-                            }
-                            
-                            toggleButton(
-                                title: "Kho",
-                                systemImage: "cube.box",
-                                isSelected: viewModel.currentView == .inventory
-                            ) {
-                                if viewModel.currentView != .inventory {
-                                    viewModel.toggleView()
-                                }
-                            }
-                        }
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 1)
-                    }
-                }
-                .padding()
-                .background(
-                    Color(.systemGroupedBackground)
-                        .cornerRadius(16)
-                        .shadow(radius: 2)
-                )
+                shopSelectorView
                 
                 // Content Area
-                ZStack {
-                    // Menu View
-                    if viewModel.currentView == .menu {
-                        MenuContentView(
-                            viewModel: MenuViewModel(source: appState.sourceModel),
-                            searchText: $viewModel.searchText
-                        )
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .trailing),
-                            removal: .move(edge: .trailing)
-                        ))
-                    }
-                    
-                    // Inventory View
-                    if viewModel.currentView == .inventory {
-                        InventoryContentView(
-                            viewModel: InventoryViewModel(source: appState.sourceModel),
-                            searchText: $viewModel.searchText
-                        )
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .trailing),
-                            removal: .move(edge: .trailing)
-                        ))
-                    }
-                }
-                .animation(.easeInOut, value: viewModel.currentView)
+                contentView
             }
             
             // Shop List Overlay
             if isShowingShopList {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring()) {
-                            isShowingShopList = false
+                shopListOverlay
+            }
+        }
+    }
+    
+    private var shopSelectorView: some View {
+        VStack(spacing: 16) {
+            // Shop Selector
+            HStack(spacing: 16) {
+                Button {
+                    withAnimation(.spring()) {
+                        isShowingShopList.toggle()
+                    }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Cửa hàng hiện tại")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            HStack {
+                                Text(viewModel.selectedShop?.shopName ?? "Chọn cửa hàng")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.gray)
+                                    .rotationEffect(.degrees(isShowingShopList ? 180 : 0))
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Circle()
+                            .fill(viewModel.selectedShop != nil ? Color.green : Color.gray)
+                            .frame(width: 8, height: 8)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(
+                        color: Color.black.opacity(0.05),
+                        radius: 2,
+                        x: 0,
+                        y: 1
+                    )
+                }
+                
+                // Toggle Buttons
+                HStack(spacing: 0) {
+                    toggleButton(
+                        title: "Menu",
+                        systemImage: "list.bullet",
+                        isSelected: viewModel.currentView == .menu
+                    ) {
+                        if viewModel.currentView != .menu {
+                            viewModel.toggleView()
                         }
                     }
-                
-                VStack(spacing: 0) {
-                    ForEach(viewModel.shops) { shop in
-                        Button {
-                            Task {
-                                await viewModel.selectShop(shop)
-                                withAnimation(.spring()) {
-                                    isShowingShopList = false
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(shop.shopName)
-                                        .font(.headline)
-                                }
-                                
-                                Spacer()
-                                
-                                if shop.id == viewModel.selectedShop?.id {
-                                    Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                            .padding()
-                            .background(
-                                shop.id == viewModel.selectedShop?.id ? 
-                                    Color.blue.opacity(0.1) : Color.clear
-                            )
-                        }
-                        .foregroundColor(.primary)
-                        
-                        if shop.id != viewModel.shops.last?.id {
-                            Divider()
+                    
+                    toggleButton(
+                        title: "Kho",
+                        systemImage: "cube.box",
+                        isSelected: viewModel.currentView == .inventory
+                    ) {
+                        if viewModel.currentView != .inventory {
+                            viewModel.toggleView()
                         }
                     }
                 }
                 .background(Color(.systemBackground))
                 .cornerRadius(12)
-                .shadow(radius: 5)
-                .padding(.horizontal)
-                .padding(.top, 70)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(
+                    color: Color.black.opacity(0.05),
+                    radius: 2,
+                    x: 0,
+                    y: 1
+                )
             }
         }
+        .padding()
+        .background(
+            Color(.systemGroupedBackground)
+                .cornerRadius(16)
+                .shadow(
+                    color: Color.black.opacity(0.05),
+                    radius: 3,
+                    x: 0,
+                    y: 2
+                )
+        )
+    }
+    
+    private var shopListOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        isShowingShopList = false
+                    }
+                }
+            
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Chọn cửa hàng")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.systemBackground))
+                
+                Divider()
+                
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.shops) { shop in
+                            Button {
+                                Task {
+                                    await viewModel.selectShop(shop)
+                                    withAnimation(.spring()) {
+                                        isShowingShopList = false
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(shop.shopName)
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        
+                                        Text("ID: \(shop.id)")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if shop.id == viewModel.selectedShop?.id {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.blue)
+                                            .font(.system(size: 20))
+                                    }
+                                }
+                                .padding()
+                                .background(
+                                    shop.id == viewModel.selectedShop?.id ?
+                                        Color.blue.opacity(0.1) : Color.clear
+                                )
+                            }
+                            
+                            if shop.id != viewModel.shops.last?.id {
+                                Divider()
+                                    .padding(.horizontal)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+            )
+            .shadow(
+                color: Color.black.opacity(0.1),
+                radius: 10,
+                x: 0,
+                y: 5
+            )
+            .padding(.horizontal)
+            .padding(.top, 70)
+            .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+        }
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+    
+    private var contentView: some View {
+        ZStack {
+            if viewModel.currentView == .menu {
+                UpdateMenuView(viewModel: MenuViewModel(source: appState.sourceModel))
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .trailing)
+                    ))
+            }
+            
+            if viewModel.currentView == .inventory {
+                UpdateInventoryView(viewModel: InventoryViewModel(source: appState.sourceModel))
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .trailing)
+                    ))
+            }
+        }
+        .animation(.easeInOut, value: viewModel.currentView)
     }
     
     private func toggleButton(
@@ -278,7 +356,7 @@ struct InventoryContentView: View {
     
     var body: some View {
         VStack {
-            if viewModel.filteredItems.isEmpty {
+            if viewModel.inventoryItems.isEmpty {
                 emptyStateView
             } else {
                 ScrollView {
@@ -323,7 +401,7 @@ struct InventoryContentView: View {
     
     private var inventoryList: some View {
         List {
-            ForEach(viewModel.filteredItems) { item in
+            ForEach(viewModel.inventoryItems) { item in
                 InventoryItemRow(
                     item: item,
                     isSelected: false,

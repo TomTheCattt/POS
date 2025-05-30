@@ -4,22 +4,25 @@
     "" : {
 
     },
-    "%.1f %@" : {
+    "(%@ %@)" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$.1f %2$@"
+            "value" : "(%1$@ %2$@)"
           }
         }
       }
     },
-    "%lf %@" : {
+    "(Thiếu nguyên liệu)" : {
+
+    },
+    "%@ %@" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$lf %2$@"
+            "value" : "%1$@ %2$@"
           }
         }
       }
@@ -40,16 +43,6 @@
         }
       }
     },
-    "• %lf %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "• %1$lf %2$@"
-          }
-        }
-      }
-    },
     "$%@" : {
 
     },
@@ -57,6 +50,9 @@
 
     },
     "0" : {
+
+    },
+    "1" : {
 
     },
     "add_item" : {
@@ -134,9 +130,6 @@
     "Cập nhật mật khẩu tài khoản" : {
 
     },
-    "Cập nhật món" : {
-
-    },
     "Cập nhật sản phẩm" : {
 
     },
@@ -170,6 +163,9 @@
 
     },
     "Chọn ảnh" : {
+
+    },
+    "Chọn đơn vị" : {
 
     },
     "Chọn file" : {
@@ -278,6 +274,9 @@
         }
       }
     },
+    "Định lượng cho 1 đơn vị" : {
+
+    },
     "display_name_placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -296,6 +295,15 @@
       }
     },
     "Đơn vị" : {
+
+    },
+    "Đơn vị đo" : {
+
+    },
+    "Đơn vị đo:" : {
+
+    },
+    "Đơn vị:" : {
 
     },
     "Đóng" : {
@@ -919,9 +927,6 @@
         }
       }
     },
-    "Export" : {
-
-    },
     "File được chọn: %@" : {
 
     },
@@ -968,9 +973,6 @@
     "Ghi chú đặc biệt, yêu cầu riêng..." : {
 
     },
-    "Giá" : {
-
-    },
     "Giá nhập:" : {
 
     },
@@ -980,7 +982,13 @@
     "Giá trị tuyệt đối" : {
 
     },
+    "Giá trị:" : {
+
+    },
     "Giá:" : {
+
+    },
+    "Gợi ý danh mục:" : {
 
     },
     "Good morning," : {
@@ -1071,9 +1079,6 @@
           }
         }
       }
-    },
-    "Không tìm thấy nguyên liệu" : {
-
     },
     "Kiểu cập nhật" : {
 
@@ -1638,16 +1643,10 @@
     "Số lượng tối thiểu:" : {
 
     },
-    "Số lượng tối thiểu: %lf" : {
-
-    },
     "Số lượng tối thiểu: %lld" : {
 
     },
     "Số lượng:" : {
-
-    },
-    "Số lượng: %lf" : {
 
     },
     "Số lượng: %lld" : {
@@ -1717,9 +1716,6 @@
     "Thêm nguyên liệu" : {
 
     },
-    "Thêm nguyên liệu mới" : {
-
-    },
     "Thêm sản phẩm" : {
 
     },
@@ -1738,16 +1734,7 @@
     "Thông tin cơ bản" : {
 
     },
-    "Thông tin món" : {
-
-    },
     "Thông tin sản phẩm" : {
-
-    },
-    "Tìm kiếm món..." : {
-
-    },
-    "Tìm kiếm sản phẩm..." : {
 
     },
     "total" : {

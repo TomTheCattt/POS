@@ -17,6 +17,24 @@ struct AddMenuItemView: View {
     @State private var showingIngredientSheet = false
     @State private var showingImportSheet = false
     @State private var isLoading = false
+    @State private var showingCategorySuggestions = false
+    
+    // Danh sách các danh mục phổ biến
+    private let suggestedCategories = [
+        "Đồ uống",
+        "Cà phê",
+        "Trà sữa",
+        "Sinh tố",
+        "Nước ép",
+        "Món chính",
+        "Món phụ",
+        "Món tráng miệng",
+        "Đồ ăn vặt",
+        "Bánh ngọt",
+        "Kem",
+        "Cocktail",
+        "Mocktail"
+    ]
     
     var body: some View {
         NavigationView {
@@ -31,7 +49,54 @@ struct AddMenuItemView: View {
                         Text("₫")
                     }
                     
-                    TextField("Danh mục", text: $category)
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Danh mục", text: $category)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        if category.isEmpty {
+                            Text("Gợi ý danh mục:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(suggestedCategories.filter { $0.lowercased().contains(category.lowercased()) }, id: \.self) { suggestion in
+                                        Button(action: {
+                                            category = suggestion
+                                        }) {
+                                            Text(suggestion)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 6)
+                                                .background(Color.blue.opacity(0.1))
+                                                .cornerRadius(15)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
+                        } else {
+                            // Hiển thị các gợi ý phù hợp với text đang nhập
+                            let filteredSuggestions = suggestedCategories.filter { $0.lowercased().contains(category.lowercased()) }
+                            if !filteredSuggestions.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(filteredSuggestions, id: \.self) { suggestion in
+                                            Button(action: {
+                                                category = suggestion
+                                            }) {
+                                                Text(suggestion)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 6)
+                                                    .background(Color.blue.opacity(0.1))
+                                                    .cornerRadius(15)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     
                     Toggle("Còn món", isOn: $isAvailable)
                 }
@@ -154,18 +219,19 @@ struct AddMenuItemView: View {
 struct AddIngredientUsageView: View {
     @Binding var ingredients: [IngredientUsage]
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     @State private var selectedItem: InventoryItem?
     @State private var quantity = 0.0
-    @State private var unit = ""
+    @State private var selectedUnit: MeasurementUnit?
     
     var body: some View {
         NavigationView {
             Form {
                 Picker("Nguyên liệu", selection: $selectedItem) {
                     Text("Chọn nguyên liệu").tag(Optional<InventoryItem>.none)
-//                    ForEach(viewModel.inventoryItems) { item in
-//                        Text(item.name).tag(Optional<InventoryItem>.some(item))
-//                    }
+                    ForEach(appState.sourceModel.inventory ?? []) { item in
+                        Text(item.name).tag(Optional<InventoryItem>.some(item))
+                    }
                 }
                 
                 HStack {
@@ -174,7 +240,16 @@ struct AddIngredientUsageView: View {
                         .keyboardType(.decimalPad)
                 }
                 
-                TextField("Đơn vị", text: $unit)
+                HStack {
+                    Text("Đơn vị:")
+                    Picker("", selection: $selectedUnit) {
+                        Text("Chọn đơn vị").tag(Optional<MeasurementUnit>.none)
+                        ForEach(MeasurementUnit.allCases) { unit in
+                            Text(unit.displayName).tag(Optional(unit))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
             }
             .navigationTitle("Thêm nguyên liệu")
             .navigationBarItems(
@@ -182,7 +257,7 @@ struct AddIngredientUsageView: View {
                     dismiss()
                 },
                 trailing: Button("Thêm") {
-                    if let item = selectedItem {
+                    if let item = selectedItem, let unit = selectedUnit {
                         ingredients.append(IngredientUsage(
                             inventoryItemID: item.id ?? "",
                             quantity: quantity,
@@ -191,7 +266,7 @@ struct AddIngredientUsageView: View {
                         dismiss()
                     }
                 }
-                .disabled(selectedItem == nil || quantity <= 0 || unit.isEmpty)
+                .disabled(selectedItem == nil || quantity <= 0 || selectedUnit == nil)
             )
         }
     }

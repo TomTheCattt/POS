@@ -8,7 +8,9 @@ struct AddInventoryItemView: View {
     
     @State private var name = ""
     @State private var quantity = 0.0
-    @State private var unit = ""
+    @State private var selectedUnit: MeasurementUnit?
+    @State private var measurementValue = 1.0
+    @State private var selectedMeasurementUnit: MeasurementUnit?
     @State private var costPrice = 0.0
     @State private var minQuantity = 0.0
     @State private var showingImportSheet = false
@@ -26,17 +28,45 @@ struct AddInventoryItemView: View {
                             .keyboardType(.decimalPad)
                     }
                     
-                    TextField("Đơn vị", text: $unit)
+                    HStack {
+                        Text("Đơn vị:")
+                        Picker("", selection: $selectedUnit) {
+                            Text("Chọn đơn vị").tag(Optional<MeasurementUnit>.none)
+                            ForEach(MeasurementUnit.allCases) { unit in
+                                Text(unit.displayName).tag(Optional(unit))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                }
+
+                Section(header: Text("Định lượng cho 1 đơn vị")) {
+                    HStack {
+                        Text("Giá trị:")
+                        TextField("1", value: $measurementValue, format: .number)
+                            .keyboardType(.decimalPad)
+                    }
                     
+                    HStack {
+                        Text("Đơn vị đo:")
+                        Picker("", selection: $selectedMeasurementUnit) {
+                            Text("Chọn đơn vị").tag(Optional<MeasurementUnit>.none)
+                            ForEach(MeasurementUnit.allCases) { unit in
+                                Text(unit.displayName).tag(Optional(unit))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                }
+                
+                Section(header: Text("Thông tin bổ sung")) {
                     HStack {
                         Text("Giá nhập:")
                         TextField("0", value: $costPrice, format: .number)
                             .keyboardType(.decimalPad)
                         Text("₫")
                     }
-                }
-                
-                Section(header: Text("Thông tin bổ sung")) {
+
                     HStack {
                         Text("Số lượng tối thiểu:")
                         TextField("0", value: $minQuantity, format: .number)
@@ -67,7 +97,7 @@ struct AddInventoryItemView: View {
                         await saveInventoryItem()
                     }
                 }
-                .disabled(name.isEmpty || quantity < 0 || unit.isEmpty || costPrice < 0)
+                .disabled(name.isEmpty || quantity < 0 || selectedUnit == nil || selectedMeasurementUnit == nil || costPrice < 0)
             )
             .sheet(isPresented: $showingImportSheet) {
                 ImportInventoryItemsView(viewModel: viewModel)
@@ -86,10 +116,16 @@ struct AddInventoryItemView: View {
         isLoading = true
         defer { isLoading = false }
         
+        let measurement = Measurement(
+            value: measurementValue,
+            unit: selectedMeasurementUnit ?? .gram
+        )
+        
         let inventoryItem = InventoryItem(
             name: name,
             quantity: quantity,
-            unit: unit,
+            unit: selectedUnit ?? .piece,
+            measurement: measurement,
             minQuantity: minQuantity,
             costPrice: costPrice,
             createdAt: editingItem?.createdAt ?? Date(),

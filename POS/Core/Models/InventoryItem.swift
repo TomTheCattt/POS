@@ -9,21 +9,21 @@ import Foundation
 import SwiftUI
 import FirebaseFirestore
 
-struct InventoryItem: Codable, Identifiable {
+struct InventoryItem: Codable, Identifiable, Equatable, Hashable {
     // MARK: - Properties
     @DocumentID var id: String?
     let name: String
     var quantity: Double
-    let unit: String
+    let unit: MeasurementUnit
+    let measurement: Measurement // Định lượng cho 1 đơn vị
     let minQuantity: Double
     let costPrice: Double
     let createdAt: Date
     var updatedAt: Date
     
     // MARK: - Computed Properties
-    
     var isLowStock: Bool {
-        quantity <= minQuantity
+        totalMeasurement <= minQuantity * measurement.value
     }
     
     var stockStatus: StockStatus {
@@ -36,19 +36,28 @@ struct InventoryItem: Codable, Identifiable {
         }
     }
     
+    // Tổng định lượng thực tế
+    var totalMeasurement: Double {
+        quantity * measurement.value
+    }
+    
     // MARK: - Initialization
     init(
+        id: String? = nil,
         name: String,
         quantity: Double,
-        unit: String,
+        unit: MeasurementUnit,
+        measurement: Measurement,
         minQuantity: Double,
         costPrice: Double,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
+        self.id = id
         self.name = name
         self.quantity = quantity
         self.unit = unit
+        self.measurement = measurement
         self.minQuantity = minQuantity
         self.costPrice = costPrice
         self.createdAt = createdAt
@@ -60,21 +69,45 @@ struct InventoryItem: Codable, Identifiable {
         [
             "name": name,
             "quantity": quantity,
-            "unit": unit,
+            "unit": unit.rawValue,
+            "measurement": measurement.dictionary,
             "minQuantity": minQuantity,
             "costPrice": costPrice,
-            "createdAt": createdAt,
-            "updatedAt": updatedAt
+            "createdAt": Timestamp(date: createdAt),
+            "updatedAt": Timestamp(date: updatedAt)
+        ]
+    }
+    
+    // MARK: - Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    // MARK: - Equatable
+    static func == (lhs: InventoryItem, rhs: InventoryItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// MARK: - Measurement Structure
+struct Measurement: Codable, Equatable {
+    let value: Double
+    let unit: MeasurementUnit
+    
+    var dictionary: [String: Any] {
+        [
+            "value": value,
+            "unit": unit.rawValue
         ]
     }
 }
 
 // MARK: - Supporting Types
 extension InventoryItem {
-    enum StockStatus {
-        case inStock
-        case lowStock
-        case outOfStock
+    enum StockStatus: String, Codable {
+        case inStock = "inStock"
+        case lowStock = "lowStock"
+        case outOfStock = "outOfStock"
         
         var description: String {
             switch self {
@@ -100,32 +133,21 @@ extension InventoryItem {
     }
 }
 
-// MARK: - Equatable
-extension InventoryItem: Equatable {
-    static func == (lhs: InventoryItem, rhs: InventoryItem) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
-// MARK: - Hashable
-extension InventoryItem: Hashable {
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-}
-
-// MARK: - Firebase Helpers
+// MARK: - Firestore Extensions
 extension InventoryItem {
     init?(document: DocumentSnapshot) {
         guard 
             let data = document.data(),
             let name = data["name"] as? String,
             let quantity = data["quantity"] as? Double,
-            let unit = data["unit"] as? String,
+            let unitString = data["unit"] as? String,
+            let unit = MeasurementUnit(rawValue: unitString),
+            let measurementData = data["measurement"] as? [String: Any],
+            let measurementValue = measurementData["value"] as? Double,
+            let measurementUnitString = measurementData["unit"] as? String,
+            let measurementUnit = MeasurementUnit(rawValue: measurementUnitString),
             let minQuantity = data["minQuantity"] as? Double,
-            let costPrice = data["costPrice"] as? Double,
-            let createdAt = data["createdAt"] as? Timestamp,
-            let updatedAt = data["updatedAt"] as? Timestamp
+            let costPrice = data["costPrice"] as? Double
         else {
             return nil
         }
@@ -134,9 +156,27 @@ extension InventoryItem {
         self.name = name
         self.quantity = quantity
         self.unit = unit
+        self.measurement = Measurement(value: measurementValue, unit: measurementUnit)
         self.minQuantity = minQuantity
         self.costPrice = costPrice
-        self.createdAt = createdAt.dateValue()
-        self.updatedAt = updatedAt.dateValue()
+        self.createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+        self.updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
+    }
+    
+    // Helper method để lấy số lượng theo đơn vị đo cụ thể
+    func getMeasurementQuantity(in targetUnit: MeasurementUnit) -> Double {
+        guard measurement.unit != targetUnit else {
+            return totalMeasurement
+        }
+        
+        // Chuyển đổi giữa các đơn vị
+        switch (measurement.unit, targetUnit) {
+        case (.gram, .kilogram), (.milliliter, .liter):
+            return totalMeasurement / 1000
+        case (.kilogram, .gram), (.liter, .milliliter):
+            return totalMeasurement * 1000
+        default:
+            return totalMeasurement
+        }
     }
 }
