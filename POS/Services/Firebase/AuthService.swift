@@ -63,6 +63,7 @@ final class AuthService: AuthServiceProtocol {
     
     // MARK: - Authentication Methods
     func login(email: String, password: String) async throws {
+        try await logout()
         let authResult = try await auth.signIn(withEmail: email, password: password)
         let user = authResult.user
         

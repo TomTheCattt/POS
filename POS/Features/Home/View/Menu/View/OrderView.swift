@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct MenuView: View {
+struct OrderView: View {
     
-    @ObservedObject var viewModel: MenuViewModel
+    @ObservedObject var viewModel: OrderViewModel
     @EnvironmentObject var appState: AppState
     
     var body: some View {

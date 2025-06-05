@@ -54,7 +54,7 @@ struct ShopManagementView: View {
                                 .foregroundColor(.gray)
                             
                             HStack {
-                                Text(viewModel.selectedShop?.shopName ?? "Chọn cửa hàng")
+                                Text(viewModel.activatedShop?.shopName ?? "Chọn cửa hàng")
                                     .font(.headline)
                                     .foregroundColor(.primary)
                                 
@@ -68,7 +68,7 @@ struct ShopManagementView: View {
                         Spacer()
                         
                         Circle()
-                            .fill(viewModel.selectedShop != nil ? Color.green : Color.gray)
+                            .fill(viewModel.activatedShop != nil ? Color.green : Color.gray)
                             .frame(width: 8, height: 8)
                     }
                     .padding()
@@ -174,7 +174,7 @@ struct ShopManagementView: View {
                                     
                                     Spacer()
                                     
-                                    if shop.id == viewModel.selectedShop?.id {
+                                    if shop.id == viewModel.activatedShop?.id {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.blue)
                                             .font(.system(size: 20))
@@ -182,7 +182,7 @@ struct ShopManagementView: View {
                                 }
                                 .padding()
                                 .background(
-                                    shop.id == viewModel.selectedShop?.id ?
+                                    shop.id == viewModel.activatedShop?.id ?
                                         Color.blue.opacity(0.1) : Color.clear
                                 )
                             }
@@ -218,7 +218,7 @@ struct ShopManagementView: View {
     private var contentView: some View {
         ZStack {
             if viewModel.currentView == .menu {
-                UpdateMenuView(viewModel: MenuViewModel(source: appState.sourceModel))
+                appState.coordinator.makeView(for: .menuSection)
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .trailing)
@@ -226,7 +226,7 @@ struct ShopManagementView: View {
             }
             
             if viewModel.currentView == .inventory {
-                UpdateInventoryView(viewModel: InventoryViewModel(source: appState.sourceModel))
+                appState.coordinator.makeView(for: .ingredientSection)
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .trailing)
@@ -236,12 +236,7 @@ struct ShopManagementView: View {
         .animation(.easeInOut, value: viewModel.currentView)
     }
     
-    private func toggleButton(
-        title: String,
-        systemImage: String,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func toggleButton(title: String, systemImage: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
                 Image(systemName: systemImage)
@@ -254,180 +249,3 @@ struct ShopManagementView: View {
         }
     }
 }
-
-// MARK: - Supporting Views
-struct MenuContentView: View {
-    @ObservedObject var viewModel: MenuViewModel
-    @Binding var searchText: String
-    @State private var showingAddItemSheet = false
-    @State private var selectedItem: MenuItem?
-    @State private var showingItemDetail = false
-    
-    var body: some View {
-        VStack {
-            if viewModel.filteredMenuItems.isEmpty {
-                emptyStateView
-            } else {
-                ScrollView {
-                    menuGrid
-                }
-            }
-        }
-        .sheet(isPresented: $showingAddItemSheet) {
-            AddMenuItemView(viewModel: viewModel)
-        }
-        .sheet(item: $selectedItem) { item in
-            MenuItemDetailView(item: item, viewModel: viewModel)
-        }
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "tray.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            
-            Text("Chưa có món nào trong menu")
-                .font(.title2)
-                .foregroundColor(.gray)
-            
-            Button {
-                showingAddItemSheet = true
-            } label: {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Thêm món mới")
-                }
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var menuGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.adaptive(minimum: 160), spacing: 16)
-        ], spacing: 16) {
-            ForEach(viewModel.filteredMenuItems) { item in
-                MenuItemCard(item: item) {
-                    selectedItem = item
-                    showingItemDetail = true
-                }
-            }
-            
-            addButton
-        }
-        .padding()
-    }
-    
-    private var addButton: some View {
-        Button {
-            showingAddItemSheet = true
-        } label: {
-            VStack {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 40))
-                Text("Thêm món mới")
-                    .font(.headline)
-            }
-            .frame(height: 200)
-            .frame(maxWidth: .infinity)
-            .background(Color.blue.opacity(0.1))
-            .foregroundColor(.blue)
-            .cornerRadius(12)
-        }
-    }
-}
-
-struct InventoryContentView: View {
-    @ObservedObject var viewModel: InventoryViewModel
-    @Binding var searchText: String
-    @State private var showingAddItemSheet = false
-    @State private var selectedItem: InventoryItem?
-    @State private var showingItemDetail = false
-    
-    var body: some View {
-        VStack {
-            if viewModel.inventoryItems.isEmpty {
-                emptyStateView
-            } else {
-                ScrollView {
-                    inventoryList
-                }
-            }
-        }
-        .sheet(isPresented: $showingAddItemSheet) {
-            AddInventoryItemView(viewModel: viewModel)
-        }
-        .sheet(item: $selectedItem) { item in
-            InventoryItemDetailView(item: item, viewModel: viewModel)
-        }
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "cube.box.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            
-            Text("Chưa có sản phẩm nào trong kho")
-                .font(.title2)
-                .foregroundColor(.gray)
-            
-            Button {
-                showingAddItemSheet = true
-            } label: {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Thêm sản phẩm mới")
-                }
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var inventoryList: some View {
-        List {
-            ForEach(viewModel.inventoryItems) { item in
-                InventoryItemRow(
-                    item: item,
-                    isSelected: false,
-                    isMultiSelectMode: false
-                ) { _ in
-                    selectedItem = item
-                    showingItemDetail = true
-                }
-            }
-            
-            addButton
-        }
-    }
-    
-    private var addButton: some View {
-        Button {
-            showingAddItemSheet = true
-        } label: {
-            HStack {
-                Image(systemName: "plus.circle.fill")
-                Text("Thêm sản phẩm mới")
-                    .font(.headline)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .foregroundColor(.blue)
-            .cornerRadius(8)
-        }
-        .listRowInsets(EdgeInsets())
-        .padding(.vertical, 8)
-    }
-} 

@@ -12,6 +12,7 @@ struct Shop: Codable, Identifiable {
     // MARK: - Properties
     @DocumentID var id: String?
     let shopName: String
+    var isActive: Bool
     let createdAt: Date
     var updatedAt: Date
     
@@ -19,6 +20,7 @@ struct Shop: Codable, Identifiable {
     var dictionary: [String: Any] {
         [
             "shopName": shopName,
+            "isActive": isActive,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]

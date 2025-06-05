@@ -32,7 +32,7 @@ struct Order: Codable, Identifiable {
     let paymentMethod: PaymentMethod
     let createdAt: Date
     var updatedAt: Date
-    
+
     // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
         [
@@ -54,12 +54,12 @@ struct OrderItem: Codable, Identifiable {
     var note: String?
     let temperature: TemperatureOption
     let consumption: ConsumptionOption
-    
+
     // MARK: - Computed Properties
     var subtotal: Double {
         price * Double(quantity)
     }
-    
+
     // MARK: - Dictionary Representation
     var dictionary: [String: Any] {
         var dict: [String: Any] = [
@@ -70,11 +70,11 @@ struct OrderItem: Codable, Identifiable {
             "temperature": temperature.rawValue,
             "consumption": consumption.rawValue
         ]
-        
+
         if let note = note {
             dict["note"] = note
         }
-        
+
         return dict
     }
 }
@@ -97,14 +97,15 @@ extension Order {
                   let name = dict["name"] as? String,
                   let quantity = dict["quantity"] as? Int,
                   let price = dict["price"] as? Double,
-                  let note = dict["note"] as? String,
-                  let temperatureRaw = data["temperature"] as? String,
+                  let temperatureRaw = dict["temperature"] as? String,
                   let temperature = TemperatureOption(rawValue: temperatureRaw),
-                  let consumptionRaw = data["consumption"] as? String,
+                  let consumptionRaw = dict["consumption"] as? String,
                   let consumption = ConsumptionOption(rawValue: consumptionRaw)
             else {
                 return nil
             }
+
+            let note = dict["note"] as? String
 
             return OrderItem(id: id, name: name, quantity: quantity, price: price, note: note, temperature: temperature, consumption: consumption)
         }
@@ -117,5 +118,3 @@ extension Order {
         self.updatedAt = updatedAt
     }
 }
-
-

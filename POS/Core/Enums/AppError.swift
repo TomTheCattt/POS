@@ -71,6 +71,7 @@ enum DatabaseError: LocalizedError {
     case readFailed
     case deleteFailed
     case updateFailed
+    case insufficientIngredient(name: String)
     
     var errorDescription: String? {
         switch self {
@@ -92,6 +93,8 @@ enum DatabaseError: LocalizedError {
             return "Không thể xóa dữ liệu"
         case .updateFailed:
             return "Không thể cập nhật dữ liệu"
+        case .insufficientIngredient(let name):
+            return "Không đủ nguyên liệu: \(name)"
         }
     }
 }

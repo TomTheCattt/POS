@@ -181,8 +181,8 @@ class AppCoordinator: ObservableObject {
                     let viewModel = HomeViewModel(source: source)
                     HomeView(viewModel: viewModel)
                 case .menu:
-                    let viewModel = MenuViewModel(source: source)
-                    MenuView(viewModel: viewModel)
+                    let viewModel = OrderViewModel(source: source)
+                    OrderView(viewModel: viewModel)
                 case .history:
                     let viewModel = HistoryViewModel(source: source)
                     HistoryView(viewModel: viewModel)
@@ -190,10 +190,10 @@ class AppCoordinator: ObservableObject {
                     let viewModel = AnalyticsViewModel(source: source)
                     AnalyticsView(viewModel: viewModel)
                 case .inventory:
-                    let viewModel = InventoryViewModel(source: source)
+                    let viewModel = IngredientViewModel(source: source)
                     InventoryView(viewModel: viewModel)
                 case .note(let orderItem):
-                    let viewModel = MenuViewModel(source: source)
+                    let viewModel = OrderViewModel(source: source)
                     NoteView(viewModel: viewModel, orderItem: orderItem)
                     
                     // Settings
@@ -203,12 +203,24 @@ class AppCoordinator: ObservableObject {
                 case .accountDetail:
                     let viewModel = ProfileViewModel(source: source)
                     AccountDetailView(viewModel: viewModel)
-                case .updateInventory:
-                    let viewModel = InventoryViewModel(source: source)
-                    UpdateInventoryView(viewModel: viewModel)
-                case .updateMenu:
+                case .ingredientSection:
+                    let viewModel = IngredientViewModel(source: source)
+                    IngredientSectionView(viewModel: viewModel)
+                case .ingredientForm(let ingredient):
+                    let viewModel = IngredientViewModel(source: source)
+                    IngredientUsageFormView(viewModel: viewModel, item: ingredient)
+                case .menuSection:
                     let viewModel = MenuViewModel(source: source)
-                    UpdateMenuView(viewModel: viewModel)
+                    MenuSectionView(viewModel: viewModel)
+                case .menuForm(let menu):
+                    let viewModel = MenuViewModel(source: source)
+                    MenuFormView(viewModel: viewModel, menu: menu)
+                case .menuDetail(let menu):
+                    let viewModel = MenuViewModel(source: source)
+                    MenuDetailView(viewModel: viewModel, menu: menu)
+                case .menuItemForm(let menu, let menuItem):
+                    let viewModel = MenuViewModel(source: source)
+                    MenuItemFormView(viewModel: viewModel, menu: menu, menuItem: menuItem)
                 case .language:
                     let viewModel = SettingsViewModel(source: source)
                     LanguageView(viewModel: viewModel)
@@ -224,9 +236,6 @@ class AppCoordinator: ObservableObject {
                 case .manageShops:
                     let viewModel = ShopManagementViewModel(source: source)
                     ShopManagementView(viewModel: viewModel)
-                case .menuContent(let searchText):
-                    let viewModel = MenuViewModel(source: source)
-                    MenuContentView(viewModel: viewModel, searchText: .constant(searchText))
                 }
             } else {
                 EmptyView()

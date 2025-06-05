@@ -18,15 +18,18 @@ enum Route: Hashable, Identifiable {
     
     /// Settings
     case settings
-    case updateInventory
-    case updateMenu
+    case ingredientSection
+    case ingredientForm(IngredientUsage?)
+    case menuSection
+    case menuForm(AppMenu?)
+    case menuDetail(AppMenu)
+    case menuItemForm(AppMenu, MenuItem?)
     case setUpPrinter
     case language
     case theme
     case accountDetail
     case password
     case manageShops
-    case menuContent(String)
 
     // MARK: - Identifiable
 
@@ -48,10 +51,18 @@ enum Route: Hashable, Identifiable {
             return "note-\(orderItem.id)"
         case .settings:
             return "settings"
-        case .updateInventory:
-            return "updateInventory"
-        case .updateMenu:
-            return "updateMenu"
+        case .ingredientSection:
+            return "ingredientSection"
+        case .ingredientForm(let ingredient):
+            return "ingredientForm-\(ingredient?.id ?? "")"
+        case .menuSection:
+            return "menuSection"
+        case .menuForm(let menu):
+            return "menuForm-\(menu?.id ?? "")"
+        case .menuDetail(let menu):
+            return "menu-\(menu.id ?? "error")"
+        case .menuItemForm(let menu, let menuItem):
+            return "menu-\(menu.id ?? "error")-menuItem-\(menuItem?.id ?? "")"
         case .language:
             return "language"
         case .theme:
@@ -64,8 +75,6 @@ enum Route: Hashable, Identifiable {
             return "password"
         case .manageShops:
             return "manageShops"
-        case .menuContent(let searchText):
-            return "menuContent-\(searchText)"
         }
     }
 

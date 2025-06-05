@@ -1,353 +1,646 @@
+import Combine
 import SwiftUI
-import PhotosUI
 
-struct AddMenuItemView: View {
+struct MenuItemFormView: View {
     @ObservedObject var viewModel: MenuViewModel
     @EnvironmentObject private var appState: AppState
-    let editingItem: MenuItem? = nil
-    @Environment(\.dismiss) private var dismiss
+    
+    let menu: AppMenu
+    let menuItem: MenuItem?
     
     @State private var name = ""
-    @State private var price = 0.0
+    @State private var price = ""
     @State private var category = ""
-    @State private var isAvailable = true
-    @State private var selectedImage: PhotosPickerItem?
-    @State private var imageData: Data?
-    @State private var ingredients: [IngredientUsage] = []
-    @State private var showingIngredientSheet = false
-    @State private var showingImportSheet = false
-    @State private var isLoading = false
-    @State private var showingCategorySuggestions = false
+    @State private var selectedImage: UIImage?
+    @State private var showingImagePicker = false
+    @State private var showingRecipeSheet = false
+    @State private var recipe: [Recipe] = []
+    @State private var isUploading = false
+    @FocusState private var focusedField: Field?
     
-    // Danh sách các danh mục phổ biến
-    private let suggestedCategories = [
-        "Đồ uống",
-        "Cà phê",
-        "Trà sữa",
-        "Sinh tố",
-        "Nước ép",
-        "Món chính",
-        "Món phụ",
-        "Món tráng miệng",
-        "Đồ ăn vặt",
-        "Bánh ngọt",
-        "Kem",
-        "Cocktail",
-        "Mocktail"
-    ]
+    private var isFormValid: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !price.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        Double(price) != nil
+    }
+    
+    enum Field {
+        case name, price, category
+    }
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Thông tin cơ bản")) {
-                    TextField("Tên món", text: $name)
-                        .keyboardType(.default)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header với icon
+                    headerSection
                     
-                    HStack {
-                        Text("Giá:")
-                        TextField("0", value: $price, format: .number)
-                            .keyboardType(.decimalPad)
-                        Text("₫")
-                    }
+                    // Image Picker Section
+                    imagePickerSection
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        TextField("Danh mục", text: $category)
-                            .keyboardType(.default)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        
-                        if category.isEmpty {
-                            Text("Gợi ý danh mục:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(suggestedCategories.filter { $0.lowercased().contains(category.lowercased()) }, id: \.self) { suggestion in
-                                        Button(action: {
-                                            category = suggestion
-                                        }) {
-                                            Text(suggestion)
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 6)
-                                                .background(Color.blue.opacity(0.1))
-                                                .cornerRadius(15)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                    }
-                                }
-                            }
-                        } else {
-                            // Hiển thị các gợi ý phù hợp với text đang nhập
-                            let filteredSuggestions = suggestedCategories.filter { $0.lowercased().contains(category.lowercased()) }
-                            if !filteredSuggestions.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        ForEach(filteredSuggestions, id: \.self) { suggestion in
-                                            Button(action: {
-                                                category = suggestion
-                                            }) {
-                                                Text(suggestion)
-                                                    .padding(.horizontal, 12)
-                                                    .padding(.vertical, 6)
-                                                    .background(Color.blue.opacity(0.1))
-                                                    .cornerRadius(15)
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Form Fields
+                    formSection
                     
-                    Toggle("Còn món", isOn: $isAvailable)
+                    // Recipe Section
+                    recipeSection
+                    
+                    // Submit Button
+                    submitButton
+                    
+                    Spacer(minLength: 20)
                 }
-                
-                Section(header: Text("Hình ảnh")) {
-                    PhotosPicker(selection: $selectedImage, matching: .images) {
-                        if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(height: 200)
-                        } else {
-                            HStack {
-                                Image(systemName: "photo")
-                                Text("Chọn ảnh")
-                            }
-                        }
-                    }
-                }
-                
-                Section(header: Text("Nguyên liệu")) {
-                    ForEach(ingredients, id: \.inventoryItemID) { ingredient in
-                        HStack {
-//                            if let item = try await viewModel.getInventoryItem(by: ingredient.inventoryItemID) {
-//                                Text(item.name)
-//                            }
-                            Spacer()
-                            Text("\(ingredient.quantity) \(ingredient.unit)")
-                        }
-                    }
-                    .onDelete { indexSet in
-                        ingredients.remove(atOffsets: indexSet)
-                    }
-                    
-                    Button {
-                        showingIngredientSheet = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Thêm nguyên liệu")
-                        }
-                    }
-                }
-                
-                if editingItem == nil {
-                    Section {
-                        Button {
-                            showingImportSheet = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "square.and.arrow.down")
-                                Text("Nhập từ file")
-                            }
-                        }
+                .padding(.horizontal, 20)
+            }
+            .navigationTitle(menuItem == nil ? "Thêm Món Mới" : "Chỉnh Sửa Món")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Huỷ") {
+                        appState.coordinator.dismiss()
                     }
                 }
             }
-            .navigationTitle(editingItem == nil ? "Thêm món mới" : "Chỉnh sửa món")
-            .navigationBarItems(
-                leading: Button("Hủy") {
-                    dismiss()
-                },
-                trailing: Button(editingItem == nil ? "Thêm" : "Lưu") {
-                    Task {
-                        await saveMenuItem()
-                    }
-                }
-                .disabled(name.isEmpty || price <= 0 || category.isEmpty)
-            )
-            .onChange(of: selectedImage) { _ in
-                Task {
-                    if let data = try? await selectedImage?.loadTransferable(type: Data.self) {
-                        imageData = data
-                    }
-                }
+            .sheet(isPresented: $showingImagePicker) {
+                ImagePicker(image: $selectedImage)
             }
-            .sheet(isPresented: $showingIngredientSheet) {
-                AddIngredientUsageView(ingredients: $ingredients)
+            .sheet(isPresented: $showingRecipeSheet) {
+                RecipeFormView(recipe: $recipe)
             }
-            .sheet(isPresented: $showingImportSheet) {
-                ImportMenuItemsView(viewModel: viewModel)
-            }
-            .overlay {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black.opacity(0.3))
+        }
+        .onAppear {
+            setupInitialData()
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            Image(systemName: menuItem == nil ? "plus.circle.fill" : "pencil.circle.fill")
+                .font(.system(size: 50))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            Text(menuItem == nil ? "Thêm món mới" : "Chỉnh sửa món")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Điền thông tin chi tiết về món ăn")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 10)
+    }
+    
+    private var imagePickerSection: some View {
+        Button(action: {
+            showingImagePicker = true
+        }) {
+            ZStack {
+                if let image = selectedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemGray6))
+                        .frame(height: 200)
+                        .overlay(
+                            VStack(spacing: 12) {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.secondary)
+                                Text("Thêm hình ảnh món ăn")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        )
                 }
             }
         }
     }
     
-    private func saveMenuItem() async {
-        isLoading = true
-        defer { isLoading = false }
+    private var formSection: some View {
+        VStack(spacing: 20) {
+            // Tên món
+            FormField(
+                icon: "text.cursor",
+                title: "Tên món",
+                placeholder: "Nhập tên món...",
+                text: $name,
+                field: .name,
+                focusedField: $focusedField
+            )
+            
+            // Giá
+            FormField(
+                icon: "banknote",
+                title: "Giá bán",
+                placeholder: "Nhập giá bán...",
+                text: $price,
+                field: .price,
+                focusedField: $focusedField,
+                keyboardType: .numberPad
+            )
+            
+            // Danh mục
+            FormField(
+                icon: "tag",
+                title: "Danh mục",
+                placeholder: "Chọn danh mục...",
+                text: $category,
+                field: .category,
+                focusedField: $focusedField
+            )
+        }
+    }
+    
+    private var recipeSection: some View {
+        Button(action: {
+            showingRecipeSheet = true
+        }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Công thức")
+                        .font(.headline)
+                    Text(recipe.isEmpty ? "Thêm nguyên liệu" : "\(recipe.count) nguyên liệu")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var submitButton: some View {
+        Button(action: {
+            Task {
+                await handleSubmit()
+            }
+        }) {
+            HStack {
+                if isUploading {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Text(menuItem == nil ? "Thêm món" : "Lưu thay đổi")
+                        .fontWeight(.semibold)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(
+                isFormValid ?
+                LinearGradient(
+                    colors: [.blue, .purple],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ) :
+                LinearGradient(
+                    colors: [Color(.systemGray4), Color(.systemGray3)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .foregroundColor(.white)
+            .cornerRadius(16)
+            .shadow(color: isFormValid ? .blue.opacity(0.3) : .clear, radius: 8, x: 0, y: 4)
+        }
+        .disabled(!isFormValid || isUploading)
+    }
+    
+    private func setupInitialData() {
+        if let item = menuItem {
+            name = item.name
+            price = String(format: "%.0f", item.price)
+            category = item.category
+            recipe = item.recipe
+            
+            if let url = item.imageURL {
+                // Load image from URL
+                Task {
+                    if let (data, _) = try? await URLSession.shared.data(from: url),
+                       let image = UIImage(data: data) {
+                        selectedImage = image
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleSubmit() async {
+        guard isFormValid else { return }
         
-        let menuItem = MenuItem(
-            id: editingItem?.id,
-            name: name,
-            price: price,
-            category: category,
-            ingredients: ingredients,
-            isAvailable: isAvailable,
-            imageURL: nil, // Sẽ được cập nhật sau khi upload ảnh
-            createdAt: editingItem?.createdAt ?? Date(),
-            updatedAt: Date()
-        )
+        isUploading = true
+        defer { isUploading = false }
         
         do {
-            if let _ = editingItem {
-                await viewModel.updateMenuItem(menuItem, imageData: imageData)
+            let priceValue = Double(price) ?? 0
+            
+            if let menuItem = menuItem {
+                // Cập nhật món ăn
+                var updatedItem = menuItem
+                await viewModel.updateMenuItem(updatedItem, in: menu, imageData: nil)
+                // Cập nhật các trường
+                // Xử lý cập nhật
+                appState.sourceModel.showSuccess("Cập nhật món thành công!")
             } else {
-                await viewModel.createMenuItem(menuItem, imageData: imageData)
+                // Tạo món mới
+                let newItem = MenuItem(
+                    name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    price: priceValue,
+                    category: category.trimmingCharacters(in: .whitespacesAndNewlines),
+                    recipe: recipe
+                )
+                await viewModel.createMenuItem(newItem, in: menu, imageData: nil)
+                // Xử lý tạo mới
+                appState.sourceModel.showSuccess("Thêm món thành công!")
             }
-            dismiss()
+            
+            appState.coordinator.dismiss()
         }
     }
 }
 
-struct AddIngredientUsageView: View {
-    @Binding var ingredients: [IngredientUsage]
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appState: AppState
-    @State private var selectedItem: InventoryItem?
-    @State private var quantity = 0.0
-    @State private var selectedUnit: MeasurementUnit?
+struct FormField: View {
+    let icon: String
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+    let field: MenuItemFormView.Field
+    let focusedField: FocusState<MenuItemFormView.Field?>.Binding
+    var keyboardType: UIKeyboardType = .default
     
     var body: some View {
-        NavigationView {
-            Form {
-                Picker("Nguyên liệu", selection: $selectedItem) {
-                    Text("Chọn nguyên liệu").tag(Optional<InventoryItem>.none)
-                    ForEach(appState.sourceModel.inventory ?? []) { item in
-                        Text(item.name).tag(Optional<InventoryItem>.some(item))
-                    }
-                }
-                
-                HStack {
-                    Text("Số lượng:")
-                    TextField("0", value: $quantity, format: .number)
-                        .keyboardType(.decimalPad)
-                }
-                
-                HStack {
-                    Text("Đơn vị:")
-                    Picker("", selection: $selectedUnit) {
-                        Text("Chọn đơn vị").tag(Optional<MeasurementUnit>.none)
-                        ForEach(MeasurementUnit.allCases) { unit in
-                            Text(unit.displayName).tag(Optional(unit))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-            }
-            .navigationTitle("Thêm nguyên liệu")
-            .navigationBarItems(
-                leading: Button("Hủy") {
-                    dismiss()
-                },
-                trailing: Button("Thêm") {
-                    if let item = selectedItem, let unit = selectedUnit {
-                        ingredients.append(IngredientUsage(
-                            inventoryItemID: item.id ?? "",
-                            quantity: quantity,
-                            unit: unit
-                        ))
-                        dismiss()
-                    }
-                }
-                .disabled(selectedItem == nil || quantity <= 0 || selectedUnit == nil)
-            )
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+            
+            TextField(placeholder, text: $text)
+                .focused(focusedField, equals: field)
+                .keyboardType(keyboardType)
+                .textFieldStyle(CustomTextFieldStyle())
+                .autocorrectionDisabled()
         }
     }
 }
 
-struct ImportMenuItemsView: View {
-    @ObservedObject var viewModel: MenuViewModel
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.presentationMode) private var presentationMode
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = true
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let editedImage = info[.editedImage] as? UIImage {
+                parent.image = editedImage
+            } else if let originalImage = info[.originalImage] as? UIImage {
+                parent.image = originalImage
+            }
+            
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
+
+struct RecipeFormView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var showingFilePicker = false
-    @State private var isLoading = false
+    @EnvironmentObject private var appState: AppState
+    @Binding var recipe: [Recipe]
+    
+    @State private var selectedIngredient: IngredientUsage?
+    @State private var quantity = ""
+    @State private var selectedUnit = MeasurementUnit.gram
+    @State private var showingIngredientPicker = false
+    @State private var ingredients: [Recipe] = []
+    @State private var searchText = ""
+    
+    private var isFormValid: Bool {
+        selectedIngredient != nil && !quantity.isEmpty && Double(quantity) != nil
+    }
     
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                Text("Nhập danh sách món từ file Excel hoặc CSV")
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
+                // Header
+                headerSection
                 
-                Button {
-                    showingFilePicker = true
-                } label: {
-                    HStack {
-                        Image(systemName: "doc")
-                        Text("Chọn file")
-                    }
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
+                // Ingredient List
+                recipeList
                 
-                Text("Lưu ý: File cần có các cột: Tên món, Giá, Danh mục")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
+                // Add Ingredient Form
+                addIngredientForm
+                
+                Spacer()
             }
             .padding()
-            .navigationTitle("Nhập từ file")
-            .navigationBarItems(leading: Button("Đóng") {
-                dismiss()
-            })
-            .fileImporter(
-                isPresented: $showingFilePicker,
-                allowedContentTypes: [.commaSeparatedText, .spreadsheet]
-            ) { result in
-                switch result {
-                case .success(let file):
-                    Task {
-                        await importFile(at: file)
+            .navigationTitle("Công thức món ăn")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Huỷ") {
+                        dismiss()
                     }
-                case .failure:
-                    // Xử lý lỗi
-                    break
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Xong") {
+                        recipe = ingredients
+                        dismiss()
+                    }
                 }
             }
-            .overlay {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black.opacity(0.3))
+            .sheet(isPresented: $showingIngredientPicker) {
+                IngredientPicker(viewModel: IngredientViewModel(source: appState.sourceModel), selectedIngredient: $selectedIngredient)
+            }
+        }
+        .onAppear {
+            ingredients = recipe
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Danh sách nguyên liệu")
+                .font(.headline)
+            
+            if ingredients.isEmpty {
+                Text("Chưa có nguyên liệu nào")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var recipeList: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(ingredients, id: \.ingredientUsage.id) { ingredient in
+                    RecipeRow(recipe: ingredient) { recipe in
+                        if let index = ingredients.firstIndex(where: { $0.ingredientUsage.id == recipe.ingredientUsage.id }) {
+                            ingredients.remove(at: index)
+                        }
+                    }
                 }
             }
         }
     }
     
-    private func importFile(at url: URL) async {
-        isLoading = true
-        defer { 
-            isLoading = false
-            // Đảm bảo giải phóng tài nguyên
-            if FileManager.default.fileExists(atPath: url.path) {
-                try? FileManager.default.removeItem(at: url)
+    private var addIngredientForm: some View {
+        VStack(spacing: 16) {
+            // Ingredient Picker Button
+            Button(action: {
+                showingIngredientPicker = true
+            }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Chọn nguyên liệu")
+                            .font(.headline)
+                        Text(selectedIngredient?.name ?? "Chưa chọn nguyên liệu")
+                            .font(.subheadline)
+                            .foregroundColor(selectedIngredient == nil ? .secondary : .primary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
             }
-        }
-        
-        do {
-            await viewModel.importMenuItems(from: url)
-            dismiss()
+            
+            // Quantity Input
+            HStack(spacing: 12) {
+                TextField("Số lượng", text: $quantity)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(CustomTextFieldStyle())
+                
+                Picker("Đơn vị", selection: $selectedUnit) {
+                    ForEach(MeasurementUnit.allCases, id: \.self) { unit in
+                        Text(unit.rawValue).tag(unit)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            
+            // Add Button
+            Button(action: addIngredient) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Thêm nguyên liệu")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    isFormValid ?
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ) :
+                    LinearGradient(
+                        colors: [Color(.systemGray4), Color(.systemGray3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(!isFormValid)
         }
     }
-} 
+    
+    private func addIngredient() {
+        guard let ingredient = selectedIngredient,
+              let quantityValue = Double(quantity) else { return }
+        
+        let measurement = Measurement(value: quantityValue, unit: selectedUnit)
+        let recipe = Recipe(
+            ingredientUsage: ingredient,
+            measurement: measurement,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        withAnimation {
+            ingredients.append(recipe)
+        }
+        
+        // Reset form
+        selectedIngredient = nil
+        quantity = ""
+        selectedUnit = .gram
+    }
+}
+
+struct RecipeRow: View {
+    let recipe: Recipe
+    let onDelete: (Recipe) -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            Circle()
+                .fill(Color.blue.opacity(0.1))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "leaf.circle.fill")
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.green, .blue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(recipe.ingredientUsage.name)
+                    .font(.headline)
+                
+                HStack {
+                    Text("\(recipe.requiredAmount.value, specifier: "%.1f") \(recipe.requiredAmount.unit.rawValue)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            // Delete Button
+            Button(action: {
+                onDelete(recipe)
+            }) {
+                Image(systemName: "trash.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.red)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct IngredientPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: IngredientViewModel
+    @Binding var selectedIngredient: IngredientUsage?
+    @State private var searchText = ""
+    @State private var ingredients: [IngredientUsage] = []
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                // Search Bar
+                SearchBar(text: $searchText, placeholder: "Tìm kiếm nguyên liệu...")
+                    .padding()
+                
+                // Ingredient List
+                List(filteredIngredients, id: \.id) { ingredient in
+                    Button(action: {
+                        selectedIngredient = ingredient
+                        dismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            // Icon
+                            Circle()
+                                .fill(Color.green.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "leaf.circle.fill")
+                                        .foregroundStyle(
+                                            LinearGradient(
+                                                colors: [.green, .blue],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                )
+                            
+                            // Content
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(ingredient.name)
+                                    .font(.headline)
+                                
+                                HStack {
+                                    Text("\(ingredient.totalMeasurement, specifier: "%.1f") \(ingredient.measurementPerUnit.unit.displayName)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Circle()
+                                        .fill(ingredient.stockStatus.color)
+                                        .frame(width: 8, height: 8)
+                                    
+                                    Text(ingredient.stockStatus.description)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+            .navigationTitle("Chọn nguyên liệu")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Huỷ") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            ingredients = viewModel.ingredients
+        }
+    }
+    
+    private var filteredIngredients: [IngredientUsage] {
+        if searchText.isEmpty {
+            return ingredients
+        }
+        return ingredients.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}

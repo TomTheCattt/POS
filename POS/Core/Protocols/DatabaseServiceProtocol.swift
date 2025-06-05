@@ -21,15 +21,17 @@ protocol DatabaseServiceProtocol {
     func batchDelete(_ ids: [String], from collection: DatabaseCollection, type: DatabaseCollection.PathType) async throws
     
     // MARK: - Real-time Updates
-    func addListener<T: Codable>(collection: DatabaseCollection,
+    func addCollectionListener<T: Codable>(collection: DatabaseCollection,
                                 type: DatabaseCollection.PathType,
+                                key: String,
                                 queryBuilder: ((Query) -> Query)?,
-                                completion: @escaping (Result<[T], Error>) -> Void) -> ListenerRegistration?
+                                completion: @escaping (Result<[T], Error>) -> Void)
     
     func addDocumentListener<T: Codable>(collection: DatabaseCollection,
                                         type: DatabaseCollection.PathType,
+                                        key: String,
                                         id: String,
-                                        completion: @escaping (Result<T?, Error>) -> Void) -> ListenerRegistration?
+                                        completion: @escaping (Result<T?, Error>) -> Void)
     
 //    // MARK: - Convenience Methods
 //    // User Operations
@@ -60,11 +62,11 @@ protocol DatabaseServiceProtocol {
 //    func deleteMenuItem(userId: String, shopId: String, menuItemId: String) async throws
 //    
 //    // Inventory Operations
-//    func createInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String) async throws -> T
-//    func getInventoryItem<T: Codable>(userId: String, shopId: String, inventoryItemId: String) async throws -> T
-//    func getAllInventoryItems<T: Codable>(userId: String, shopId: String) async throws -> [T]
-//    func updateInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String, inventoryItemId: String) async throws -> T
-//    func deleteInventoryItem(userId: String, shopId: String, inventoryItemId: String) async throws
+//    func createIngredientUsage<T: Codable>(_ IngredientUsage: T, userId: String, shopId: String) async throws -> T
+//    func getIngredientUsage<T: Codable>(userId: String, shopId: String, IngredientUsageId: String) async throws -> T
+//    func getAllIngredientUsages<T: Codable>(userId: String, shopId: String) async throws -> [T]
+//    func updateIngredientUsage<T: Codable>(_ IngredientUsage: T, userId: String, shopId: String, IngredientUsageId: String) async throws -> T
+//    func deleteIngredientUsage(userId: String, shopId: String, IngredientUsageId: String) async throws
 //    
 //    // Real-time Listeners
 //    func listenToOrders<T: Codable>(userId: String,
@@ -77,7 +79,7 @@ protocol DatabaseServiceProtocol {
 //                                      queryBuilder: ((Query) -> Query)?,
 //                                      completion: @escaping (Result<[T], Error>) -> Void) -> ListenerRegistration?
 //    
-//    func listenToInventoryItems<T: Codable>(userId: String,
+//    func listenToIngredientUsages<T: Codable>(userId: String,
 //                                           shopId: String,
 //                                           queryBuilder: ((Query) -> Query)?,
 //                                           completion: @escaping (Result<[T], Error>) -> Void) -> ListenerRegistration?

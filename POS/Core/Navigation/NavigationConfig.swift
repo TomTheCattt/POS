@@ -94,6 +94,12 @@ struct NavigationConfig {
         detents: [.medium(), .large()]
     )
     
+    static let present = NavigationConfig(
+        dismissOnTapOutside: true,
+        backgroundEffect: .dim(opacity: 0.3),
+        overlaySize: .flexible
+        )
+    
     // Khởi tạo cho alert/toast
     static let alert = NavigationConfig(
         autoDismiss: true,

@@ -15,16 +15,18 @@ class SourceModel: ObservableObject {
     // MARK: - App State
     /// Current authenticated user
     @Published private(set) var currentUser: AppUser?
-    /// Currently selected shop
-    @Published private(set) var selectedShop: Shop?
+    /// Current shops
+    @Published private(set) var shops: [Shop]?
+    /// Current activated shops
+    @Published private(set) var activatedShop: Shop?
     /// Currently selected shop's orders
     @Published private(set) var orders: [Order]?
-    /// Currently selected shop's menu
-    @Published private(set) var menu: [MenuItem]?
-    /// Currently selected shop's inventory
-    @Published private(set) var inventory: [InventoryItem]?
     /// Currently selected shop's ingredients usage
     @Published private(set) var ingredients: [IngredientUsage]?
+    /// Currently shop's menu
+    @Published private(set) var menuList: [AppMenu]?
+    /// Current activated menu
+    @Published private(set) var activatedMenu: AppMenu?
 
     // MARK: - UI State
     /// Loading state indicator
@@ -48,8 +50,6 @@ class SourceModel: ObservableObject {
 
     // MARK: - Persistence
     @AppStorage("userId") var userId: String = ""
-    /// Persisted selected shop ID
-    @AppStorage("selectedShopId") private var selectedShopId: String?
 
     // MARK: - Environment & Services
     /// Set of cancellables for managing Combine subscriptions
@@ -58,48 +58,38 @@ class SourceModel: ObservableObject {
     // MARK: - Listeners
     /// Firebase Auth state listener
     private var authStateListener: AuthStateDidChangeListenerHandle?
-    /// Firestore user document listener
-    private var userListener: ListenerRegistration?
-    /// Firestore shop document listener
-    private var shopListener: ListenerRegistration?
-    /// Firestore order document listener
-    private var ordersListener: ListenerRegistration?
-    /// Firestore menu document listener
-    private var menuListener: ListenerRegistration?
-    /// Firestore inventory document listener
-    private var inventoryListener: ListenerRegistration?
-    /// Firestore ingredients document listener
-    private var ingredientsListener: ListenerRegistration?
-    /// Collection of active Firestore listeners
-    private var listeners: [ListenerRegistration] = []
 
     // MARK: - Publishers
     /// Publisher for current user changes
-    var currentUserSubject: CurrentValueSubject<AppUser?, Never> = CurrentValueSubject(nil)
     
     /// Publisher for current user changes
     var currentUserPublisher: AnyPublisher<AppUser?, Never> {
         $currentUser.eraseToAnyPublisher()
     }
-
-    /// Publisher for selected shop changes
-    var selectedShopPublisher: AnyPublisher<Shop?, Never> {
-        $selectedShop.eraseToAnyPublisher()
+    
+    /// Publisher for shops changes
+    var currentShopsPublisher: AnyPublisher<[Shop]?, Never> {
+        $shops.eraseToAnyPublisher()
     }
     
-    /// Publisher for selected shop's orders changes
+    /// Publisher for shops changes
+    var activatedShopPublisher: AnyPublisher<Shop?, Never> {
+        $activatedShop.eraseToAnyPublisher()
+    }
+    
+    /// Publisher for orders changes
     var ordersPublisher: AnyPublisher<[Order]?, Never> {
         $orders.eraseToAnyPublisher()
     }
     
-    /// Publisher for selected shop's menu changes
-    var menuPublisher: AnyPublisher<[MenuItem]?, Never> {
-        $menu.eraseToAnyPublisher()
+    /// Publisher for menu list changes
+    var menuListPublisher: AnyPublisher<[AppMenu]?, Never> {
+        $menuList.eraseToAnyPublisher()
     }
     
-    /// Publisher for selected shop's inventory changes
-    var inventoryPublisher: AnyPublisher<[InventoryItem]?, Never> {
-        $inventory.eraseToAnyPublisher()
+    /// Publisher for menu changes
+    var activatedMenuPublisher: AnyPublisher<AppMenu?, Never> {
+        $activatedMenu.eraseToAnyPublisher()
     }
     
     /// Publisher for selected shop's ingredients changes
@@ -146,42 +136,18 @@ class SourceModel: ObservableObject {
     }
     
     private func removeAllListeners() async {
-        // Remove individual listeners
-        if let userListener = userListener {
-            environment.databaseService.removeListener(forKey: userListener.description)
-        }
-        userListener = nil
+        let listenerKeys = [
+            "user_\(userId)",
+            "shop_\(activatedShop!.id ?? "")",
+            "orders_\(activatedShop!.id ?? "")",
+            "menu_\(activatedShop!.id ?? "")",
+            "inventory_\(activatedShop!.id ?? "")",
+            "ingredients_\(activatedShop!.id ?? "")"
+        ]
         
-        if let shopListener = shopListener {
-            environment.databaseService.removeListener(forKey: shopListener.description)
+        listenerKeys.forEach { key in
+            environment.databaseService.removeListener(forKey: key)
         }
-        shopListener = nil
-        
-        if let ordersListener = ordersListener {
-            environment.databaseService.removeListener(forKey: ordersListener.description)
-        }
-        ordersListener = nil
-        
-        if let menuListener = menuListener {
-            environment.databaseService.removeListener(forKey: menuListener.description)
-        }
-        menuListener = nil
-        
-        if let inventoryListener = inventoryListener {
-            environment.databaseService.removeListener(forKey: inventoryListener.description)
-        }
-        inventoryListener = nil
-        
-        if let ingredientsListener = ingredientsListener {
-            environment.databaseService.removeListener(forKey: ingredientsListener.description)
-        }
-        ingredientsListener = nil
-        
-        // Remove all remaining listeners
-        listeners.forEach { listener in
-            environment.databaseService.removeListener(forKey: listener.description)
-        }
-        listeners.removeAll()
     }
 
     // MARK: - Setup Methods
@@ -230,8 +196,9 @@ class SourceModel: ObservableObject {
             if let userData: AppUser = try await environment.databaseService.getUser(userId: userId) {
                 await MainActor.run {
                     self.currentUser = userData
+                    self.userId = userData.id!
                 }
-                await fetchAndSetupShop()
+                await fetchShops()
             } else {
                 await MainActor.run {
                     self.currentUser = nil
@@ -247,52 +214,168 @@ class SourceModel: ObservableObject {
         }
     }
 
-    private func fetchAndSetupShop() async {
+    private func fetchShops() async {
         do {
-            let shops: [Shop] = try await environment.databaseService.getAllShops(userId: userId)
-            
-            if let storedShopId = selectedShopId {
-                if let shop = shops.first(where: { $0.id == storedShopId }) {
-                    await selectShop(shop)
-                } else {
-                    await selectFirstShop(from: shops)
-                }
-            } else {
-                await selectFirstShop(from: shops)
+            shops = try await environment.databaseService.getAllShops(userId: userId)
+            if let activatedShop = shops?.first(where: { $0.isActive }) {
+                self.activatedShop = activatedShop
+                await fetchActivatedShop(activatedShop)
             }
         } catch {
             handleError(error, action: "tải danh sách cửa hàng")
         }
     }
-
-    private func selectFirstShop(from shops: [Shop]) async {
-        if let firstShop = shops.first {
-            await selectShop(firstShop)
+    
+    private func fetchShopIngredients(shopId: String) async {
+        do {
+            ingredients = try await environment.databaseService.getAllIngredientUsages(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải nguyên liệu")
         }
     }
-
-    func selectShop(_ shop: Shop) async {
+    
+    private func fetchShopOrders(shopId: String) async {
+        do {
+            orders = try await environment.databaseService.getAllOrders(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải đơn hàng")
+        }
+    }
+    
+    private func fetchShopMenu(shopId: String) async {
+        do {
+            menuList = try await environment.databaseService.getAllMenu(userId: userId, shopId: shopId)
+            activatedMenu = menuList?.first(where: { $0.isActive })
+        } catch {
+            handleError(error, action: "tải thực đơn")
+        }
+    }
+    
+    func activateShop(_ shop: Shop) async {
         guard let shopId = shop.id else {
             handleError(AppError.shop(.notFound))
             return
         }
-
-        selectedShop = shop
-        selectedShopId = shopId
-
-        setupShopListener(shopId: shopId)
-        setupMenuListener(shopId: shopId)
-        setupOrdersListener(shopId: shopId)
-        setupInventoryListener(shopId: shopId)
-        setupIngredientsListener(shopId: shopId)
+        
+        if let currentActiveShop = shops?.first(where: { $0.isActive && $0.id != shopId }) {
+            do {
+                var updateCurrentActiveShop = currentActiveShop
+                updateCurrentActiveShop.isActive = false
+                updateCurrentActiveShop.updatedAt = Date()
+                let _ = try await environment.databaseService.updateShop(updateCurrentActiveShop, userId: userId, shopId: updateCurrentActiveShop.id!)
+                
+                var updateShop = shop
+                updateShop.isActive = true
+                updateShop.updatedAt = Date()
+                let _ = try await environment.databaseService.updateShop(updateShop, userId: userId, shopId: updateShop.id!)
+                await fetchActivatedShop(updateShop)
+            } catch {
+                handleError(AppError.shop(.updateFailed))
+            }
+        }
     }
     
-    func refreshAuthListener() {
-        guard let authStateListener else { return }
-        environment.authService.auth.removeStateDidChangeListener(authStateListener)
-        setupAuthStateListener()
+    func deactivateShop(_ shop: Shop) async {
+        guard let shopId = shop.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        do {
+            if let anotherShop = self.shops?.first(where: { $0.id != shopId }) {
+                var updatedCurrentShop = shop
+                updatedCurrentShop.isActive = false
+                updatedCurrentShop.updatedAt = Date()
+                let _ = try await environment.databaseService.updateShop(updatedCurrentShop, userId: userId, shopId: updatedCurrentShop.id!)
+                
+                await activateShop(anotherShop)
+            } else {
+                showError("Không thể tắt cửa hàng duy nhất")
+            }
+        } catch {
+            handleError(error, action: "tắt cửa hàng")
+        }
     }
 
+    private func fetchActivatedShop(_ shop: Shop) async {
+        guard let shopId = shop.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        await fetchShopMenu(shopId: shopId)
+        await fetchShopOrders(shopId: shopId)
+        await fetchShopIngredients(shopId: shopId)
+    }
+    
+    func activateMenu(_ menu: AppMenu) async {
+        guard let shopId = activatedShop!.id,
+              let menuId = menu.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        do {
+            // Deactivate current active menu if exists
+            if let currentActiveMenu = self.menuList?.first(where: { $0.isActive && $0.id != menuId }) {
+                var updatedCurrentMenu = currentActiveMenu
+                updatedCurrentMenu.isActive = false
+                updatedCurrentMenu.updatedAt = Date()
+                let _ = try await environment.databaseService.updateMenu(
+                    updatedCurrentMenu,
+                    userId: userId,
+                    shopId: shopId,
+                    menuId: updatedCurrentMenu.id!
+                )
+            }
+            
+            // Activate new menu
+            var updatedMenu = menu
+            updatedMenu.isActive = true
+            updatedMenu.updatedAt = Date()
+            let _ = try await environment.databaseService.updateMenu(
+                updatedMenu,
+                userId: userId,
+                shopId: shopId,
+                menuId: menuId
+            )
+            
+            showSuccess("Đã kích hoạt thực đơn \(menu.menuName)")
+        } catch {
+            handleError(error, action: "kích hoạt thực đơn")
+        }
+    }
+    
+    func deactivateMenu(_ menu: AppMenu) async {
+        guard let shopId = activatedShop!.id,
+              let menuId = menu.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        do {
+            // Only allow deactivate if there's another menu to activate
+            if let anotherMenu = self.menuList?.first(where: { $0.id != menuId }) {
+                // Deactivate current menu
+                var updatedCurrentMenu = menu
+                updatedCurrentMenu.isActive = false
+                updatedCurrentMenu.updatedAt = Date()
+                let _ = try await environment.databaseService.updateMenu(
+                    updatedCurrentMenu,
+                    userId: userId,
+                    shopId: shopId,
+                    menuId: updatedCurrentMenu.id!
+                )
+                
+                // Activate another menu
+                await activateMenu(anotherMenu)
+            } else {
+                showError("Không thể tắt thực đơn duy nhất")
+            }
+        } catch {
+            handleError(error, action: "tắt thực đơn")
+        }
+    }
+    
     // MARK: - Auth State Handling
     private func handleAuthStateChange(_ user: FirebaseAuth.User?) async {
         if let user = user {
@@ -302,16 +385,13 @@ class SourceModel: ObservableObject {
                 if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
                     await MainActor.run {
                         self.currentUser = userData
-                        self.userId = user.uid
+                        self.userId = userData.id!
                     }
-                    
-                    await setupUserListener(userId: userData.id ?? "")
-                    await fetchAndSetupShop()
+                    await fetchShops()
                 } else {
                     await MainActor.run {
                         self.currentUser = nil
                         self.userId = ""
-                        self.selectedShopId = nil
                     }
                 }
             } catch let error as AppError {
@@ -324,192 +404,120 @@ class SourceModel: ObservableObject {
                     await MainActor.run {
                         self.currentUser = nil
                         self.userId = ""
-                        self.selectedShopId = nil
                     }
                 }
             } catch {
                 await MainActor.run {
                     self.currentUser = nil
                     self.userId = ""
-                    self.selectedShopId = nil
                 }
             }
         } else {
             await MainActor.run {
                 self.currentUser = nil
                 self.userId = ""
-                self.selectedShopId = nil
             }
         }
     }
 
     // MARK: - User & Shop Listeners
-    private func setupUserListener(userId: String) async {
-        // Remove existing listener
-        if let userListener = userListener {
-            environment.databaseService.removeListener(forKey: userListener.description)
-        }
-        userListener = nil
-        
-        userListener = environment.databaseService.addDocumentListener(
-            collection: .users,
-            type: .collection,
-            id: userId
-        ) { [weak self] (result: Result<AppUser?, Error>) in
+//    private func setupUserListener(userId: String) {
+//        environment.databaseService.listenToCurrentUser(userId: userId, completion: { [weak self] (result: Result<AppUser?, Error>) in
+//            guard let self = self else { return }
+//            
+//            Task { @MainActor in
+//                switch result {
+//                case .success(let user):
+//                    guard let user = user, let id = user.id else {
+//                        self.handleError(AppError.auth(.userNotFound))
+//                        return
+//                    }
+//                    
+//                    self.currentUser = user
+//                    self.userId = id
+//                    await self.fetchShops()
+//                    
+//                case .failure(let error):
+//                    self.handleError(error, action: "tải thông tin người dùng")
+//                }
+//            }
+//        })
+//    }
+//    
+    private func setupShopsListener() {
+        environment.databaseService.listenToShops(userId: userId, queryBuilder: nil, completion: { [weak self] (result: Result<[Shop], Error>) in
             guard let self = self else { return }
             
             Task { @MainActor in
                 switch result {
-                case .success(let user):
-                    guard let user = user, let id = user.id else {
-                        self.handleError(AppError.auth(.userNotFound))
-                        return
-                    }
-                    
-                    self.currentUser = user
-                    self.userId = id
-                    await self.fetchAndSetupShop()
-                    
-                case .failure(let error):
-                    self.handleError(error, action: "tải thông tin người dùng")
-                }
-            }
-        }
-        
-        if let listener = userListener {
-            addToListeners(listener)
-        }
-    }
-    
-    private func setupShopListener(shopId: String) {
-        if let shopListener = shopListener {
-            environment.databaseService.removeListener(forKey: shopListener.description)
-        }
-        shopListener = nil
-        
-        shopListener = environment.databaseService.addDocumentListener(
-            collection: .shops,
-            type: .subcollection(parentId: userId),
-            id: shopId
-        ) { [weak self] (result: Result<Shop?, Error>) in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                switch result {
-                case .success(let shop):
-                    guard let shop = shop else {
-                        self.handleError(AppError.shop(.notFound))
-                        return
-                    }
-                    
-                    self.selectedShop = shop
-                    self.selectedShopId = shop.id
+                case .success(let shops):
+                    self.shops = shops
                     
                 case .failure(let error):
                     self.handleError(error, action: "lắng nghe thay đổi cửa hàng")
                 }
             }
-        }
-        
-        if let listener = shopListener {
-            addToListeners(listener)
-        }
+        })
     }
-    
-    private func setupMenuListener(shopId: String) {
-        if let menuListener = menuListener {
-            environment.databaseService.removeListener(forKey: menuListener.description)
-        }
-        menuListener = nil
-        
-        menuListener = environment.databaseService.addListener(
-            collection: .menu,
-            type: .nestedSubcollection(userId: userId, shopId: shopId),
-            queryBuilder: nil
-        ) { [weak self] (result: Result<[MenuItem], Error>) in
+//
+    func setupMenuListListener(shopId: String) {
+        environment.databaseService.listenToMenu(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: { $0.order(by: "createdAt", descending: false) }
+        ) { [weak self] (result: Result<[AppMenu], Error>) in
             guard let self = self else { return }
             
             Task { @MainActor in
                 switch result {
                 case .success(let menu):
-                    self.menu = menu
+                    self.menuList = menu
+                    
+                    // Nếu chưa có menu nào được chọn hoặc menu đang chọn không còn active
+                    if self.activatedMenu == nil ||
+                        (self.activatedMenu?.isActive == false && menu.contains(where: { $0.isActive })) {
+                        if let activeMenu = menu.first(where: { $0.isActive }) {
+                            self.activatedMenu = activeMenu
+                        }
+                    }
+                    
                 case .failure(let error):
                     self.handleError(error, action: "lắng nghe thay đổi của thực đơn")
                 }
             }
         }
-        
-        if let listener = menuListener {
-            addToListeners(listener)
-        }
     }
     
-    private func setupOrdersListener(shopId: String) {
-        if let ordersListener = ordersListener {
-            environment.databaseService.removeListener(forKey: ordersListener.description)
-        }
-        ordersListener = nil
-        
-        ordersListener = environment.databaseService.addListener(
-            collection: .orders,
-            type: .nestedSubcollection(userId: userId, shopId: shopId),
-            queryBuilder: nil
-        ) { [weak self] (result: Result<[Order], Error>) in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                switch result {
-                case .success(let orders):
-                    self.orders = orders
-                case .failure(let error):
-                    self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
-                }
-            }
-        }
-        
-        if let listener = ordersListener {
-            addToListeners(listener)
-        }
+    func removeMenuListListener(shopId: String) {
+        environment.databaseService.removeMenuListener(userId: userId, shopId: shopId)
     }
+//
+//    private func setupOrdersListener(shopId: String) {
+//        
+//        environment.databaseService.listenToOrders(
+//            userId: userId,
+//            shopId: shopId,
+//            queryBuilder: nil
+//        ) { [weak self] (result: Result<[Order], Error>) in
+//            guard let self = self else { return }
+//            
+//            Task { @MainActor in
+//                switch result {
+//                case .success(let orders):
+//                    self.orders = orders
+//                case .failure(let error):
+//                    self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
+//                }
+//            }
+//        }
+//    }
     
-    private func setupInventoryListener(shopId: String) {
-        if let inventoryListener = inventoryListener {
-            environment.databaseService.removeListener(forKey: inventoryListener.description)
-        }
-        inventoryListener = nil
+    func setupIngredientsListener(shopId: String) {
         
-        inventoryListener = environment.databaseService.addListener(
-            collection: .inventory,
-            type: .nestedSubcollection(userId: userId, shopId: shopId),
-            queryBuilder: nil
-        ) { [weak self] (result: Result<[InventoryItem], Error>) in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                switch result {
-                case .success(let inventory):
-                    self.inventory = inventory
-                case .failure(let error):
-                    self.handleError(error, action: "lắng nghe thay đổi kho")
-                }
-            }
-        }
-        
-        if let listener = inventoryListener {
-            addToListeners(listener)
-        }
-    }
-    
-    private func setupIngredientsListener(shopId: String) {
-        if let ingredientsListener = ingredientsListener {
-            environment.databaseService.removeListener(forKey: ingredientsListener.description)
-        }
-        ingredientsListener = nil
-        
-        ingredientsListener = environment.databaseService.addListener(
-            collection: .ingredientsUsage,
-            type: .nestedSubcollection(userId: userId, shopId: shopId),
-            queryBuilder: nil
+        environment.databaseService.listenToIngredients(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: { $0.order(by: "name", descending: false) }
         ) { [weak self] (result: Result<[IngredientUsage], Error>) in
             guard let self = self else { return }
             
@@ -522,11 +530,31 @@ class SourceModel: ObservableObject {
                 }
             }
         }
-        
-        if let listener = ingredientsListener {
-            addToListeners(listener)
-        }
     }
+    
+    func removeIngredientsListener(shopId: String) {
+        environment.databaseService.removeIngredientsListener(userId: userId, shopId: shopId)
+    }
+    
+//    private func setupMenuItemsListener(shopId: String, menuId: String) {
+//        
+//        environment.databaseService.listenToMenuItems(
+//            userId: userId,
+//            shopId: shopId,
+//            menuId: menuId,
+//            queryBuilder: nil
+//        ) { [weak self] (result: Result<[MenuItem], Error>) in
+//            guard let self = self else { return }
+//            
+//            Task { @MainActor in
+//                switch result {
+//                case .success(let menuItems):
+//                case .failure(let error):
+//                    self.handleError(error, action: "lắng nghe thay đổi sản phẩm trong thực đơn")
+//                }
+//            }
+//        }
+//    }
 
     // MARK: - Loading State Management
     func withLoading<T>(_ text: String? = nil, operation: () async throws -> T) async throws -> T {
@@ -639,21 +667,14 @@ class SourceModel: ObservableObject {
     }
 
     // MARK: - State Management
-    func addToListeners(_ listener: ListenerRegistration) {
-        listeners.append(listener)
-    }
-    
     func resetState() async {
         currentUser = nil
-        selectedShop = nil
         orders = nil
-        menu = nil
-        inventory = nil
+        menuList = nil
         ingredients = nil
         error = nil
         alert = nil
         userId = ""
-        selectedShopId = nil
         await removeAllListeners()
     }
     

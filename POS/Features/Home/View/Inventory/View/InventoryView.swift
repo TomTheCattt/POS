@@ -9,7 +9,7 @@ import SwiftUI
 
 struct InventoryView: View {
     
-    @ObservedObject var viewModel: InventoryViewModel
+    @ObservedObject var viewModel: IngredientViewModel
     @EnvironmentObject var appState: AppState
     
     var body: some View {

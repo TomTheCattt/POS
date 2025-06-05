@@ -2,12 +2,11 @@ import SwiftUI
 import Combine
 
 @MainActor
-final class InventoryViewModel: ObservableObject {
+final class IngredientViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published private(set) var searchKey: String = ""
     @Published private(set) var selectedCategory: String = "All"
-    @Published private(set) var inventoryItems: [InventoryItem] = []
     @Published private(set) var categories: [String] = ["All"]
     @Published private(set) var isLoading: Bool = false
     
@@ -15,16 +14,20 @@ final class InventoryViewModel: ObservableObject {
     @Published var sortOrder: SortOrder = .name
     @Published var showAddItemSheet: Bool = false
     @Published var showEditItemSheet: Bool = false
-    @Published var selectedItem: InventoryItem?
-    @Published var selectedStockStatus: InventoryItem.StockStatus?
+    @Published var selectedItem: IngredientUsage?
+    @Published var selectedStockStatus: IngredientUsage.StockStatus?
+    
+    var ingredients: [IngredientUsage] = []
     
     // MARK: - Dependencies
     private let source: SourceModel
-    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties
-    var filteredAndSortedItems: [InventoryItem] {
-        var items = inventoryItems
+    var filteredAndSortedItems: [IngredientUsage] {
+        
+        guard let ingredients = source.ingredients else { return [] }
+        
+        var items = ingredients
         
         // Lọc theo từ khóa tìm kiếm
         if !searchKey.isEmpty {
@@ -63,13 +66,17 @@ final class InventoryViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-        // Lắng nghe thay đổi của inventory từ SourceModel
-        source.inventoryPublisher
-            .receive(on: RunLoop.main)
-            .sink { [weak self] items in
+        source.activatedShopPublisher
+            .sink { [weak self] shop in
                 guard let self = self,
-                      let items = items else { return }
-                self.inventoryItems = items
+                      let shopId = shop?.id else { return }
+                self.source.setupIngredientsListener(shopId: shopId)
+            }
+            .store(in: &source.cancellables)
+        source.ingredientsPublisher
+            .sink { [weak self] ingredients in
+                guard let self = self, let ingredients = ingredients else { return }
+                self.ingredients = ingredients
             }
             .store(in: &source.cancellables)
         
@@ -85,7 +92,7 @@ final class InventoryViewModel: ObservableObject {
             .sink { _ in
                 // Không cần làm gì vì computed property sẽ tự cập nhật
             }
-            .store(in: &cancellables)
+            .store(in: &source.cancellables)
             
         // Lắng nghe trạng thái loading từ SourceModel
         source.loadingPublisher
@@ -105,17 +112,17 @@ final class InventoryViewModel: ObservableObject {
         selectedCategory = category
     }
     
-    func updateSelectedStockStatus(_ status: InventoryItem.StockStatus?) {
+    func updateSelectedStockStatus(_ status: IngredientUsage.StockStatus?) {
         selectedStockStatus = status
     }
     
     // MARK: - Inventory Item Management
-    func createInventoryItem(_ item: InventoryItem) async {
+    func createIngredientUsage(_ item: IngredientUsage) async {
         do {
             guard let userId = source.currentUser?.id,
-                  let shopId = source.selectedShop?.id else { return }
+                  let shopId = source.activatedShop?.id else { return }
             
-            _ = try await source.environment.databaseService.createInventoryItem(
+            _ = try await source.environment.databaseService.createIngredientUsage(
                 item,
                 userId: userId,
                 shopId: shopId
@@ -125,66 +132,66 @@ final class InventoryViewModel: ObservableObject {
         }
     }
     
-    func updateInventoryItem(_ item: InventoryItem) async {
+    func updateIngredientUsage(_ item: IngredientUsage) async {
         do {
             guard let userId = source.currentUser?.id,
-                  let shopId = source.selectedShop?.id,
+                  let shopId = source.activatedShop?.id,
                   let itemId = item.id else { return }
             
-            try await source.environment.databaseService.updateInventoryItem(
+            try await source.environment.databaseService.updateIngredientUsage(
                 item,
                 userId: userId,
                 shopId: shopId,
-                inventoryItemId: itemId
+                ingredientsUsageId: itemId
             )
         } catch {
             source.handleError(error, action: "cập nhật sản phẩm")
         }
     }
     
-    func deleteInventoryItem(_ item: InventoryItem) async {
+    func deleteIngredientUsage(_ item: IngredientUsage) async {
         do {
             guard let userId = source.currentUser?.id,
-                  let shopId = source.selectedShop?.id,
+                  let shopId = source.activatedShop?.id,
                   let itemId = item.id else { return }
             
-            try await source.environment.databaseService.deleteInventoryItem(
+            try await source.environment.databaseService.deleteIngredientUsage(
                 userId: userId,
                 shopId: shopId,
-                inventoryItemId: itemId
+                ingredientsUsageId: itemId
             )
         } catch {
             source.handleError(error, action: "xóa sản phẩm")
         }
     }
     
-    func importInventoryItems(from url: URL) async {
+    func importIngredientUsages(from url: URL) async {
         do {
             let data = try Data(contentsOf: url)
-            let items = try parseInventoryItemsFromCSV(data)
+            let items = try parseIngredientUsagesFromCSV(data)
             
             for item in items {
-                await createInventoryItem(item)
+                await createIngredientUsage(item)
             }
         } catch {
             source.handleError(error, action: "nhập danh sách sản phẩm từ file")
         }
     }
     
-    private func parseInventoryItemsFromCSV(_ data: Data) throws -> [InventoryItem] {
+    private func parseIngredientUsagesFromCSV(_ data: Data) throws -> [IngredientUsage] {
         // Implement CSV parsing logic here
-        // Return array of InventoryItem
+        // Return array of IngredientUsage
         return []
     }
     
-    func adjustQuantity(for item: InventoryItem, by adjustment: Double) async throws {
+    func adjustQuantity(for item: IngredientUsage, by adjustment: Double) async throws {
         var updatedItem = item
         updatedItem.quantity += adjustment
         updatedItem.updatedAt = Date()
-        await updateInventoryItem(updatedItem)
+        await updateIngredientUsage(updatedItem)
     }
     
-    func checkLowStock(_ item: InventoryItem) -> Bool {
+    func checkLowStock(_ item: IngredientUsage) -> Bool {
         return item.quantity <= item.minQuantity
     }
     
@@ -194,7 +201,7 @@ final class InventoryViewModel: ObservableObject {
 }
 
 // MARK: - Supporting Types
-extension InventoryViewModel {
+extension IngredientViewModel {
     enum SortOrder {
         case name
         case quantity

@@ -91,7 +91,7 @@ final class HistoryViewModel: ObservableObject {
             throw AppError.auth(.userNotFound)
         }
         
-        guard let shopId = source.selectedShop?.id else {
+        guard let shopId = source.activatedShop?.id else {
             throw AppError.shop(.notFound)
         }
         

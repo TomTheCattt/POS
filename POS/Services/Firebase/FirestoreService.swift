@@ -16,7 +16,7 @@ import Foundation
 //        
 //    }
 //    
-//    func updateInventoryItem(_ item: InventoryItem, completion: @escaping (Result<Void, AppError>) -> Void) {
+//    func updateIngredientUsage(_ item: IngredientUsage, completion: @escaping (Result<Void, AppError>) -> Void) {
 //        
 //    }
 //    

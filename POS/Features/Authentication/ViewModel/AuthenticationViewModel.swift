@@ -51,8 +51,7 @@ final class AuthenticationViewModel: ObservableObject {
                 let newUser = AppUser(uid: authResult.uid, email: email, displayName: displayName, photoURL: nil, ownerPassword: ownerPassword, createdAt: Date(), updatedAt: Date())
                 let userId = try await source.environment.databaseService.createUser(newUser)
                 
-                
-                let shop = Shop(shopName: shopName,createdAt: Date(),updatedAt: Date())
+                let shop = Shop(shopName: shopName, isActive: true, createdAt: Date(), updatedAt: Date())
                 let _ = try await source.environment.databaseService.createShop(shop, userId: userId)
                 
             }

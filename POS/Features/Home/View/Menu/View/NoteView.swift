@@ -9,7 +9,7 @@ import SwiftUI
 
 struct NoteView: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: MenuViewModel
+    @ObservedObject var viewModel: OrderViewModel
     @EnvironmentObject var appState: AppState
     let orderItem: OrderItem
     @State private var noteText: String
@@ -21,7 +21,7 @@ struct NoteView: View {
     
     private let maxCharacterCount = 200
     
-    init(viewModel: MenuViewModel, orderItem: OrderItem) {
+    init(viewModel: OrderViewModel, orderItem: OrderItem) {
         self.viewModel = viewModel
         self.orderItem = orderItem
         self._noteText = State(initialValue: orderItem.note ?? "")

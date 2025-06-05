@@ -3,11 +3,16 @@ import FirebaseFirestore
 import Combine
 
 final class DatabaseService: DatabaseServiceProtocol {
+    
     static let shared = DatabaseService()
     
     private let db = Firestore.firestore()
     
-    private var listeners: [String: ListenerRegistration] = [:]
+    private var listeners: [String: ListenerRegistration] = [:] {
+        didSet {
+            print("Current Listener: \(listeners)")
+        }
+    }
     
     private init() {}
     
@@ -21,7 +26,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     }
     
     private func storeListener(_ listener: ListenerRegistration, forKey key: String) {
-        listeners[key]?.remove()
+        removeListener(forKey: key)
         listeners[key] = listener
     }
     
@@ -82,13 +87,31 @@ final class DatabaseService: DatabaseServiceProtocol {
     func getAll<T: Codable>(from collection: DatabaseCollection, type: DatabaseCollection.PathType) async throws -> [T] {
         let path = collection.path(for: type)
         
-        guard !path.contains("Invalid") else {
+        guard !path.isEmpty, !path.contains("Invalid") else {
             throw AppError.database(.invalidData)
         }
         
-        let snapshot = try await db.collection(path).getDocuments()
-        return snapshot.documents.compactMap { try? $0.data(as: T.self) }
+        do {
+            let snapshot = try await db.collection(path).getDocuments()
+            
+            if snapshot.documents.isEmpty {
+                print("ℹ️ No documents found at path: \(path)")
+            }
+            
+            return snapshot.documents.compactMap { document in
+                do {
+                    return try document.data(as: T.self)
+                } catch {
+                    print("⚠️ Decode error for document \(document.documentID): \(error)")
+                    return nil
+                }
+            }
+        } catch {
+            print("🔥 Firestore fetch error from \(path): \(error)")
+            throw AppError.database(.readFailed)
+        }
     }
+
     
     // MARK: - Query Operations
     func getAll<T>(from collection: DatabaseCollection, type: DatabaseCollection.PathType, queryBuilder: ((Query) -> Query)?) async throws -> [T] where T : Decodable, T : Encodable {
@@ -173,17 +196,19 @@ final class DatabaseService: DatabaseServiceProtocol {
     }
     
     // MARK: - Real-time Updates
-    func addListener<T: Codable>(
+    func addCollectionListener<T: Codable>(
         collection: DatabaseCollection,
         type: DatabaseCollection.PathType,
-        queryBuilder: ((Query) -> Query)?,
+        key: String,
+        queryBuilder: ((Query) -> Query)? = nil,
         completion: @escaping (Result<[T], Error>) -> Void
-    ) -> ListenerRegistration? {
-        let path = collection.path(for: type)
+    ) {
+        removeListener(forKey: key)
         
+        let path = collection.path(for: type)
         guard !path.contains("Invalid") else {
             completion(.failure(AppError.database(.invalidData)))
-            return nil
+            return
         }
         
         var query: Query = db.collection(path)
@@ -206,23 +231,22 @@ final class DatabaseService: DatabaseServiceProtocol {
             completion(.success(items))
         }
         
-        let listenerKey = "\(path)_\(UUID().uuidString)"
-        storeListener(listener, forKey: listenerKey)
-        
-        return listener
+        storeListener(listener, forKey: key)
     }
     
     func addDocumentListener<T: Codable>(
         collection: DatabaseCollection,
         type: DatabaseCollection.PathType,
+        key: String,
         id: String,
         completion: @escaping (Result<T?, Error>) -> Void
-    ) -> ListenerRegistration? {
-        let path = collection.path(for: type)
+    ) {
+        removeListener(forKey: key)
         
+        let path = collection.path(for: type)
         guard !path.contains("Invalid") else {
             completion(.failure(AppError.database(.invalidData)))
-            return nil
+            return
         }
         
         let listener = db.collection(path).document(id)
@@ -245,20 +269,45 @@ final class DatabaseService: DatabaseServiceProtocol {
                 }
             }
         
-        let listenerKey = "\(path)_\(id)_\(UUID().uuidString)"
-        storeListener(listener, forKey: listenerKey)
-        
-        return listener
+        storeListener(listener, forKey: key)
     }
     
     // MARK: - Transaction
-    func runTransaction<T>(_ updateBlock: @escaping (inout T.Type) -> Void) async throws {
-        try await db.runTransaction { [weak self] transaction, errorPointer in
-            guard self != nil else { return nil }
-            var value = T.self
-            updateBlock(&value)
-            return nil
+    func runTransaction(_ updateBlock: @escaping (Transaction) throws -> Any?) async throws {
+        let _ = try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard self != nil else {
+                errorPointer?.pointee = NSError(domain: "DatabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Self is nil"])
+                return nil
+            }
+            
+            do {
+                return try updateBlock(transaction)
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return nil
+            }
         }
+    }
+    
+    // Tiện ích cho transaction
+    func getIngredientUsageInTransaction(_ transaction: Transaction, userId: String, shopId: String, ingredientId: String) throws -> IngredientUsage {
+        let path = DatabaseCollection.ingredientsUsage.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
+        let docRef = db.collection(path).document(ingredientId)
+        let document = try transaction.getDocument(docRef)
+        
+        guard let ingredient = try? document.data(as: IngredientUsage.self) else {
+            throw AppError.database(.documentNotFound)
+        }
+        
+        return ingredient
+    }
+    
+    func updateIngredientUsageInTransaction(_ transaction: Transaction, ingredientUsage: IngredientUsage, userId: String, shopId: String) throws {
+        let path = DatabaseCollection.ingredientsUsage.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
+        guard let id = ingredientUsage.id else { throw AppError.database(.invalidData) }
+        
+        let docRef = db.collection(path).document(id)
+        try transaction.setData(from: ingredientUsage, forDocument: docRef)
     }
 }
 
@@ -334,87 +383,165 @@ extension DatabaseService {
     }
     
     // MARK: - Menu Operations
-    func createMenuItem<T: Codable>(_ menuItem: T, userId: String, shopId: String) async throws -> String {
-        return try await create(menuItem, in: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func createMenu<T: Codable>(_ menu: T, userId: String, shopId: String) async throws -> String {
+        return try await create(menu, in: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getMenuItem<T: Codable>(userId: String, shopId: String, menuItemId: String) async throws -> T {
-        return try await get(id: menuItemId, from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func getMenu<T: Codable>(userId: String, shopId: String, menuId: String) async throws -> T {
+        return try await get(id: menuId, from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getAllMenuItems<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+    func getAllMenu<T: Codable>(userId: String, shopId: String) async throws -> [T] {
         return try await getAll(from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func updateMenuItem<T: Codable>(_ menuItem: T, userId: String, shopId: String, menuItemId: String) async throws -> T {
-        return try await update(menuItem, id: menuItemId, in: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func updateMenu<T: Codable>(_ menu: T, userId: String, shopId: String, menuId: String) async throws -> T {
+        return try await update(menu, id: menuId, in: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func deleteMenuItem(userId: String, shopId: String, menuItemId: String) async throws {
-        try await delete(id: menuItemId, from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func deleteMenu(userId: String, shopId: String, menuId: String) async throws {
+        try await delete(id: menuId, from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    // MARK: - Inventory Operations
-    func createInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String) async throws -> String {
-        return try await create(inventoryItem, in: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    // MARK: - Ingredients Usage Operations
+    func createIngredientUsage<T: Codable>(_ IngredientUsage: T, userId: String, shopId: String) async throws -> String {
+        return try await create(IngredientUsage, in: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getInventoryItem<T: Codable>(userId: String, shopId: String, inventoryItemId: String) async throws -> T {
-        return try await get(id: inventoryItemId, from: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func getIngredientUsage<T: Codable>(userId: String, shopId: String, IngredientUsageId: String) async throws -> T {
+        return try await get(id: IngredientUsageId, from: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getAllInventoryItems<T: Codable>(userId: String, shopId: String) async throws -> [T] {
-        return try await getAll(from: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func getAllIngredientUsages<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func updateInventoryItem<T: Codable>(_ inventoryItem: T, userId: String, shopId: String, inventoryItemId: String) async throws {
-        let _ = try await update(inventoryItem, id: inventoryItemId, in: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func updateIngredientUsage<T: Codable>(_ ingredientsUsage: T, userId: String, shopId: String, ingredientsUsageId: String) async throws {
+        let _ = try await update(ingredientsUsage, id: ingredientsUsageId, in: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func deleteInventoryItem(userId: String, shopId: String, inventoryItemId: String) async throws {
-        try await delete(id: inventoryItemId, from: .inventory, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func deleteIngredientUsage(userId: String, shopId: String, ingredientsUsageId: String) async throws {
+        try await delete(id: ingredientsUsageId, from: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    // MARK: - Recipes Operations
+    func createRecipe<T: Codable>(_ recipe: T, userId: String, shopId: String) async throws -> String {
+        return try await create(recipe, in: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getRecipe<T: Codable>(userId: String, shopId: String, recipeId: String) async throws -> T {
+        return try await get(id: recipeId, from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getAllRecipes<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func updateRecipe<T: Codable>(_ recipe: T, userId: String, shopId: String, recipeId: String) async throws {
+        let _ = try await update(recipe, id: recipeId, in: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func deleteRecipe(userId: String, shopId: String, recipeId: String) async throws {
+        try await delete(id: recipeId, from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    // MARK: - Menu Items Operations
+    func createMenuItem<T: Codable>(_ menuItem: T, userId: String, shopId: String, menuId: String) async throws -> String {
+        return try await create(menuItem, in: .menuItems, type: .deepNestedSubCollection(userId: userId, shopId: shopId, optionId: menuId))
+    }
+    
+    func getMenuItem<T: Codable>(userId: String, shopId: String, menuId: String, menuItemId: String) async throws -> T {
+        return try await get(id: menuItemId, from: .menuItems, type: .deepNestedSubCollectionDocument(userId: userId, shopId: shopId, optionId: menuId, menuItemId: menuItemId))
+    }
+    
+    func getAllMenuItems<T: Codable>(userId: String, shopId: String, menuId: String) async throws -> [T] {
+        return try await getAll(from: .menuItems, type: .deepNestedSubCollection(userId: userId, shopId: shopId, optionId: menuId))
+    }
+    
+    func updateMenuItem<T: Codable>(_ menuItem: T, userId: String, shopId: String, menuId: String, menuItemId: String) async throws {
+        let _ = try await update(menuItem, id: menuId, in: .menuItems, type: .deepNestedSubCollectionDocument(userId: userId, shopId: shopId, optionId: menuId, menuItemId: menuItemId))
+    }
+    
+    func deleteMenuItem(userId: String, shopId: String, menuId: String, menuItemId: String) async throws {
+        try await delete(id: menuItemId, from: .menuItems, type: .deepNestedSubCollectionDocument(userId: userId, shopId: shopId, optionId: menuId, menuItemId: menuItemId))
     }
     
     // MARK: - Real-time Listeners
-    func listenToOrders<T: Codable>(
-        userId: String,
-        shopId: String,
-        queryBuilder: ((Query) -> Query)? = nil,
-        completion: @escaping (Result<[T], Error>) -> Void
-    ) -> ListenerRegistration? {
-        return addListener(
-            collection: .orders,
-            type: .nestedSubcollection(userId: userId, shopId: shopId),
+//    func listenToCurrentUser<T: Codable>(userId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<T?, Error>) -> Void) {
+//        addDocumentListener(
+//            collection: .users,
+//            type: .document,
+//            key: "user_\(userId)",
+//            id: userId,
+//            completion: completion
+//        )
+//    }
+    
+    func listenToShops<T: Codable>(userId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .shops,
+            type: .subcollection(parentId: userId),
+            key: "shops_\(userId)",
             queryBuilder: queryBuilder,
             completion: completion
         )
     }
     
-    func listenToMenuItems<T: Codable>(
-        userId: String,
-        shopId: String,
-        queryBuilder: ((Query) -> Query)? = nil,
-        completion: @escaping (Result<[T], Error>) -> Void
-    ) -> ListenerRegistration? {
-        return addListener(
+//    func listenToShop<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<T?, Error>) -> Void) {
+//        addDocumentListener(
+//            collection: .shops,
+//            type: .subcollection(parentId: userId),
+//            key: "shop_\(userId)_\(shopId)",
+//            id: shopId,
+//            completion: completion
+//        )
+//    }
+    
+//    func listenToOrders<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+//        addCollectionListener(
+//            collection: .orders,
+//            type: .nestedSubcollection(userId: userId, shopId: shopId),
+//            key: "orders_\(userId)_\(shopId)",
+//            queryBuilder: queryBuilder,
+//            completion: completion
+//        )
+//    }
+    
+    func listenToMenu<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
             collection: .menu,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "menu_\(userId)_\(shopId)",
             queryBuilder: queryBuilder,
             completion: completion
         )
     }
     
-    func listenToInventoryItems<T: Codable>(
-        userId: String,
-        shopId: String,
-        queryBuilder: ((Query) -> Query)? = nil,
-        completion: @escaping (Result<[T], Error>) -> Void
-    ) -> ListenerRegistration? {
-        return addListener(
-            collection: .inventory,
+    func removeMenuListener(userId: String, shopId: String) {
+        removeListener(forKey: "menu_\(userId)_\(shopId)")
+    }
+    
+    func listenToIngredients<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .ingredientsUsage,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "ingredients_\(userId)_\(shopId)",
             queryBuilder: queryBuilder,
             completion: completion
         )
     }
+    
+    func removeIngredientsListener(userId: String, shopId: String) {
+        removeListener(forKey: "ingredients_\(userId)_\(shopId)")
+    }
+    
+//    func listenToMenuItems<T: Codable>(userId: String, shopId: String, menuId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+//        addCollectionListener(
+//            collection: .menuItems,
+//            type: .deepNestedDocument(userId: userId, shopId: shopId, optionId: menuId),
+//            key: "menu_items_\(userId)_\(shopId)",
+//            queryBuilder: queryBuilder,
+//            completion: completion
+//        )
+//    }
 }

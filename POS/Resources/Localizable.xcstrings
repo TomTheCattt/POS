@@ -1,21 +1,18 @@
 {
   "sourceLanguage" : "vi",
   "strings" : {
-    "" : {
+    "%.0fđ" : {
 
     },
-    "(%@ %@)" : {
+    "%.1f %@" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "(%1$@ %2$@)"
+            "value" : "%1$.1f %2$@"
           }
         }
       }
-    },
-    "(Thiếu nguyên liệu)" : {
-
     },
     "%@ %@" : {
       "localizations" : {
@@ -27,10 +24,26 @@
         }
       }
     },
+    "%@/%@ %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@/%2$@ %3$@"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
     "%lld items được chọn" : {
+
+    },
+    "%lld món" : {
+
+    },
+    "%lld nguyên liệu" : {
 
     },
     "%lld/%lld" : {
@@ -42,6 +55,12 @@
           }
         }
       }
+    },
+    "%lld%%" : {
+
+    },
+    "%lld₫" : {
+
     },
     "$%@" : {
 
@@ -89,12 +108,6 @@
         }
       }
     },
-    "Bạn có chắc chắn muốn xóa món này không?" : {
-
-    },
-    "Bạn có chắc chắn muốn xóa sản phẩm này không?" : {
-
-    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -118,12 +131,6 @@
     "Cập nhật %lld sản phẩm" : {
 
     },
-    "Cập nhật hàng loạt" : {
-
-    },
-    "Cập nhật lần cuối:" : {
-
-    },
     "Cập nhật mật khẩu chủ cửa hàng" : {
 
     },
@@ -134,6 +141,9 @@
 
     },
     "Cập nhật thông tin" : {
+
+    },
+    "Cập Nhật Thực Đơn" : {
 
     },
     "cashier_role" : {
@@ -153,22 +163,16 @@
         }
       }
     },
-    "Chi tiết sản phẩm" : {
-
-    },
     "Chỉnh sửa món" : {
 
     },
-    "Chỉnh sửa sản phẩm" : {
+    "Chỉnh Sửa Món" : {
 
     },
-    "Chọn ảnh" : {
+    "Chỉnh sửa thực đơn" : {
 
     },
     "Chọn cửa hàng" : {
-
-    },
-    "Chọn đơn vị" : {
 
     },
     "Chọn file" : {
@@ -183,16 +187,25 @@
     "Chọn nguyên liệu" : {
 
     },
+    "Chọn nhiều" : {
+
+    },
+    "Chọn sử dụng" : {
+
+    },
+    "Chọn thực đơn này để sử dụng trong cửa hàng" : {
+
+    },
     "Choose Category" : {
 
     },
     "Chưa chọn file" : {
 
     },
-    "Chưa có món nào trong menu" : {
+    "Chưa có mô tả" : {
 
     },
-    "Chưa có sản phẩm nào trong kho" : {
+    "Chưa có nguyên liệu nào" : {
 
     },
     "Clear All" : {
@@ -201,7 +214,10 @@
     "Còn hàng" : {
 
     },
-    "Còn món" : {
+    "Công thức" : {
+
+    },
+    "Công thức món ăn" : {
 
     },
     "Consumption:" : {
@@ -240,6 +256,9 @@
     "Cửa hàng hiện tại" : {
 
     },
+    "Đã cập nhật" : {
+
+    },
     "daily" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -257,10 +276,16 @@
         }
       }
     },
+    "Đang hoạt động" : {
+
+    },
+    "Đang sử dụng" : {
+
+    },
     "Danh mục" : {
 
     },
-    "Danh mục: %@" : {
+    "Danh sách nguyên liệu" : {
 
     },
     "delete_item" : {
@@ -279,6 +304,9 @@
           }
         }
       }
+    },
+    "Điền thông tin chi tiết về món ăn" : {
+
     },
     "Định lượng cho 1 đơn vị" : {
 
@@ -304,12 +332,6 @@
 
     },
     "Đơn vị đo" : {
-
-    },
-    "Đơn vị đo:" : {
-
-    },
-    "Đơn vị:" : {
 
     },
     "Đóng" : {
@@ -991,12 +1013,6 @@
     "Giá trị:" : {
 
     },
-    "Giá:" : {
-
-    },
-    "Gợi ý danh mục:" : {
-
-    },
     "Good morning," : {
 
     },
@@ -1004,12 +1020,6 @@
 
     },
     "Hết hàng" : {
-
-    },
-    "Hết món" : {
-
-    },
-    "Hình ảnh" : {
 
     },
     "hint.shop.name_format" : {
@@ -1033,6 +1043,9 @@
 
     },
     "Hủy" : {
+
+    },
+    "Ingredient Detail View" : {
 
     },
     "inventory" : {
@@ -1149,7 +1162,10 @@
     "Lưu" : {
 
     },
-    "Lưu ý: File cần có các cột: Tên món, Giá, Danh mục" : {
+    "Lưu thay đổi" : {
+
+    },
+    "Lưu Thay Đổi" : {
 
     },
     "Lưu ý: File cần có các cột: Tên sản phẩm, Số lượng, Đơn vị, Giá nhập, Danh mục" : {
@@ -1275,6 +1291,22 @@
         }
       }
     },
+    "Min: %lld %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Min: %1$lld %2$@"
+          }
+        }
+      }
+    },
+    "Mô tả" : {
+
+    },
+    "Mô tả chi tiết về thực đơn (tùy chọn)" : {
+
+    },
     "monthly" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1309,19 +1341,13 @@
         }
       }
     },
-    "Ngày tạo:" : {
-
-    },
-    "Nguyên liệu" : {
-
-    },
-    "Nhập danh sách món từ file Excel hoặc CSV" : {
-
-    },
     "Nhập danh sách sản phẩm từ file Excel hoặc CSV" : {
 
     },
     "Nhập dữ liệu" : {
+
+    },
+    "Nhập tên thực đơn..." : {
 
     },
     "Nhập từ Excel/CSV" : {
@@ -1569,6 +1595,12 @@
     "Sắp hết" : {
 
     },
+    "Sắp hết hàng" : {
+
+    },
+    "Sắp xếp" : {
+
+    },
     "Select Language" : {
 
     },
@@ -1695,6 +1727,12 @@
         }
       }
     },
+    "Tạo Thực Đơn" : {
+
+    },
+    "Tạo thực đơn mới" : {
+
+    },
     "Tất cả" : {
 
     },
@@ -1704,13 +1742,10 @@
     "Tên A-Z" : {
 
     },
-    "Tên món" : {
-
-    },
     "Tên sản phẩm" : {
 
     },
-    "Tên sản phẩm:" : {
+    "Tên thực đơn" : {
 
     },
     "Thao tác" : {
@@ -1722,7 +1757,16 @@
     "Thêm" : {
 
     },
+    "Thêm hình ảnh món ăn" : {
+
+    },
+    "Thêm món" : {
+
+    },
     "Thêm món mới" : {
+
+    },
+    "Thêm Món Mới" : {
 
     },
     "Thêm nguyên liệu" : {
@@ -1731,19 +1775,16 @@
     "Thêm sản phẩm" : {
 
     },
-    "Thêm sản phẩm mới" : {
+    "Thêm Thực Đơn" : {
+
+    },
+    "Thêm thực đơn mới" : {
 
     },
     "Theo phần trăm" : {
 
     },
-    "Thời gian" : {
-
-    },
     "Thông tin bổ sung" : {
-
-    },
-    "Thông tin cơ bản" : {
 
     },
     "Thông tin sản phẩm" : {
@@ -1765,6 +1806,12 @@
           }
         }
       }
+    },
+    "Trạng thái" : {
+
+    },
+    "Trạng thái thực đơn" : {
+
     },
     "verify_email_sent" : {
       "extractionState" : "manual",
@@ -1846,10 +1893,7 @@
     "Xóa" : {
 
     },
-    "Xóa món" : {
-
-    },
-    "Xóa sản phẩm" : {
+    "Xong" : {
 
     },
     "Xuất dữ liệu" : {
