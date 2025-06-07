@@ -37,18 +37,12 @@ final class OrderViewModel: ObservableObject {
     }
     
     private func setupBinding() {
-        source.activatedMenuPublisher
-            .sink { [weak self] menu in
+        source.menuItemsPublisher
+            .sink { [weak self] menuItems in
                 guard let self = self,
-                      let menu = menu else { return }
-                Task {
-                    do {
-                        self.menuItems = try await self.source.environment.databaseService.getAllMenuItems(userId: self.source.userId, shopId: self.source.activatedShop!.id!, menuId: menu.id!)
-                        self.updateCategories(from: self.menuItems)
-                    } catch {
-                        self.source.handleError(error)
-                    }
-                }
+                      let menuItems = menuItems else { return }
+                self.menuItems = menuItems
+                self.updateCategories(from: menuItems)
             }
             .store(in: &source.cancellables)
     }

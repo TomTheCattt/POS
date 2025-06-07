@@ -68,21 +68,28 @@ struct RootView: View {
                         .applyBackgroundEffect(config.backgroundEffect)
                 }
             }
-            .environmentObject(appState)
+            .overlay { appState.coordinator.loadingOverlay() }
+            .overlay { appState.coordinator.progressOverlay() }
+            .overlay { appState.coordinator.toastOverlay() }
+            .optimizedShadow()
+            .customAlert($appState.coordinator.alert)
         }
         .ignoresSafeArea(.keyboard)
+        .environmentObject(appState)
     }
 }
 
 @MainActor
 final class AppState: ObservableObject {
     let sourceModel: SourceModel
+    private let routerViewModel: RouterViewModel
     var coordinator: AppCoordinator
     private var cancellables = Set<AnyCancellable>()
     
     init() {
         self.sourceModel = SourceModel()
-        self.coordinator = AppCoordinator(source: sourceModel)
+        self.routerViewModel = RouterViewModel(source: sourceModel)
+        self.coordinator = AppCoordinator(routerViewModel: routerViewModel, sourceModel: sourceModel)
         
         sourceModel.objectWillChange
             .sink { [weak self] in

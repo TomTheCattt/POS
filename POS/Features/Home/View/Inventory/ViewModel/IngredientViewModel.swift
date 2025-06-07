@@ -66,13 +66,6 @@ final class IngredientViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-        source.activatedShopPublisher
-            .sink { [weak self] shop in
-                guard let self = self,
-                      let shopId = shop?.id else { return }
-                self.source.setupIngredientsListener(shopId: shopId)
-            }
-            .store(in: &source.cancellables)
         source.ingredientsPublisher
             .sink { [weak self] ingredients in
                 guard let self = self, let ingredients = ingredients else { return }

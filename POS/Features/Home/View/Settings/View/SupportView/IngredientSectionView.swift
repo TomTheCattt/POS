@@ -22,7 +22,6 @@ struct IngredientSectionView: View {
         VStack(spacing: 16) {
             // Toolbar
             toolbarView
-                .padding()
             
             // Action Buttons when in multi-select mode
             if isMultiSelectMode && !selectedItems.isEmpty {
@@ -77,6 +76,9 @@ struct IngredientSectionView: View {
                     .background(Color.black.opacity(0.2))
             }
         }
+        .onAppear(perform: {
+            appState.sourceModel.setupIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+        })
         .onDisappear {
             Task {
                 appState.sourceModel.removeIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
@@ -94,7 +96,7 @@ struct IngredientSectionView: View {
                 ),
                 placeholder: "Tìm kiếm sản phẩm..."
             )
-            .padding(.horizontal)
+            .padding()
             
             // Filters
             ScrollView(.horizontal, showsIndicators: false) {

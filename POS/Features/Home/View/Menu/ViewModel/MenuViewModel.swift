@@ -15,8 +15,11 @@ final class MenuViewModel: ObservableObject {
     @Published private(set) var searchKey: String = ""
     @Published private(set) var selectedCategory: String = "All"
     @Published private(set) var menuList: [AppMenu] = []
+    @Published private(set) var currentMenu: AppMenu?
     @Published private(set) var menuItems: [MenuItem] = []
     @Published private(set) var categories: [String] = ["All"]
+    @Published var isSelectionMode: Bool = false
+    @Published var selectedItems: Set<MenuItem> = []
     
     // MARK: - Dependencies
     private let source: SourceModel
@@ -29,6 +32,10 @@ final class MenuViewModel: ObservableObject {
         }
     }
     
+    var actualCategoriesCount: Int {
+        Set(menuItems.map { $0.category }).count
+    }
+    
     // MARK: - Initialization
     init(source: SourceModel) {
         self.source = source
@@ -36,11 +43,12 @@ final class MenuViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-        source.activatedShopPublisher
-            .sink { [weak self] shop in
+        source.menuItemsPublisher
+            .sink { [weak self] menuItems in
                 guard let self = self,
-                      let shopId = shop?.id else { return }
-                self.source.setupMenuListListener(shopId: shopId)
+                      let menuItems = menuItems else { return }
+                self.menuItems = menuItems
+                updateCategories(from: menuItems)
             }
             .store(in: &source.cancellables)
         source.menuListPublisher
@@ -53,9 +61,8 @@ final class MenuViewModel: ObservableObject {
     }
     
     private func updateCategories(from items: [MenuItem]) {
-        var uniqueCategories = Set(items.map { $0.category })
-        uniqueCategories.insert("All")
-        categories = Array(uniqueCategories).sorted()
+        let uniqueCategories = Set(items.map { $0.category })
+        categories = ["All"] + Array(uniqueCategories).sorted()
     }
     
     // MARK: - Public Methods
@@ -69,6 +76,10 @@ final class MenuViewModel: ObservableObject {
     
     func getMenuItem(by id: String) -> MenuItem? {
         return menuItems.first(where: { $0.id == id })
+    }
+    
+    func selectMenu(_ menu: AppMenu) {
+        self.currentMenu = menu
     }
     
     // MARK: - Menu Management
@@ -109,18 +120,17 @@ final class MenuViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Menu Item Management
-    func getMenuItems(_ menu: AppMenu) async {
-        guard let userId = source.currentUser?.id,
-              let shopId = source.activatedShop?.id,
-              let menuId = menu.id else { return }
-        do {
-            menuItems = try await source.environment.databaseService.getAllMenuItems(userId: userId, shopId: shopId, menuId: menuId)
-            updateCategories(from: menuItems)
-        } catch {
-            source.handleError(error)
-        }
+    func activateMenu() async {
+        await source.activateMenu(currentMenu!)
+        currentMenu?.isActive = true
     }
+    
+    func deActivateMenu() async {
+        await source.deactivateMenu(currentMenu!)
+        currentMenu?.isActive = false
+    }
+    
+    // MARK: - Menu Item Management
     
     func createMenuItem(_ item: MenuItem, in menu: AppMenu, imageData: Data?) async {
         do {

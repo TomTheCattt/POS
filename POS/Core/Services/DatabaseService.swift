@@ -467,15 +467,6 @@ extension DatabaseService {
     }
     
     // MARK: - Real-time Listeners
-//    func listenToCurrentUser<T: Codable>(userId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<T?, Error>) -> Void) {
-//        addDocumentListener(
-//            collection: .users,
-//            type: .document,
-//            key: "user_\(userId)",
-//            id: userId,
-//            completion: completion
-//        )
-//    }
     
     func listenToShops<T: Codable>(userId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
         addCollectionListener(
@@ -497,28 +488,46 @@ extension DatabaseService {
 //        )
 //    }
     
-//    func listenToOrders<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
-//        addCollectionListener(
-//            collection: .orders,
-//            type: .nestedSubcollection(userId: userId, shopId: shopId),
-//            key: "orders_\(userId)_\(shopId)",
-//            queryBuilder: queryBuilder,
-//            completion: completion
-//        )
-//    }
-    
-    func listenToMenu<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+    func listenToOrders<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
         addCollectionListener(
-            collection: .menu,
+            collection: .orders,
             type: .nestedSubcollection(userId: userId, shopId: shopId),
-            key: "menu_\(userId)_\(shopId)",
+            key: "orders_\(userId)_\(shopId)",
             queryBuilder: queryBuilder,
             completion: completion
         )
     }
     
-    func removeMenuListener(userId: String, shopId: String) {
-        removeListener(forKey: "menu_\(userId)_\(shopId)")
+    func removeOrdersListener(userId: String, shopId: String) {
+        removeListener(forKey: "orders_\(userId)_\(shopId)")
+    }
+    
+    func listenToMenuCollection<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .menu,
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "menu_collection_\(userId)_\(shopId)",
+            queryBuilder: queryBuilder,
+            completion: completion
+        )
+    }
+    
+    func removeMenuCollectionListener(userId: String, shopId: String) {
+        removeListener(forKey: "menu_collection_\(userId)_\(shopId)")
+    }
+    
+    func listenToMenuDocument<T: Codable>(userId: String, shopId: String, menuId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<T?, Error>) -> Void) {
+        addDocumentListener(
+            collection: .menu,
+            type: .deepNestedDocument(userId: userId, shopId: shopId, optionId: menuId),
+            key: "menu_document_\(userId)_\(shopId)_\(menuId)",
+            id: menuId,
+            completion: completion
+        )
+    }
+    
+    func removeMenuDocumentListener(userId: String, shopId: String, menuId: String) {
+        removeListener(forKey: "menu_collection_\(userId)_\(shopId)_\(menuId)")
     }
     
     func listenToIngredients<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
@@ -535,13 +544,17 @@ extension DatabaseService {
         removeListener(forKey: "ingredients_\(userId)_\(shopId)")
     }
     
-//    func listenToMenuItems<T: Codable>(userId: String, shopId: String, menuId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
-//        addCollectionListener(
-//            collection: .menuItems,
-//            type: .deepNestedDocument(userId: userId, shopId: shopId, optionId: menuId),
-//            key: "menu_items_\(userId)_\(shopId)",
-//            queryBuilder: queryBuilder,
-//            completion: completion
-//        )
-//    }
+    func listenToMenuItems<T: Codable>(userId: String, shopId: String, menuId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .menuItems,
+            type: .deepNestedSubCollection(userId: userId, shopId: shopId, optionId: menuId),
+            key: "menu_items_\(shopId)_\(menuId)",
+            queryBuilder: queryBuilder,
+            completion: completion
+        )
+    }
+    
+    func removeMenuItemsListener(shopId: String, menuId: String) {
+        removeListener(forKey: "menu_items_\(shopId)_\(menuId)")
+    }
 }

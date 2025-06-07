@@ -7,23 +7,37 @@ enum Route: Hashable, Identifiable {
     
     /// Authentication
     case authentication
+    case ownerAuth
+    case signIn
+    case signUp
 
     /// Main Features
     case home
-    case menu
-    case history
+    
+    case order
+    case orderMenuItemCard(MenuItem)
+    case orderItem(OrderItem)
+    
+    case ordersHistory
+    case filter
+    case orderCard(Order)
+    case orderDetail(Order)
     case analytics
     case inventory
     case note(OrderItem)
     
     /// Settings
     case settings
+    case addShop
     case ingredientSection
     case ingredientForm(IngredientUsage?)
     case menuSection
     case menuForm(AppMenu?)
-    case menuDetail(AppMenu)
+    case updateMenuForm
+    case menuRow(AppMenu)
+    case menuDetail
     case menuItemForm(AppMenu, MenuItem?)
+    case menuItemCard(MenuItem)
     case setUpPrinter
     case language
     case theme
@@ -37,12 +51,28 @@ enum Route: Hashable, Identifiable {
         switch self {
         case .authentication:
             return "authentication"
+        case .ownerAuth:
+            return "ownerAuth"
+        case .signIn:
+            return "signIn"
+        case .signUp:
+            return "signUp"
         case .home:
             return "home"
-        case .menu:
-            return "menu"
-        case .history:
-            return "history"
+        case .order:
+            return "order"
+        case .orderMenuItemCard(let menuItem):
+            return "menuItem-\(menuItem.id ?? "")"
+        case .orderItem(let orderItem):
+            return "orderItem-\(orderItem.id)"
+        case .ordersHistory:
+            return "ordersHistory"
+        case .filter:
+            return "filter"
+        case .orderCard(let order):
+            return "order-card-\(order.id ?? "")"
+        case .orderDetail(let order):
+            return "order-detail-\(order.id ?? "")"
         case .analytics:
             return "analytics"
         case .inventory:
@@ -51,6 +81,8 @@ enum Route: Hashable, Identifiable {
             return "note-\(orderItem.id)"
         case .settings:
             return "settings"
+        case .addShop:
+            return "addShop"
         case .ingredientSection:
             return "ingredientSection"
         case .ingredientForm(let ingredient):
@@ -59,10 +91,16 @@ enum Route: Hashable, Identifiable {
             return "menuSection"
         case .menuForm(let menu):
             return "menuForm-\(menu?.id ?? "")"
-        case .menuDetail(let menu):
+        case .updateMenuForm:
+            return "updateMenuForm"
+        case .menuRow(let menu):
             return "menu-\(menu.id ?? "error")"
+        case .menuDetail:
+            return "menuDetail"
         case .menuItemForm(let menu, let menuItem):
             return "menu-\(menu.id ?? "error")-menuItem-\(menuItem?.id ?? "")"
+        case .menuItemCard(let menuItem):
+            return "menuItem-\(menuItem.id ?? "")"
         case .language:
             return "language"
         case .theme:

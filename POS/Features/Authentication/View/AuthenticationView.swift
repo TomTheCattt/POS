@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct AuthenticationView: View {
+struct AuthenticationView: View { 
     @EnvironmentObject private var appState: AppState
     @ObservedObject var viewModel: AuthenticationViewModel
     
@@ -33,10 +33,10 @@ struct AuthenticationView: View {
                     // Authentication
                     ZStack {
                         if viewModel.loginSectionShowed {
-                            LoginSectionView(login: $viewModel.loginSectionShowed, viewModel: viewModel)
+                            appState.coordinator.makeView(for: .signIn)
                                 .transition(.move(edge: .leading).combined(with: .opacity))
                         } else {
-                            SignUpSectionView(login: $viewModel.loginSectionShowed, viewModel: viewModel)
+                            appState.coordinator.makeView(for: .signUp)
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
@@ -44,44 +44,6 @@ struct AuthenticationView: View {
                 }
                 .frame(maxWidth: UIDevice.current.is_iPhone ? geometry.size.width : geometry.size.width / 1.5)
                 .position(x: geometry.frame(in: .local).midX, y: geometry.frame(in: .local).midY)
-            }
-            
-            // Loading View
-            if appState.sourceModel.isLoading {
-                LoadingView(message: appState.sourceModel.loadingText)
-                    .transition(.opacity)
-                    .animation(.spring(), value: appState.sourceModel.isLoading)
-            }
-            
-            // Toast Message
-            if appState.sourceModel.showToast, let toast = appState.sourceModel.toastMessage {
-                ToastView(type: toast.type, message: toast.message)
-            }
-            
-            // Forgot Password Toast
-            if viewModel.forgotPassword {
-                ToastView(type: .info, message: AppLocalizedString.forgotPasswordContent)
-                    .onAppear {
-                        Task {
-                            try? await Task.sleep(nanoseconds: 3_000_000_000)
-                            withAnimation(.spring()) {
-                                viewModel.forgotPassword = false
-                            }
-                        }
-                    }
-            }
-            
-            // Verify Email Toast
-            if viewModel.verifyEmailSent {
-                ToastView(type: .success, message: AppLocalizedString.verifyEmailSentContent)
-                    .onAppear {
-                        Task {
-                            try? await Task.sleep(nanoseconds: 3_000_000_000)
-                            withAnimation(.spring()) {
-                                viewModel.verifyEmailSent = false
-                            }
-                        }
-                    }
             }
         }
     }

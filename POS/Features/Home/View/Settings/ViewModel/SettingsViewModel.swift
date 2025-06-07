@@ -7,6 +7,7 @@ class SettingsViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var selectedLanguage: AppLanguage
     @Published var selectedTheme: AppTheme
+    @Published var isOwnerAuthenticated: Bool = false
     
     private var source: SourceModel
     
@@ -20,6 +21,13 @@ class SettingsViewModel: ObservableObject {
     }
     
     private func setupBindings() {
+        source.isOwnerAuthenticatedPublisher
+            .sink { [weak self] isOwnerAuthenticated in
+                guard let self = self,
+                      let isOwnerAuthenticated = isOwnerAuthenticated else { return }
+                self.isOwnerAuthenticated = isOwnerAuthenticated
+            }
+            .store(in: &source.cancellables)
         source.environment.settingsService.languagePublisher
             .sink { [weak self] language in
                 self?.selectedLanguage = language

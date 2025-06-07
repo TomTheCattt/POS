@@ -150,14 +150,17 @@ struct MenuItemFormView: View {
             )
             
             // Danh mục
-            FormField(
-                icon: "tag",
-                title: "Danh mục",
-                placeholder: "Chọn danh mục...",
-                text: $category,
-                field: .category,
-                focusedField: $focusedField
-            )
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Danh mục", systemImage: "tag")
+                    .font(.headline)
+                
+                CategorySuggestionView(selectedCategory: $category)
+                
+                TextField("Hoặc nhập danh mục khác...", text: $category)
+                    .focused($focusedField, equals: .category)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    .autocorrectionDisabled()
+            }
         }
     }
     
@@ -642,5 +645,64 @@ struct IngredientPicker: View {
             return ingredients
         }
         return ingredients.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+struct CategorySuggestionView: View {
+    @Binding var selectedCategory: String
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(SuggestedCategories.allCases, id: \.id) { category in
+                    Button {
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedCategory = category.name
+                        }
+                    } label: {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                Circle()
+                                    .fill(category.color.opacity(0.15))
+                                    .frame(width: 40, height: 40)
+                                
+                                Image(systemName: category.icon)
+                                    .font(.system(size: 20))
+                                    .foregroundColor(category.color)
+                            }
+                            
+                            Text(category.name)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .frame(width: 70)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white)
+                                .shadow(
+                                    color: selectedCategory == category.name ? 
+                                        category.color.opacity(0.3) : .black.opacity(0.05),
+                                    radius: selectedCategory == category.name ? 8 : 4,
+                                    x: 0,
+                                    y: selectedCategory == category.name ? 4 : 2
+                                )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    selectedCategory == category.name ?
+                                        category.color.opacity(0.5) : .clear,
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+        }
     }
 }

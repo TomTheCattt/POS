@@ -113,9 +113,9 @@ struct HomeView: View {
         Group {
             switch tab {
             case .menu:
-                appState.coordinator.makeView(for: .menu)
+                appState.coordinator.makeView(for: .order)
             case .history:
-                appState.coordinator.makeView(for: .history)
+                appState.coordinator.makeView(for: .ordersHistory)
             case .inventory:
                 appState.coordinator.makeView(for: .inventory)
             case .analytics:

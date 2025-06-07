@@ -43,9 +43,18 @@ struct Order: Codable, Identifiable {
             "updatedAt": updatedAt
         ]
     }
+
+    var formattedId: String {
+        if let id = id {
+            // Lấy 6 ký tự cuối của ID
+            let shortId = String(id.suffix(6)).uppercased()
+            return "#\(shortId)"
+        }
+        return "#N/A"
+    }
 }
 
-struct OrderItem: Codable, Identifiable {
+struct OrderItem: Codable, Identifiable, Equatable {
     // MARK: - Properties
     let id: String
     let name: String

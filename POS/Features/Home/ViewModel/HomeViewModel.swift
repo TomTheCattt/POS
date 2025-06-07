@@ -31,6 +31,6 @@ final class HomeViewModel: ObservableObject {
     
     // MARK: - Public Methods
     func signOut() async {
-        try? await source.environment.authService.logout()
+        try? await source.environment.authService.signOut()
     }
 }

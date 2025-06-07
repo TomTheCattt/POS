@@ -15,8 +15,6 @@ struct MenuSectionView: View {
     @State private var selectedCategory: String?
     @State private var showingAddEditSheet = false
     @State private var selectedItem: MenuItem?
-    @State private var showingHistorySheet = false
-    @State private var showingImportSheet = false
     @State private var selectedAction: ActionType?
     
     var body: some View {
@@ -31,8 +29,11 @@ struct MenuSectionView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     ForEach(viewModel.menuList) { menu in
-                        MenuRow(menu: menu) { menu in
-                            appState.coordinator.navigateTo(.menuDetail(menu))
+                        Button {
+                            viewModel.selectMenu(menu)
+                            appState.coordinator.navigateTo(.menuDetail)
+                        } label: {
+                            appState.coordinator.makeView(for: .menuRow(menu))
                         }
                     }
                 }
@@ -41,14 +42,18 @@ struct MenuSectionView: View {
             
             // Bottom Toolbar
             bottomToolbar
+                .background(
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .edgesIgnoringSafeArea(.bottom)
+                )
         }
         .navigationTitle("Quản lý thực đơn")
-        .sheet(isPresented: $showingImportSheet) {
-            ImportDataView()
+        .onAppear(perform: {
+            Task {
+                appState.sourceModel.setupMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
         }
-        .sheet(isPresented: $showingHistorySheet) {
-            InventoryHistoryView()
-        }
+        })
         .onDisappear {
             Task {
                 appState.sourceModel.removeMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
@@ -59,13 +64,22 @@ struct MenuSectionView: View {
     private var bottomToolbar: some View {
         HStack {
             Menu {
-                Button("Nhập từ Excel/CSV") { selectedAction = .import }
-                Button("Xuất dữ liệu") { selectedAction = .export }
-                Button("Lịch sử thay đổi") { selectedAction = .history }
+                Button(action: { selectedAction = .import }) {
+                    Label("Nhập từ Excel/CSV", systemImage: "square.and.arrow.down")
+                }
+                
+                Button(action: { selectedAction = .export }) {
+                    Label("Xuất dữ liệu", systemImage: "square.and.arrow.up")
+                }
+                
+                Button(action: { selectedAction = .history }) {
+                    Label("Lịch sử thay đổi", systemImage: "clock.arrow.circlepath")
+                }
             } label: {
-                Text("Thao tác")
-                Image(systemName: "chevron.down")
+                Label("Thao tác", systemImage: "ellipsis.circle")
+                    .font(.body.bold())
             }
+            .buttonStyle(.bordered)
             
             Spacer()
             
@@ -74,49 +88,11 @@ struct MenuSectionView: View {
                 appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
             }) {
                 Label("Thêm thực đơn mới", systemImage: "plus.circle.fill")
+                    .font(.body.bold())
             }
             .buttonStyle(.borderedProminent)
         }
         .padding()
-    }
-    
-    private var filteredItems: [MenuItem] {
-        var items = [MenuItem(name: "", price: 0, category: "", createdAt: Date(), updatedAt: Date())]
-        
-        if !searchText.isEmpty {
-            items = items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
-        
-        if let category = selectedCategory {
-            items = items.filter { $0.category == category }
-        }
-        
-        return items
-    }
-    
-    private func handleSaveMenuItem(_ newItem: MenuItem) {
-        if let existingItem = selectedItem {
-            // Update existing item
-        } else {
-            // Add new item
-        }
-        showingAddEditSheet = false
-    }
-    
-    private func handleAddNewIngredient() {
-        // Handle adding new ingredient
-    }
-    
-    private func handleAction(_ action: ActionType) {
-        switch action {
-        case .import:
-            showingImportSheet = true
-        case .export:
-            // Handle export
-            break
-        case .history:
-            showingHistorySheet = true
-        }
     }
 }
 
@@ -332,14 +308,8 @@ struct MenuFormView: View {
 
 struct MenuRow: View {
     let menu: AppMenu
-    let onTap: (AppMenu) -> Void
-    
-    @State private var isPressed = false
     
     var body: some View {
-        Button(action: {
-            onTap(menu)
-        }) {
             HStack(spacing: 16) {
                 // Icon section với gradient background
                 iconSection
@@ -367,20 +337,6 @@ struct MenuRow: View {
                 radius: 8,
                 x: 0,
                 y: 2
-            )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
-                }
-            },
-            perform: {}
         )
     }
     
@@ -457,8 +413,6 @@ struct MenuRow: View {
         Image(systemName: "chevron.right")
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(.tertiary)
-            .rotationEffect(.degrees(isPressed ? 15 : 0))
-            .animation(.easeInOut(duration: 0.2), value: isPressed)
     }
     
     private var activeStatusBadge: some View {
@@ -521,14 +475,13 @@ struct MenuDetailView: View {
     @ObservedObject var viewModel: MenuViewModel
     @EnvironmentObject private var appState: AppState
     
-    @State var menu: AppMenu
-    @State private var showingAddEditSheet = false
     @State private var selectedItem: MenuItem?
     @State private var searchText = ""
-    @State private var selectedCategory: String?
+    @State private var selectedCategory: String? = "All"
     @State private var showingSearchBar = false
     @State private var animateHeader = false
-    @State private var isProcessing = false
+    @State private var isPressed = false
+    @State private var hasAppeared = false
     
     private let columns = [
         GridItem(.adaptive(minimum: 180), spacing: 20)
@@ -541,7 +494,7 @@ struct MenuDetailView: View {
             items = items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
         
-        if let category = selectedCategory {
+        if let category = selectedCategory, category != "All" {
             items = items.filter { $0.category == category }
         }
         
@@ -549,6 +502,7 @@ struct MenuDetailView: View {
     }
     
     var body: some View {
+        if let currentMenu = viewModel.currentMenu {
         GeometryReader { geometry in
             ZStack {
                 // Background gradient
@@ -586,29 +540,86 @@ struct MenuDetailView: View {
                     // Menu Items Grid
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 24) {
-                            ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, menuItem in
-                                EnhancedMenuItemCard(
-                                    item: menuItem,
-                                    index: index
-                                ) {
-                                    selectedItem = menuItem
-                                    showingAddEditSheet = true
+                                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { _, menuItem in
+                                    Button {
+                                        if !viewModel.isSelectionMode {
+                                            appState.coordinator.navigateTo(.menuItemForm(currentMenu, menuItem), using: .present, with: .present)
+                                        } else {
+                                            if viewModel.selectedItems.contains(menuItem) {
+                                                viewModel.selectedItems.remove(menuItem)
+                                            } else {
+                                                viewModel.selectedItems.insert(menuItem)
+                                            }
+                                        }
+                                    } label: {
+                                        appState.coordinator.makeView(for: .menuItemCard(menuItem))
+                                            .padding(16)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(Color(.systemBackground))
+                                                    .shadow(
+                                                        color: .black.opacity(isPressed ? 0.15 : 0.08),
+                                                        radius: isPressed ? 4 : 8,
+                                                        x: 0,
+                                                        y: isPressed ? 2 : 4
+                                                    )
+                                            )
+                                            .scaleEffect(isPressed ? 0.95 : 1.0)
+                                            .opacity(hasAppeared ? 1 : 0)
+                                            .offset(y: hasAppeared ? 0 : 20)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .onReceive(
+                                        Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+                                            .prefix(1)
+                                    ) { _ in
+                                        withAnimation(
+                                            .easeOut(duration: 0.6)
+                                        ) {
+                                            hasAppeared = true
+                                        }
+                                    }
+                                    .pressEvents {
+                                        withAnimation(.easeInOut(duration: 0.1)) {
+                                            isPressed = true
+                                        }
+                                    } onRelease: {
+                                        withAnimation(.easeInOut(duration: 0.1)) {
+                                            isPressed = false
+                                        }
                                 }
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 20)
                     }
-                    .refreshable {
-                        await viewModel.getMenuItems(menu)
                     }
                 }
             }
-        }
-        .navigationTitle(menu.menuName)
+            .navigationTitle(currentMenu.menuName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    if viewModel.isSelectionMode {
+                        Button {
+                            withAnimation {
+                                viewModel.isSelectionMode = false
+                                viewModel.selectedItems.removeAll()
+                            }
+                        } label: {
+                            Text("Hủy")
+                                .foregroundColor(.red)
+                        }
+                        
+                        if !viewModel.selectedItems.isEmpty {
+                            Button {
+                                //showingDeleteAlert = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    } else {
                 Button(action: {
                     withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                         showingSearchBar.toggle()
@@ -619,10 +630,23 @@ struct MenuDetailView: View {
                         .foregroundStyle(.primary)
                 }
                 
-                Button(action: {
+                        Menu {
+                            Button {
+                                withAnimation {
+                                    viewModel.isSelectionMode = true
+                                }
+                            } label: {
+                                Label("Chọn nhiều", systemImage: "checkmark.circle")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.title2)
+                        }
+                        
+                        Button {
                     selectedItem = nil
-                    appState.coordinator.navigateTo(.menuItemForm(menu, selectedItem), using: .present, with: .present)
-                }) {
+                            appState.coordinator.navigateTo(.menuItemForm(currentMenu, selectedItem), using: .present, with: .present)
+                        } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
@@ -637,6 +661,7 @@ struct MenuDetailView: View {
                             endPoint: .trailing
                         )
                     )
+                        }
                 }
             }
         }
@@ -644,9 +669,14 @@ struct MenuDetailView: View {
             withAnimation(.easeOut(duration: 0.8)) {
                 animateHeader = true
             }
-            Task {
-                await viewModel.getMenuItems(menu)
+                appState.sourceModel.setupMenuItemsListener(shopId: appState.sourceModel.activatedShop?.id ?? "", menuId: currentMenu.id)
             }
+            .onDisappear {
+                appState.sourceModel.removeMenuItemsListener(shopId: appState.sourceModel.activatedShop?.id ?? "", menuId: currentMenu.id)
+            }
+        }
+        else {
+            EmptyView()
         }
     }
     
@@ -664,29 +694,19 @@ struct MenuDetailView: View {
                 Spacer()
                 
                 // Active Toggle Button
-                Button(action: {
-                    guard !isProcessing else { return }
+                Button {
                     Task {
-                        isProcessing = true
-                        defer { isProcessing = false }
-                        
-                        if menu.isActive {
-                            await appState.sourceModel.deactivateMenu(menu)
+                        if viewModel.currentMenu!.isActive {
+                            await viewModel.deActivateMenu()
                         } else {
-                            await appState.sourceModel.activateMenu(menu)
+                            await viewModel.activateMenu()
                         }
                     }
-                }) {
+                } label: {
                     HStack(spacing: 8) {
-                        if isProcessing {
-                            ProgressView()
-                                .tint(menu.isActive ? .red : .green)
-                        } else {
-                            Image(systemName: menu.isActive ? "checkmark.circle.fill" : "circle")
+                        Image(systemName: viewModel.currentMenu!.isActive ? "checkmark.circle.fill" : "circle")
                                 .font(.title3)
-                        }
-                        
-                        Text(menu.isActive ? "Đang sử dụng" : "Chọn sử dụng")
+                        Text(viewModel.currentMenu!.isActive ? "Đang sử dụng" : "Chọn sử dụng")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -694,11 +714,10 @@ struct MenuDetailView: View {
                     .padding(.vertical, 10)
                     .background(
                         Capsule()
-                            .fill(menu.isActive ? .green.opacity(0.1) : .blue.opacity(0.1))
+                            .fill(viewModel.currentMenu!.isActive ? .green.opacity(0.1) : .blue.opacity(0.1))
                     )
-                    .foregroundColor(menu.isActive ? .green : .blue)
+                    .foregroundColor(viewModel.currentMenu!.isActive ? .green : .blue)
                 }
-                .disabled(isProcessing)
             }
             
             Divider()
@@ -724,26 +743,19 @@ struct MenuDetailView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
-                    }
-                    
-                    if let description = menu.description {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                }
                 
                 Spacer()
                 
-                // Quick stats
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Danh mục")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("\(viewModel.categories.count)")
+                        Button {
+                            appState.coordinator.navigateTo(.updateMenuForm, using: .present, with: .present)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "pencil.circle.fill")
                         .font(.title2)
-                        .fontWeight(.bold)
+                                Text("Chỉnh sửa")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [.blue, .purple],
@@ -751,6 +763,15 @@ struct MenuDetailView: View {
                                 endPoint: .trailing
                             )
                         )
+                        }
+                    }
+                    
+                    if let description = viewModel.currentMenu?.description {
+                        Text(description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
                 }
             }
             
@@ -781,6 +802,24 @@ struct MenuDetailView: View {
         .padding(.bottom, 16)
     }
     
+//    private func updateMenu() async {
+//        guard var menu = viewModel.currentMenu else { return }
+//        
+//        menu.menuName = editedMenuName.trimmingCharacters(in: .whitespacesAndNewlines)
+//        menu.description = editedMenuDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : editedMenuDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+//        menu.updatedAt = Date()
+//        
+//        await viewModel.updateMenu(menu)
+//        appState.sourceModel.showSuccess("Cập nhật thực đơn thành công!")
+//    }
+//    
+//    private func deleteMenu() async {
+//        guard let menu = viewModel.currentMenu else { return }
+//        
+//        await viewModel.deleteMenu(menu)
+//        appState.sourceModel.showSuccess("Đã xóa thực đơn thành công!")
+//    }
+    
     private var searchAndFilterSection: some View {
         VStack(spacing: 16) {
             // Animated search bar
@@ -795,8 +834,6 @@ struct MenuDetailView: View {
             // Category filters
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    enhancedCategoryButton(nil)
-                    
                     ForEach(viewModel.categories, id: \.self) { category in
                         enhancedCategoryButton(category)
                     }
@@ -807,10 +844,10 @@ struct MenuDetailView: View {
         .padding(.vertical, 16)
     }
     
-    private func enhancedCategoryButton(_ category: String?) -> some View {
+    private func enhancedCategoryButton(_ category: String) -> some View {
         let isSelected = selectedCategory == category
-        let title = category ?? "Tất cả"
-        let icon = category == nil ? "square.grid.2x2" : getCategoryIcon(category)
+        let title = category
+        let icon = category == "All" ? "square.grid.2x2.fill" : getCategoryIcon(category)
 
         return Button(action: {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
@@ -859,27 +896,16 @@ struct MenuDetailView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
-    private func getCategoryIcon(_ category: String?) -> String {
-        guard let category = category else { return "square.grid.2x2" }
+    private func getCategoryIcon(_ category: String) -> String {
+        let input = category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         
-        switch category.lowercased() {
-        case "khai vị", "appetizer": return "leaf.circle"
-        case "món chính", "main": return "fork.knife"
-        case "tráng miệng", "dessert": return "birthday.cake"
-        case "đồ uống", "drink": return "cup.and.saucer"
-        case "salad": return "carrot"
-        default: return "circle"
+        if let matched = SuggestedCategories.allCases.first(where: {
+            $0.name.lowercased() == input || $0.rawValue.lowercased() == input
+        }) {
+            return matched.icon
         }
-    }
-    
-    private func handleSaveMenuItem() {
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-        // Xử lý lưu món ăn
-    }
-    
-    private func handleAddNewIngredient() {
-        // Xử lý thêm nguyên liệu mới
+        
+        return "square.grid.2x2"
     }
 }
 
@@ -943,20 +969,14 @@ struct EnhancedSearchBar: View {
 
 // Enhanced Menu Item Card
 struct EnhancedMenuItemCard: View {
-    let item: MenuItem
-    let index: Int
-    let onTap: () -> Void
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject var viewModel: MenuViewModel
     
-    @State private var isPressed = false
-    @State private var hasAppeared = false
+    let item: MenuItem
     
     var body: some View {
-        Button(action: {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            onTap()
-        }) {
             VStack(alignment: .leading, spacing: 12) {
+            ZStack(alignment: .topTrailing) {
                 // Image placeholder with gradient
                 RoundedRectangle(cornerRadius: 12)
                     .fill(
@@ -975,6 +995,20 @@ struct EnhancedMenuItemCard: View {
                             .font(.title)
                             .foregroundColor(.white)
                     )
+                
+                if viewModel.isSelectionMode {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 24, height: 24)
+                        
+                        Image(systemName: viewModel.selectedItems.contains(where: {$0 == item}) ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(viewModel.selectedItems.contains(where: {$0 == item}) ? .blue : .gray)
+                    }
+                    .padding(8)
+                }
+            }
                 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(item.name)
@@ -1010,40 +1044,169 @@ struct EnhancedMenuItemCard: View {
                 }
                 .padding(.horizontal, 4)
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(
-                        color: .black.opacity(isPressed ? 0.15 : 0.08),
-                        radius: isPressed ? 4 : 8,
-                        x: 0,
-                        y: isPressed ? 2 : 4
-                    )
-            )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : 20)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onReceive(
-            Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
-                .prefix(1)
-        ) { _ in
-            withAnimation(
-                .easeOut(duration: 0.6)
-                .delay(Double(index) * 0.1)
-            ) {
-                hasAppeared = true
+    }
+}
+
+struct MenuItemForm: View {
+    @ObservedObject var viewModel: MenuViewModel
+    @EnvironmentObject private var appState: AppState
+    
+    let menu: AppMenu
+    let item: MenuItem?
+    
+    @State private var showingDeleteAlert = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Form fields here
+                }
+            }
+            .navigationTitle(item == nil ? "Thêm món mới" : "Chỉnh sửa món")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") {
+                        appState.coordinator.dismiss()
+                    }
+                    .foregroundColor(.secondary)
+                }
+                
+                if item != nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showingDeleteAlert = true
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
+            .alert("Xóa món ăn", isPresented: $showingDeleteAlert) {
+                Button("Hủy", role: .cancel) {}
+                Button("Xóa", role: .destructive) {
+                    Task {
+                        await deleteMenuItem()
+                    }
+                }
+            } message: {
+                Text("Bạn có chắc chắn muốn xóa món ăn này?")
             }
         }
-        .pressEvents {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
+    }
+    
+    private func deleteMenuItem() async {
+        if let item = item {
+            await viewModel.deleteMenuItem(item, in: menu)
+            appState.sourceModel.showSuccess("Đã xóa món ăn thành công!")
+            appState.coordinator.dismiss()
+        }
+    }
+}
+
+struct UpdateMenuForm: View {
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject var viewModel: MenuViewModel
+    @State private var editedMenuName = ""
+    @State private var editedMenuDescription = ""
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 12) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("Chỉnh sửa thực đơn")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                }
+                .padding(.top, 20)
+                
+                // Form
+                VStack(alignment: .leading, spacing: 20) {
+                    // Menu name
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Tên thực đơn", systemImage: "text.alignleft")
+                            .font(.headline)
+                        TextField("Nhập tên thực đơn", text: $editedMenuName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .autocorrectionDisabled()
+                    }
+                    
+                    // Description
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Mô tả", systemImage: "text.quote")
+                            .font(.headline)
+                        TextField("Mô tả thực đơn (tùy chọn)", text: $editedMenuDescription, axis: .vertical)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .lineLimit(3...6)
+                            .autocorrectionDisabled()
+                    }
+                    
+                    // Delete button
+                    Button {
+                        guard let currentMenu = viewModel.currentMenu else { return }
+                        appState.sourceModel.showConfirmation(title: "Xoá", message: "Bạn có chắc chắn muốn xoá thực đơn này ?") {
+                            Task {
+                                await viewModel.deleteMenu(currentMenu)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash.fill")
+                            Text("Xóa thực đơn")
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.red)
+                        )
+                    }
+                    .padding(.top, 20)
+                }
+                .padding(.horizontal)
             }
-        } onRelease: {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = false
+            .navigationTitle("Chỉnh sửa thực đơn")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") {
+                        appState.coordinator.dismiss(style: .present)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Lưu") {
+                        Task {
+                            if let currentMenu = viewModel.currentMenu {
+                                var updateMenu = currentMenu
+                                updateMenu.menuName = editedMenuName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                updateMenu.description = editedMenuDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+                                updateMenu.updatedAt = Date()
+                                await viewModel.updateMenu(updateMenu)
+                                appState.coordinator.dismiss(style: .present)
+                            }
+                        }
+                    }
+                    .disabled(editedMenuName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                editedMenuName = viewModel.currentMenu?.menuName ?? ""
+                editedMenuDescription = viewModel.currentMenu?.description ?? ""
             }
         }
     }

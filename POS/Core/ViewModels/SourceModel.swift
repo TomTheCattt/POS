@@ -8,149 +8,142 @@ import FirebaseCrashlytics
 /// Implements authentication, loading, error handling, and real-time data synchronization
 @MainActor
 class SourceModel: ObservableObject {
-
     // MARK: - Dependencies
     let environment: AppEnvironment
     
-    // MARK: - App State
-    /// Current authenticated user
+    // MARK: - Published Properties
+    // Authentication
     @Published private(set) var currentUser: AppUser?
-    /// Current shops
+    @Published private(set) var isOwnerAuthenticated: Bool?
+    @Published private(set) var remainingTime: TimeInterval = 0
+    
+    // Shop Management
     @Published private(set) var shops: [Shop]?
-    /// Current activated shops
     @Published private(set) var activatedShop: Shop?
-    /// Currently selected shop's orders
-    @Published private(set) var orders: [Order]?
-    /// Currently selected shop's ingredients usage
-    @Published private(set) var ingredients: [IngredientUsage]?
-    /// Currently shop's menu
+    
+    // Menu Management
     @Published private(set) var menuList: [AppMenu]?
-    /// Current activated menu
     @Published private(set) var activatedMenu: AppMenu?
-
-    // MARK: - UI State
-    /// Loading state indicator
-    @Published var isLoading = false
-    /// Loading message to display
-    @Published var loadingText: String?
-    /// Progress value for progress-based operations (0.0 to 1.0)
-    @Published var progress: Double?
-    /// Current error state
-    @Published var error: AppError?
-    /// Current alert to display
-    @Published var alert: AlertItem?
-    /// Toast message to display
-    @Published var toastMessage: (type: ToastType, message: String)?
-    /// Show toast state
-    @Published var showToast = false
-    /// Error message to display
-    @Published var errorMessage: String?
-    /// Success message to display
-    @Published var successMessage: String?
-
+    @Published private(set) var menuItems: [MenuItem]?
+    
+    // Order Management
+    @Published private(set) var orders: [Order]?
+    
+    // Inventory Management
+    @Published private(set) var ingredients: [IngredientUsage]?
+    
+    // UI State
+    @Published private(set) var isLoading = false
+    @Published private(set) var loadingText: String?
+    @Published private(set) var progress: Double?
+    @Published private(set) var error: AppError?
+    @Published private(set) var alert: AlertItem?
+    @Published private(set) var toastMessage: (type: ToastType, message: String)?
+    
     // MARK: - Persistence
     @AppStorage("userId") var userId: String = ""
-
-    // MARK: - Environment & Services
-    /// Set of cancellables for managing Combine subscriptions
-    var cancellables = Set<AnyCancellable>()
-
-    // MARK: - Listeners
-    /// Firebase Auth state listener
-    private var authStateListener: AuthStateDidChangeListenerHandle?
-
-    // MARK: - Publishers
-    /// Publisher for current user changes
     
-    /// Publisher for current user changes
+    // MARK: - Combine
+    var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Authentication Properties
+    private let authTimeoutInterval: TimeInterval = 3600
+    private var authTimer: AnyCancellable?
+    private var remainingTimer: AnyCancellable?
+    
+    // MARK: - Computed Properties
+    var remainingTimeString: String {
+        let minutes = Int(remainingTime) / 60
+        let seconds = Int(remainingTime) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    // MARK: - Publishers
+    // Authentication
     var currentUserPublisher: AnyPublisher<AppUser?, Never> {
         $currentUser.eraseToAnyPublisher()
     }
     
-    /// Publisher for shops changes
+    var isOwnerAuthenticatedPublisher: AnyPublisher<Bool?, Never> {
+        $isOwnerAuthenticated.eraseToAnyPublisher()
+    }
+    
+    // Shop Management
     var currentShopsPublisher: AnyPublisher<[Shop]?, Never> {
         $shops.eraseToAnyPublisher()
     }
     
-    /// Publisher for shops changes
     var activatedShopPublisher: AnyPublisher<Shop?, Never> {
         $activatedShop.eraseToAnyPublisher()
     }
     
-    /// Publisher for orders changes
-    var ordersPublisher: AnyPublisher<[Order]?, Never> {
-        $orders.eraseToAnyPublisher()
-    }
-    
-    /// Publisher for menu list changes
+    // Menu Management
     var menuListPublisher: AnyPublisher<[AppMenu]?, Never> {
         $menuList.eraseToAnyPublisher()
     }
     
-    /// Publisher for menu changes
     var activatedMenuPublisher: AnyPublisher<AppMenu?, Never> {
         $activatedMenu.eraseToAnyPublisher()
     }
     
-    /// Publisher for selected shop's ingredients changes
+    var menuItemsPublisher: AnyPublisher<[MenuItem]?, Never> {
+        $menuItems.eraseToAnyPublisher()
+    }
+    
+    // Order Management
+    var ordersPublisher: AnyPublisher<[Order]?, Never> {
+        $orders.eraseToAnyPublisher()
+    }
+    
+    // Inventory Management
     var ingredientsPublisher: AnyPublisher<[IngredientUsage]?, Never> {
         $ingredients.eraseToAnyPublisher()
     }
-
+    
+    // UI State
     var errorPublisher: AnyPublisher<AppError?, Never> {
         $error.eraseToAnyPublisher()
     }
-
+    
     var loadingPublisher: AnyPublisher<(Bool, String?), Never> {
         Publishers.CombineLatest($isLoading, $loadingText)
             .eraseToAnyPublisher()
     }
-
-    // MARK: - Initialization
+    
+    var loadingWithProgressPublisher: AnyPublisher<(Double?), Never> {
+        $progress.eraseToAnyPublisher()
+    }
+    
+    var toastPublisher: AnyPublisher<((type: ToastType, message: String)?), Never> {
+        $toastMessage.eraseToAnyPublisher()
+    }
+    
+    var alertPublisher: AnyPublisher<AlertItem?, Never> {
+        $alert.eraseToAnyPublisher()
+    }
+    
+    // MARK: - Initialization & Cleanup
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
         setupAuthStateListener()
         setupInitialState()
     }
-
+    
     deinit {
-        // Chuyển cleanup sang nonisolated context
         Task { @MainActor [weak self] in
             await self?.cleanupResources()
         }
     }
     
-    // MARK: - Resource Management
-    private func cleanupResources() async {
-        // Remove auth state listener
-        environment.authService.removeAuthStateListener()
-        
-        // Remove all Firestore listeners
-        await removeAllListeners()
-        
-        // Cancel all subscriptions
-        cancellables.removeAll()
-        
-        // Reset state
-        await resetState()
-    }
-    
-    private func removeAllListeners() async {
-        let listenerKeys = [
-            "user_\(userId)",
-            "shop_\(activatedShop!.id ?? "")",
-            "orders_\(activatedShop!.id ?? "")",
-            "menu_\(activatedShop!.id ?? "")",
-            "inventory_\(activatedShop!.id ?? "")",
-            "ingredients_\(activatedShop!.id ?? "")"
-        ]
-        
-        listenerKeys.forEach { key in
-            environment.databaseService.removeListener(forKey: key)
+    // MARK: - Setup Methods
+    private func setupInitialState() {
+        Task {
+            if !userId.isEmpty {
+                await fetchStoredUserData()
+            }
         }
     }
-
-    // MARK: - Setup Methods
+    
     private func setupAuthStateListener() {
         environment.authService.setupAuthStateListener { [weak self] state in
             Task { @MainActor [weak self] in
@@ -160,7 +153,7 @@ class SourceModel: ObservableObject {
                         await self?.handleAuthStateChange(user)
                     }
                 case .unauthenticated:
-                    await self?.handleAuthStateChange(nil)
+                    await self?.handleSignOut()
                 case .emailNotVerified:
                     await self?.handleEmailNotVerified()
                 case .loading:
@@ -170,55 +163,103 @@ class SourceModel: ObservableObject {
         }
     }
     
+    // MARK: - Authentication Methods
+    private func handleAuthStateChange(_ user: FirebaseAuth.User?) async {
+        if let user = user {
+            do {
+                try await environment.authService.checkEmailVerification()
+                
+                if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
+                    await MainActor.run {
+                        self.userId = userData.id!
+                    }
+                    await fetchShops(for: userId)
+                    
+                    await MainActor.run {
+                        self.currentUser = userData
+                    }
+                }
+            } catch let error as AppError {
+                if case .auth(.unverifiedEmail) = error {
+                    await MainActor.run {
+                        self.userId = user.uid
+                        self.currentUser = nil
+                    }
+                } else {
+                    await handleSignOut()
+                }
+            } catch {
+                await handleSignOut()
+            }
+        } else {
+            await handleSignOut()
+        }
+    }
+    
     private func handleEmailNotVerified() async {
-        currentUser = nil
         if let uid = environment.authService.auth.currentUser?.uid {
             userId = uid
         }
+        currentUser = nil
         isLoading = false
     }
     
-    private func setupInitialState() {
-        Task {
-            await fetchStoredUserData()
+    private func handleSignOut() async {
+        await MainActor.run {
+            self.currentUser = nil
+            self.isOwnerAuthenticated = false
+            self.remainingTime = 0
+        }
+        invalidateAuthTimer()
+        invalidateRemainingTimer()
+        await removeAllListeners()
+        
+        await MainActor.run {
+            self.userId = ""
         }
     }
-
+    
+    func signOut() async {
+        do {
+            try await environment.authService.signOut()
+            await handleSignOut()
+        } catch {
+            handleError(error, action: "đăng xuất")
+        }
+    }
+    
+    // MARK: - Data Fetching Methods
     private func fetchStoredUserData() async {
         do {
-            guard !userId.isEmpty else {
-                await MainActor.run {
-                    self.currentUser = nil
-                }
-                return
-            }
+            guard !userId.isEmpty else { return }
             
             if let userData: AppUser = try await environment.databaseService.getUser(userId: userId) {
+                await fetchShops(for: userId)
+                
                 await MainActor.run {
                     self.currentUser = userData
-                    self.userId = userData.id!
-                }
-                await fetchShops()
-            } else {
-                await MainActor.run {
-                    self.currentUser = nil
-                    self.userId = ""
                 }
             }
         } catch {
             await MainActor.run {
                 self.handleError(error, action: "tải dữ liệu người dùng")
                 self.currentUser = nil
-                self.userId = ""
             }
         }
     }
-
-    private func fetchShops() async {
+    
+    private func fetchShops(for user: String) async {
         do {
-            shops = try await environment.databaseService.getAllShops(userId: userId)
-            if let activatedShop = shops?.first(where: { $0.isActive }) {
-                self.activatedShop = activatedShop
+            let fetchedShops: [Shop] = try await environment.databaseService.getAllShops(userId: user)
+            
+            await MainActor.run {
+                self.shops = fetchedShops
+            }
+            
+            if let activatedShop = fetchedShops.first(where: { $0.isActive }) {
+                await MainActor.run {
+                    self.activatedShop = activatedShop
+                }
                 await fetchActivatedShop(activatedShop)
             }
         } catch {
@@ -226,100 +267,103 @@ class SourceModel: ObservableObject {
         }
     }
     
-    private func fetchShopIngredients(shopId: String) async {
-        do {
-            ingredients = try await environment.databaseService.getAllIngredientUsages(userId: userId, shopId: shopId)
-        } catch {
-            handleError(error, action: "tải nguyên liệu")
-        }
-    }
-    
-    private func fetchShopOrders(shopId: String) async {
-        do {
-            orders = try await environment.databaseService.getAllOrders(userId: userId, shopId: shopId)
-        } catch {
-            handleError(error, action: "tải đơn hàng")
-        }
-    }
-    
-    private func fetchShopMenu(shopId: String) async {
-        do {
-            menuList = try await environment.databaseService.getAllMenu(userId: userId, shopId: shopId)
-            activatedMenu = menuList?.first(where: { $0.isActive })
-        } catch {
-            handleError(error, action: "tải thực đơn")
-        }
-    }
-    
-    func activateShop(_ shop: Shop) async {
-        guard let shopId = shop.id else {
-            handleError(AppError.shop(.notFound))
-            return
-        }
-        
-        if let currentActiveShop = shops?.first(where: { $0.isActive && $0.id != shopId }) {
-            do {
-                var updateCurrentActiveShop = currentActiveShop
-                updateCurrentActiveShop.isActive = false
-                updateCurrentActiveShop.updatedAt = Date()
-                let _ = try await environment.databaseService.updateShop(updateCurrentActiveShop, userId: userId, shopId: updateCurrentActiveShop.id!)
-                
-                var updateShop = shop
-                updateShop.isActive = true
-                updateShop.updatedAt = Date()
-                let _ = try await environment.databaseService.updateShop(updateShop, userId: userId, shopId: updateShop.id!)
-                await fetchActivatedShop(updateShop)
-            } catch {
-                handleError(AppError.shop(.updateFailed))
-            }
-        }
-    }
-    
-    func deactivateShop(_ shop: Shop) async {
-        guard let shopId = shop.id else {
-            handleError(AppError.shop(.notFound))
-            return
-        }
-        
-        do {
-            if let anotherShop = self.shops?.first(where: { $0.id != shopId }) {
-                var updatedCurrentShop = shop
-                updatedCurrentShop.isActive = false
-                updatedCurrentShop.updatedAt = Date()
-                let _ = try await environment.databaseService.updateShop(updatedCurrentShop, userId: userId, shopId: updatedCurrentShop.id!)
-                
-                await activateShop(anotherShop)
-            } else {
-                showError("Không thể tắt cửa hàng duy nhất")
-            }
-        } catch {
-            handleError(error, action: "tắt cửa hàng")
-        }
-    }
-
     private func fetchActivatedShop(_ shop: Shop) async {
         guard let shopId = shop.id else {
             handleError(AppError.shop(.notFound))
             return
         }
+        
         await fetchShopMenu(shopId: shopId)
         await fetchShopOrders(shopId: shopId)
         await fetchShopIngredients(shopId: shopId)
     }
     
+    // MARK: - Shop Management Methods
+    func switchShop(to newShop: Shop) async {
+        guard let newShopId = newShop.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        guard newShop.isActive == false else { return }
+        
+        do {
+            if let currentActiveShop = shops?.first(where: { $0.isActive && $0.id != newShopId }) {
+                var updatedCurrent = currentActiveShop
+                updatedCurrent.isActive = false
+                
+                let _ = try await environment.databaseService.updateShop(
+                    updatedCurrent,
+                    userId: userId,
+                    shopId: updatedCurrent.id!
+                )
+            }
+            
+            var updatedNewShop = newShop
+            updatedNewShop.isActive = true
+            
+            let _ = try await environment.databaseService.updateShop(
+                updatedNewShop,
+                userId: userId,
+                shopId: updatedNewShop.id!
+            )
+            
+            await fetchActivatedShop(updatedNewShop)
+            activatedShop = updatedNewShop
+            
+        } catch {
+            handleError(AppError.shop(.updateFailed))
+        }
+    }
+    
+    // MARK: - Menu Management Methods
+    private func fetchShopMenu(shopId: String) async {
+        do {
+            let fetchedMenu: [AppMenu] = try await environment.databaseService.getAllMenu(userId: userId, shopId: shopId)
+            let activeMenu = fetchedMenu.first(where: { $0.isActive })
+            
+            await MainActor.run {
+                self.menuList = fetchedMenu
+                self.activatedMenu = activeMenu
+            }
+            
+            if let activeMenu = activeMenu {
+                await fetchMenuItems(shopId: shopId, menuId: activeMenu.id)
+            }
+        } catch {
+            handleError(error, action: "tải thực đơn")
+        }
+    }
+    
+    private func fetchMenuItems(shopId: String, menuId: String?) async {
+        guard let menuId = menuId else { return }
+        
+        do {
+            let items: [MenuItem] = try await environment.databaseService.getAllMenuItems(
+                userId: userId,
+                shopId: shopId,
+                menuId: menuId
+            )
+            
+            await MainActor.run {
+                self.menuItems = items
+            }
+        } catch {
+            handleError(error, action: "tải danh sách món")
+        }
+    }
+    
     func activateMenu(_ menu: AppMenu) async {
-        guard let shopId = activatedShop!.id,
+        guard let shopId = activatedShop?.id,
               let menuId = menu.id else {
             handleError(AppError.shop(.notFound))
             return
         }
         
         do {
-            // Deactivate current active menu if exists
             if let currentActiveMenu = self.menuList?.first(where: { $0.isActive && $0.id != menuId }) {
                 var updatedCurrentMenu = currentActiveMenu
                 updatedCurrentMenu.isActive = false
-                updatedCurrentMenu.updatedAt = Date()
                 let _ = try await environment.databaseService.updateMenu(
                     updatedCurrentMenu,
                     userId: userId,
@@ -328,17 +372,15 @@ class SourceModel: ObservableObject {
                 )
             }
             
-            // Activate new menu
             var updatedMenu = menu
             updatedMenu.isActive = true
-            updatedMenu.updatedAt = Date()
             let _ = try await environment.databaseService.updateMenu(
                 updatedMenu,
                 userId: userId,
                 shopId: shopId,
                 menuId: menuId
             )
-            
+            self.activatedMenu = updatedMenu
             showSuccess("Đã kích hoạt thực đơn \(menu.menuName)")
         } catch {
             handleError(error, action: "kích hoạt thực đơn")
@@ -346,19 +388,16 @@ class SourceModel: ObservableObject {
     }
     
     func deactivateMenu(_ menu: AppMenu) async {
-        guard let shopId = activatedShop!.id,
+        guard let shopId = activatedShop?.id,
               let menuId = menu.id else {
             handleError(AppError.shop(.notFound))
             return
         }
         
         do {
-            // Only allow deactivate if there's another menu to activate
             if let anotherMenu = self.menuList?.first(where: { $0.id != menuId }) {
-                // Deactivate current menu
                 var updatedCurrentMenu = menu
                 updatedCurrentMenu.isActive = false
-                updatedCurrentMenu.updatedAt = Date()
                 let _ = try await environment.databaseService.updateMenu(
                     updatedCurrentMenu,
                     userId: userId,
@@ -366,7 +405,6 @@ class SourceModel: ObservableObject {
                     menuId: updatedCurrentMenu.id!
                 )
                 
-                // Activate another menu
                 await activateMenu(anotherMenu)
             } else {
                 showError("Không thể tắt thực đơn duy nhất")
@@ -376,74 +414,25 @@ class SourceModel: ObservableObject {
         }
     }
     
-    // MARK: - Auth State Handling
-    private func handleAuthStateChange(_ user: FirebaseAuth.User?) async {
-        if let user = user {
-            do {
-                try await environment.authService.checkEmailVerification()
-                
-                if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
-                    await MainActor.run {
-                        self.currentUser = userData
-                        self.userId = userData.id!
-                    }
-                    await fetchShops()
-                } else {
-                    await MainActor.run {
-                        self.currentUser = nil
-                        self.userId = ""
-                    }
-                }
-            } catch let error as AppError {
-                if case .auth(.unverifiedEmail) = error {
-                    await MainActor.run {
-                        self.currentUser = nil
-                        self.userId = user.uid
-                    }
-                } else {
-                    await MainActor.run {
-                        self.currentUser = nil
-                        self.userId = ""
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.currentUser = nil
-                    self.userId = ""
-                }
-            }
-        } else {
-            await MainActor.run {
-                self.currentUser = nil
-                self.userId = ""
-            }
+    // MARK: - Order Management Methods
+    private func fetchShopOrders(shopId: String) async {
+        do {
+            orders = try await environment.databaseService.getAllOrders(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải đơn hàng")
         }
     }
-
-    // MARK: - User & Shop Listeners
-//    private func setupUserListener(userId: String) {
-//        environment.databaseService.listenToCurrentUser(userId: userId, completion: { [weak self] (result: Result<AppUser?, Error>) in
-//            guard let self = self else { return }
-//            
-//            Task { @MainActor in
-//                switch result {
-//                case .success(let user):
-//                    guard let user = user, let id = user.id else {
-//                        self.handleError(AppError.auth(.userNotFound))
-//                        return
-//                    }
-//                    
-//                    self.currentUser = user
-//                    self.userId = id
-//                    await self.fetchShops()
-//                    
-//                case .failure(let error):
-//                    self.handleError(error, action: "tải thông tin người dùng")
-//                }
-//            }
-//        })
-//    }
-//    
+    
+    // MARK: - Inventory Management Methods
+    private func fetchShopIngredients(shopId: String) async {
+        do {
+            ingredients = try await environment.databaseService.getAllIngredientUsages(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải nguyên liệu")
+        }
+    }
+    
+    // MARK: - Listener Management
     private func setupShopsListener() {
         environment.databaseService.listenToShops(userId: userId, queryBuilder: nil, completion: { [weak self] (result: Result<[Shop], Error>) in
             guard let self = self else { return }
@@ -459,9 +448,9 @@ class SourceModel: ObservableObject {
             }
         })
     }
-//
+    
     func setupMenuListListener(shopId: String) {
-        environment.databaseService.listenToMenu(
+        environment.databaseService.listenToMenuCollection(
             userId: userId,
             shopId: shopId,
             queryBuilder: { $0.order(by: "createdAt", descending: false) }
@@ -489,28 +478,32 @@ class SourceModel: ObservableObject {
     }
     
     func removeMenuListListener(shopId: String) {
-        environment.databaseService.removeMenuListener(userId: userId, shopId: shopId)
+        environment.databaseService.removeMenuCollectionListener(userId: userId, shopId: shopId)
     }
-//
-//    private func setupOrdersListener(shopId: String) {
-//        
-//        environment.databaseService.listenToOrders(
-//            userId: userId,
-//            shopId: shopId,
-//            queryBuilder: nil
-//        ) { [weak self] (result: Result<[Order], Error>) in
-//            guard let self = self else { return }
-//            
-//            Task { @MainActor in
-//                switch result {
-//                case .success(let orders):
-//                    self.orders = orders
-//                case .failure(let error):
-//                    self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
-//                }
-//            }
-//        }
-//    }
+    
+    func setupOrdersListener(shopId: String) {
+        
+        environment.databaseService.listenToOrders(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[Order], Error>) in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                switch result {
+                case .success(let orders):
+                    self.orders = orders
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi đơn hàng")
+                }
+            }
+        }
+    }
+    
+    func removeOrdersListener(shopId: String) {
+        environment.databaseService.removeOrdersListener(userId: userId, shopId: shopId)
+    }
     
     func setupIngredientsListener(shopId: String) {
         
@@ -536,27 +529,63 @@ class SourceModel: ObservableObject {
         environment.databaseService.removeIngredientsListener(userId: userId, shopId: shopId)
     }
     
-//    private func setupMenuItemsListener(shopId: String, menuId: String) {
-//        
-//        environment.databaseService.listenToMenuItems(
-//            userId: userId,
-//            shopId: shopId,
-//            menuId: menuId,
-//            queryBuilder: nil
-//        ) { [weak self] (result: Result<[MenuItem], Error>) in
-//            guard let self = self else { return }
-//            
-//            Task { @MainActor in
-//                switch result {
-//                case .success(let menuItems):
-//                case .failure(let error):
-//                    self.handleError(error, action: "lắng nghe thay đổi sản phẩm trong thực đơn")
-//                }
-//            }
-//        }
-//    }
-
-    // MARK: - Loading State Management
+    func setupMenuItemsListener(shopId: String, menuId: String?) {
+        
+        guard let activatedMenu, let activatedMenuId = activatedMenu.id else {
+            return
+        }
+        
+        environment.databaseService.listenToMenuItems(
+            userId: userId,
+            shopId: shopId,
+            menuId: menuId ?? activatedMenuId,
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[MenuItem], Error>) in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                switch result {
+                case .success(let menuItems):
+                    self.menuItems = menuItems
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi sản phẩm trong thực đơn")
+                }
+            }
+        }
+    }
+    
+    func removeMenuItemsListener(shopId: String, menuId: String?) {
+        guard let activatedMenu, let activatedMenuId = activatedMenu.id else {
+            return
+        }
+        environment.databaseService.removeMenuItemsListener(shopId: shopId, menuId: menuId ?? activatedMenuId)
+    }
+    
+    private func removeAllListeners() async {
+        let listenerKeys = [
+            "user_\(userId)",
+            "shop_\(activatedShop?.id ?? "")",
+            "orders_\(activatedShop?.id ?? "")",
+            "menu_\(activatedShop?.id ?? "")",
+            "inventory_\(activatedShop?.id ?? "")",
+            "ingredients_\(activatedShop?.id ?? "")"
+        ]
+        
+        listenerKeys.forEach { key in
+            environment.databaseService.removeListener(forKey: key)
+        }
+    }
+    
+    private func cleanupResources() async {
+        environment.authService.removeAuthStateListener()
+        await removeAllListeners()
+        cancellables.removeAll()
+        invalidateAuthTimer()
+        invalidateRemainingTimer()
+        await resetState()
+    }
+    
+    // MARK: - UI State Management
     func withLoading<T>(_ text: String? = nil, operation: () async throws -> T) async throws -> T {
         await MainActor.run { [weak self] in
             self?.isLoading = true
@@ -574,8 +603,8 @@ class SourceModel: ObservableObject {
     }
     
     func withProgress<T>(_ operation: (@escaping (Double) -> Void) async throws -> T) async throws -> T {
-        await MainActor.run { [weak self] in 
-            self?.isLoading = true 
+        await MainActor.run { [weak self] in
+            self?.isLoading = true
         }
         
         defer {
@@ -586,56 +615,38 @@ class SourceModel: ObservableObject {
         }
         
         return try await operation { [weak self] value in
-            Task { @MainActor in 
-                self?.progress = value 
+            Task { @MainActor in
+                self?.progress = value
             }
         }
     }
     
-    @ViewBuilder
-    func loadingOverlay() -> some View {
-        if isLoading {
-            LoadingView(message: loadingText)
-        }
-    }
-
-    // MARK: - Toast Methods
+    // MARK: - Toast & Alert Methods
     func showError(_ message: String, autoHide: Bool = true) {
         toastMessage = (.error, message)
-        showToast = true
-        
-        if autoHide {
-            hideToastAfterDelay()
-        }
     }
     
     func showSuccess(_ message: String, autoHide: Bool = true) {
         toastMessage = (.success, message)
-        showToast = true
-        
-        if autoHide {
-            hideToastAfterDelay()
-        }
     }
     
     func showInfo(_ message: String, autoHide: Bool = true) {
         toastMessage = (.info, message)
-        showToast = true
-        
-        if autoHide {
-            hideToastAfterDelay()
-        }
     }
     
-    private func hideToastAfterDelay() {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-            withAnimation(.spring()) {
-                self?.showToast = false
-            }
-        }
+    func showAlert(title: String, message: String, primaryButton: AlertButton? = nil) {
+        alert = AlertItem(title: title, message: message, primaryButton: primaryButton)
     }
-
+    
+    func showConfirmation(title: String, message: String, confirmAction: @escaping () -> Void) {
+        alert = AlertItem(
+            title: title,
+            message: message,
+            primaryButton: AlertButton(title: "Xác nhận", role: .destructive, action: confirmAction),
+            secondaryButton: AlertButton(title: "Hủy", role: .cancel)
+        )
+    }
+    
     // MARK: - Error Handling
     func handleError(_ error: Error, action: String? = nil, completion: (() -> Void)? = nil) {
         environment.crashlyticsService.log(action ?? "Không xác định")
@@ -653,52 +664,87 @@ class SourceModel: ObservableObject {
         }
     }
     
-    func showAlert(title: String, message: String, primaryButton: AlertButton? = nil) {
-        alert = AlertItem(title: title, message: message, primaryButton: primaryButton)
-    }
-    
-    func showConfirmation(title: String, message: String, confirmAction: @escaping () -> Void) {
-        alert = AlertItem(
-            title: title,
-            message: message,
-            primaryButton: AlertButton(title: "Xác nhận", role: .destructive, action: confirmAction),
-            secondaryButton: AlertButton(title: "Hủy", role: .cancel)
-        )
-    }
-
     // MARK: - State Management
-    func resetState() async {
+    private func resetState() async {
         currentUser = nil
         orders = nil
         menuList = nil
         ingredients = nil
         error = nil
         alert = nil
-        userId = ""
+        isLoading = false
+        loadingText = nil
+        progress = nil
+        toastMessage = nil
+        isOwnerAuthenticated = false
+        remainingTime = 0
         await removeAllListeners()
     }
     
-    func addSubscription(_ subscription: AnyCancellable) {
-        subscription.store(in: &cancellables)
+    // MARK: - Owner Authentication Methods
+    func authenticateAsOwner(password: String) -> Bool {
+        guard password == currentUser?.ownerPassword else {
+            return false
+        }
+        
+        isOwnerAuthenticated = true
+        startAuthTimer()
+        startRemainingTimer()
+        remainingTime = authTimeoutInterval
+        return true
+    }
+    
+    func logoutAsOwner() {
+        isOwnerAuthenticated = false
+        invalidateAuthTimer()
+        invalidateRemainingTimer()
+        remainingTime = 0
+    }
+    
+    private func startAuthTimer() {
+        invalidateAuthTimer()
+        authTimer = Timer.publish(every: authTimeoutInterval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.logoutAsOwner()
+                }
+            }
+    }
+    
+    private func startRemainingTimer() {
+        invalidateRemainingTimer()
+        remainingTimer = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.remainingTime > 0 {
+                    self.remainingTime -= 1
+                }
+            }
+    }
+    
+    private func invalidateAuthTimer() {
+        authTimer?.cancel()
+        authTimer = nil
+    }
+    
+    private func invalidateRemainingTimer() {
+        remainingTimer?.cancel()
+        remainingTimer = nil
     }
 }
 
-// MARK: - Alert Types
+// MARK: - Supporting Types
 struct AlertItem {
     let title: String
-    let message: String
+    let message: String?
     var primaryButton: AlertButton?
     var secondaryButton: AlertButton?
 }
 
 struct AlertButton {
     let title: String
-    var role: AlertButtonRole = .default
+    var role: ButtonRole = .cancel
     var action: (() -> Void)?
-    
-    enum AlertButtonRole {
-        case `default`
-        case cancel
-        case destructive
-    }
 }

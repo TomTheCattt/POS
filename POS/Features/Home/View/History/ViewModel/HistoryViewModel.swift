@@ -9,7 +9,6 @@ final class HistoryViewModel: ObservableObject {
     @Published var selectedDateRange: DateRange = .today
     @Published private(set) var orders: [Order] = []
     @Published private(set) var filteredOrders: [Order] = []
-    @Published private(set) var isLoading: Bool = false
     
     // MARK: - Dependencies
     private let source: SourceModel
@@ -22,63 +21,59 @@ final class HistoryViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-        source.ordersPublisher
-            .receive(on: RunLoop.main)
-            .sink { [weak self] orders in
-                guard let self = self else { return }
-                self.orders = orders ?? []
-                self.filterOrders()
-            }
-            .store(in: &cancellables)
-        
-        // Lắng nghe thay đổi từ searchText
-        $searchText
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.filterOrders()
-            }
-            .store(in: &cancellables)
-        
-        // Lắng nghe thay đổi từ selectedDateRange
-        $selectedDateRange
-            .sink { [weak self] _ in
-                self?.filterOrders()
-            }
-            .store(in: &cancellables)
-            
-        // Lắng nghe trạng thái loading từ SourceModel
-        source.loadingPublisher
-            .receive(on: RunLoop.main)
-            .sink { [weak self] loading, _ in
-                self?.isLoading = loading
-            }
-            .store(in: &cancellables)
+        // Kết hợp các Publisher để theo dõi thay đổi
+        Publishers.CombineLatest3(
+            source.ordersPublisher,
+            $searchText.debounce(for: .milliseconds(300), scheduler: RunLoop.main),
+            $selectedDateRange
+        )
+        .sink { [weak self] (orders, searchText, dateRange) in
+            guard let self = self else { return }
+            self.orders = orders ?? []
+            self.filterOrders(searchText: searchText, dateRange: dateRange)
+        }
+        .store(in: &cancellables)
     }
     
     // MARK: - Private Methods
-    private func filterOrders() {
-        let dateInterval = selectedDateRange.dateInterval
+    private func filterOrders(searchText: String, dateRange: DateRange) {
+        let dateInterval = dateRange.dateInterval
         
-        filteredOrders = orders.filter { order in
-            var matchesSearch = true
-            var matchesDate = true
+        let filtered = orders.filter { order in
+            // Kiểm tra điều kiện về thời gian
+            guard let interval = dateInterval else { return true }
+            let matchesDate = interval.contains(order.createdAt)
+            guard matchesDate else { return false }
             
-            // Lọc theo từ khóa tìm kiếm
-            if !searchText.isEmpty {
-                matchesSearch = order.id?.localizedCaseInsensitiveContains(searchText) ?? false ||
-                              order.items.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
+            // Nếu không có searchText, trả về true
+            guard !searchText.isEmpty else { return true }
+            
+            // Tìm kiếm theo ID
+            if let id = order.id,
+               id.localizedCaseInsensitiveContains(searchText) {
+                return true
             }
             
-            // Lọc theo khoảng thời gian
-            if let interval = dateInterval {
-                matchesDate = interval.contains(order.createdAt)
+            // Tìm kiếm theo tên các món
+            if order.items.contains(where: { $0.name.localizedCaseInsensitiveContains(searchText) }) {
+                return true
             }
             
-            return matchesSearch && matchesDate
+            // Tìm kiếm theo phương thức thanh toán
+            if order.paymentMethod.rawValue.localizedCaseInsensitiveContains(searchText) {
+                return true
+            }
+            
+            // Tìm kiếm theo số tiền
+            if formatPrice(order.totalAmount).localizedCaseInsensitiveContains(searchText) {
+                return true
+            }
+            
+            return false
         }
         
         // Sắp xếp theo thời gian mới nhất
-        filteredOrders.sort { $0.createdAt > $1.createdAt }
+        filteredOrders = filtered.sorted { $0.createdAt > $1.createdAt }
     }
     
     // MARK: - Public Methods
@@ -108,7 +103,14 @@ final class HistoryViewModel: ObservableObject {
     }
     
     func formatPrice(_ price: Double) -> String {
-        return String(format: "%.2f", price)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        formatter.groupingSeparator = "."
+        
+        let number = NSNumber(value: price)
+        return (formatter.string(from: number) ?? "0") + "đ"
     }
     
     func formatDate(_ date: Date) -> String {
@@ -121,12 +123,14 @@ final class HistoryViewModel: ObservableObject {
 }
 
 // MARK: - Supporting Types
-enum DateRange: String, CaseIterable {
+enum DateRange: String, CaseIterable, Identifiable {
     case today = "Hôm nay"
     case yesterday = "Hôm qua"
     case thisWeek = "Tuần này"
     case thisMonth = "Tháng này"
     case custom = "Tùy chọn"
+    
+    var id: String { self.rawValue }
     
     var dateInterval: DateInterval? {
         let calendar = Calendar.current

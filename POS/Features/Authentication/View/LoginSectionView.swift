@@ -13,8 +13,6 @@ struct LoginSectionView: View {
         case userName, password
     }
     
-    @Binding var login: Bool
-    
     @State private var isLoginPressed = false
     @State private var shakeAnimation = false
     @FocusState private var focusedField: LoginField?
@@ -138,7 +136,7 @@ struct LoginSectionView: View {
             HStack {
                 Text(AppLocalizedString.dontHaveAnAccount)
                 Button {
-                    login = false
+                    viewModel.loginSectionShowed = false
                 } label: {
                     Text(AppLocalizedString.signUp)
                         .fontWeight(.bold)

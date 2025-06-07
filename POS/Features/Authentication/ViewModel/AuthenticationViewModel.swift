@@ -51,11 +51,11 @@ final class AuthenticationViewModel: ObservableObject {
                 let newUser = AppUser(uid: authResult.uid, email: email, displayName: displayName, photoURL: nil, ownerPassword: ownerPassword, createdAt: Date(), updatedAt: Date())
                 let userId = try await source.environment.databaseService.createUser(newUser)
                 
-                let shop = Shop(shopName: shopName, isActive: true, createdAt: Date(), updatedAt: Date())
+                let shop = Shop(shopName: shopName, isActive: true, createdAt: Date(), updatedAt: Date(), ownerId: userId)
                 let _ = try await source.environment.databaseService.createShop(shop, userId: userId)
                 
             }
-            verifyEmailSent = true
+            await source.showSuccess(AppLocalizedString.verifyEmailSentContent)
             clearFields()
             loginSectionShowed = true
         } catch {
@@ -69,7 +69,6 @@ final class AuthenticationViewModel: ObservableObject {
                 try await source.environment.authService.resetPassword(email: email)
             }
             await source.showSuccess("Email đặt lại mật khẩu đã được gửi")
-            forgotPassword = true
         } catch {
             await source.handleError(error, action: "đặt lại mật khẩu")
         }

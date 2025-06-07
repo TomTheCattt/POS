@@ -67,5 +67,5 @@ class ProfileViewModel: ObservableObject {
         }
         
         return true
-    }
+    } 
 }

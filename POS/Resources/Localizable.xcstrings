@@ -14,6 +14,9 @@
         }
       }
     },
+    "%@" : {
+
+    },
     "%@ %@" : {
       "localizations" : {
         "vi" : {
@@ -34,7 +37,13 @@
         }
       }
     },
+    "%lf" : {
+
+    },
     "%lld" : {
+
+    },
+    "%lld items" : {
 
     },
     "%lld items được chọn" : {
@@ -74,6 +83,15 @@
     "1" : {
 
     },
+    "Add Items First" : {
+
+    },
+    "Add some delicious items!" : {
+
+    },
+    "Add to Cart" : {
+
+    },
     "add_item" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -108,6 +126,18 @@
         }
       }
     },
+    "Bạn có chắc chắn muốn xóa món ăn này?" : {
+
+    },
+    "Bạn đang được cấp quyền chủ cửa hàng" : {
+
+    },
+    "Bắt đầu bằng cách thêm cửa hàng đầu tiên của bạn" : {
+
+    },
+    "Cài đặt máy in" : {
+
+    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -128,13 +158,10 @@
     "Cập nhật" : {
 
     },
+    "Cập nhật %@" : {
+
+    },
     "Cập nhật %lld sản phẩm" : {
-
-    },
-    "Cập nhật mật khẩu chủ cửa hàng" : {
-
-    },
-    "Cập nhật mật khẩu tài khoản" : {
 
     },
     "Cập nhật sản phẩm" : {
@@ -163,6 +190,12 @@
         }
       }
     },
+    "Chi tiết đơn hàng" : {
+
+    },
+    "Chỉnh sửa" : {
+
+    },
     "Chỉnh sửa món" : {
 
     },
@@ -181,7 +214,16 @@
     "Chọn giao diện" : {
 
     },
+    "Chọn khoảng thời gian" : {
+
+    },
     "Chọn kiểu" : {
+
+    },
+    "Chọn một mục từ menu bên trái để xem chi tiết" : {
+
+    },
+    "Chọn một tùy chọn từ menu" : {
 
     },
     "Chọn nguyên liệu" : {
@@ -196,10 +238,19 @@
     "Chọn thực đơn này để sử dụng trong cửa hàng" : {
 
     },
-    "Choose Category" : {
+    "Choose your favorite items" : {
+
+    },
+    "Chủ sở hữu" : {
 
     },
     "Chưa chọn file" : {
+
+    },
+    "Chưa có cửa hàng nào" : {
+
+    },
+    "Chưa có đơn hàng nào" : {
 
     },
     "Chưa có mô tả" : {
@@ -208,7 +259,7 @@
     "Chưa có nguyên liệu nào" : {
 
     },
-    "Clear All" : {
+    "Clear" : {
 
     },
     "Còn hàng" : {
@@ -218,12 +269,6 @@
 
     },
     "Công thức món ăn" : {
-
-    },
-    "Consumption:" : {
-
-    },
-    "Create Order" : {
 
     },
     "create_new_order" : {
@@ -253,10 +298,16 @@
         }
       }
     },
+    "Cửa hàng đang hoạt động" : {
+
+    },
     "Cửa hàng hiện tại" : {
 
     },
     "Đã cập nhật" : {
+
+    },
+    "Đã xác thực" : {
 
     },
     "daily" : {
@@ -282,10 +333,31 @@
     "Đang sử dụng" : {
 
     },
+    "Đang tải ảnh lên..." : {
+
+    },
+    "Đang xử lý..." : {
+
+    },
+    "Đăng xuất chủ sở hữu" : {
+
+    },
+    "Đăng xuất khỏi quyền chủ cửa hàng" : {
+
+    },
     "Danh mục" : {
 
     },
+    "Danh sách món (%lld)" : {
+
+    },
     "Danh sách nguyên liệu" : {
+
+    },
+    "Đặt lại bộ lọc" : {
+
+    },
+    "Để thực hiện thao tác này, bạn cần xác thực với mật khẩu chủ sở hữu" : {
 
     },
     "delete_item" : {
@@ -304,6 +376,9 @@
           }
         }
       }
+    },
+    "Địa chỉ" : {
+
     },
     "Điền thông tin chi tiết về món ăn" : {
 
@@ -327,6 +402,12 @@
           }
         }
       }
+    },
+    "Đổi mật khẩu" : {
+
+    },
+    "Đơn hàng" : {
+
     },
     "Đơn vị" : {
 
@@ -958,9 +1039,6 @@
     "File được chọn: %@" : {
 
     },
-    "Find item..." : {
-
-    },
     "forgot_password" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1001,6 +1079,9 @@
     "Ghi chú đặc biệt, yêu cầu riêng..." : {
 
     },
+    "Ghi chú nhanh" : {
+
+    },
     "Giá nhập:" : {
 
     },
@@ -1013,7 +1094,10 @@
     "Giá trị:" : {
 
     },
-    "Good morning," : {
+    "Giao diện" : {
+
+    },
+    "Good morning! ☀️" : {
 
     },
     "Hello, World!" : {
@@ -1038,6 +1122,12 @@
           }
         }
       }
+    },
+    "Hoặc nhập danh mục khác..." : {
+
+    },
+    "Hoàn thành" : {
+
     },
     "Huỷ" : {
 
@@ -1102,7 +1192,13 @@
     "Kiểu cập nhật" : {
 
     },
+    "Lịch sử đơn hàng" : {
+
+    },
     "Lịch sử thay đổi" : {
+
+    },
+    "Lọc theo %@" : {
 
     },
     "Log Out" : {
@@ -1168,25 +1264,19 @@
     "Lưu Thay Đổi" : {
 
     },
+    "Lưu ý" : {
+
+    },
     "Lưu ý: File cần có các cột: Tên sản phẩm, Số lượng, Đơn vị, Giá nhập, Danh mục" : {
 
     },
     "Mật khẩu chủ cửa hàng" : {
 
     },
-    "Mật khẩu chủ cửa hàng hiện tại" : {
+    "Mật khẩu chủ sở hữu" : {
 
     },
-    "Mật khẩu chủ cửa hàng mới" : {
-
-    },
-    "Mật khẩu hiện tại" : {
-
-    },
-    "Mật khẩu mới" : {
-
-    },
-    "Mật khẩu tài khoản" : {
+    "Mật khẩu không chính xác" : {
 
     },
     "measure.gram" : {
@@ -1274,6 +1364,9 @@
         }
       }
     },
+    "Menu" : {
+
+    },
     "menu_management" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1305,6 +1398,12 @@
 
     },
     "Mô tả chi tiết về thực đơn (tùy chọn)" : {
+
+    },
+    "Mô tả thực đơn (tùy chọn)" : {
+
+    },
+    "Món đã đặt:" : {
 
     },
     "monthly" : {
@@ -1341,10 +1440,25 @@
         }
       }
     },
+    "Ngôn ngữ" : {
+
+    },
     "Nhập danh sách sản phẩm từ file Excel hoặc CSV" : {
 
     },
     "Nhập dữ liệu" : {
+
+    },
+    "Nhập mật khẩu" : {
+
+    },
+    "Nhập mật khẩu chủ cửa hàng để tiếp tục" : {
+
+    },
+    "Nhập mật khẩu chủ sở hữu để tiếp tục" : {
+
+    },
+    "Nhập tên thực đơn" : {
 
     },
     "Nhập tên thực đơn..." : {
@@ -1389,9 +1503,6 @@
           }
         }
       }
-    },
-    "Order" : {
-
     },
     "order_failed" : {
       "extractionState" : "manual",
@@ -1481,6 +1592,9 @@
         }
       }
     },
+    "Place Order" : {
+
+    },
     "print_receipt" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1552,10 +1666,19 @@
         }
       }
     },
+    "Quản lý cửa hàng" : {
+
+    },
+    "Quản lý đơn hàng của bạn" : {
+
+    },
     "Quản lý kho" : {
 
     },
     "Quản lý thực đơn" : {
+
+    },
+    "Quyền hạn của chủ cửa hàng" : {
 
     },
     "re_enter_password_placeholder" : {
@@ -1599,6 +1722,9 @@
 
     },
     "Sắp xếp" : {
+
+    },
+    "Search for delicious items..." : {
 
     },
     "Select Language" : {
@@ -1675,6 +1801,9 @@
         }
       }
     },
+    "Số điện thoại" : {
+
+    },
     "Số lượng" : {
 
     },
@@ -1727,6 +1856,15 @@
         }
       }
     },
+    "Subtotal" : {
+
+    },
+    "Tài khoản" : {
+
+    },
+    "Tạo cửa hàng" : {
+
+    },
     "Tạo Thực Đơn" : {
 
     },
@@ -1736,10 +1874,10 @@
     "Tất cả" : {
 
     },
-    "Temperature:" : {
+    "Tên A-Z" : {
 
     },
-    "Tên A-Z" : {
+    "Tên cửa hàng" : {
 
     },
     "Tên sản phẩm" : {
@@ -1755,6 +1893,9 @@
 
     },
     "Thêm" : {
+
+    },
+    "Thêm cửa hàng mới" : {
 
     },
     "Thêm hình ảnh món ăn" : {
@@ -1784,10 +1925,34 @@
     "Theo phần trăm" : {
 
     },
+    "Thời gian còn lại" : {
+
+    },
     "Thông tin bổ sung" : {
 
     },
+    "Thông tin cửa hàng" : {
+
+    },
     "Thông tin sản phẩm" : {
+
+    },
+    "Thông tin tài khoản" : {
+
+    },
+    "Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm để xem kết quả" : {
+
+    },
+    "Tìm theo mã đơn, tên món..." : {
+
+    },
+    "Tính năng đang được phát triển" : {
+
+    },
+    "Tổng cộng" : {
+
+    },
+    "Tổng tiền:" : {
 
     },
     "total" : {
@@ -1807,10 +1972,16 @@
         }
       }
     },
+    "Total" : {
+
+    },
     "Trạng thái" : {
 
     },
     "Trạng thái thực đơn" : {
+
+    },
+    "và %lld món khác..." : {
 
     },
     "verify_email_sent" : {
@@ -1884,13 +2055,28 @@
     "Xác nhận" : {
 
     },
-    "Xác nhận mật khẩu chủ cửa hàng mới" : {
+    "Xác thực" : {
 
     },
-    "Xác nhận mật khẩu mới" : {
+    "Xác thực chủ cửa hàng" : {
+
+    },
+    "Xác thực chủ sở hữu" : {
+
+    },
+    "Xác thực ngay" : {
+
+    },
+    "Xin chào! 👋" : {
 
     },
     "Xóa" : {
+
+    },
+    "Xóa món ăn" : {
+
+    },
+    "Xóa thực đơn" : {
 
     },
     "Xong" : {
@@ -1915,6 +2101,12 @@
           }
         }
       }
+    },
+    "Your cart is empty" : {
+
+    },
+    "Your Order" : {
+
     }
   },
   "version" : "1.0"

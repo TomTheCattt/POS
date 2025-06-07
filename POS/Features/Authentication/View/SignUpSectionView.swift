@@ -13,8 +13,6 @@ struct SignUpSectionView: View {
         case shopName, email, displayName, ownerPassword, password, rePassword
     }
     
-    @Binding var login: Bool
-    
     @State private var isSignUpPressed = false
     @State private var shakeAnimation = false
     @FocusState private var focusedField: SignUpField?
@@ -208,7 +206,7 @@ struct SignUpSectionView: View {
             HStack {
                 Text(AppLocalizedString.alreadyHaveAnAccount)
                 Button {
-                    login = true
+                    viewModel.loginSectionShowed = true
                 } label: {
                     Text(AppLocalizedString.login)
                         .fontWeight(.bold)

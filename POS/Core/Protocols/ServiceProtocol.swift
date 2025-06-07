@@ -14,7 +14,7 @@ import FirebaseAuth
 protocol AuthServiceProtocol {
     func login(email: String, password: String) async throws
     func registerAccount(email: String, password: String) async throws -> FirebaseAuth.User
-    func logout() async throws
+    func signOut() async throws
     func resetPassword(email: String) async throws
     func updatePassword(currentPassword: String, newPassword: String) async throws
     func deleteAccount(password: String) async throws

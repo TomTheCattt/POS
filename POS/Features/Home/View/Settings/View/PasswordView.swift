@@ -4,6 +4,7 @@ struct PasswordView: View {
     @StateObject var viewModel: PasswordViewModel
     @EnvironmentObject private var appState: AppState
     @FocusState private var focusedField: Field?
+    @Environment(\.colorScheme) var colorScheme
     
     enum Field {
         case currentPassword
@@ -17,101 +18,211 @@ struct PasswordView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
+                // Header
+                Text("Đổi mật khẩu")
+                    .font(.title2.bold())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                
                 // Account Password Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Mật khẩu tài khoản")
-                        .font(.headline)
-                    
-                    SecureField("Mật khẩu hiện tại", text: $viewModel.currentPassword)
-                        .keyboardType(.default)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .focused($focusedField, equals: .currentPassword)
-                    
-                    SecureField("Mật khẩu mới", text: $viewModel.newPassword)
-                        .keyboardType(.default)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .focused($focusedField, equals: .newPassword)
-                    
-                    SecureField("Xác nhận mật khẩu mới", text: $viewModel.confirmPassword)
-                        .keyboardType(.default)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .focused($focusedField, equals: .confirmPassword)
-                    
-                    Button {
-                        Task {
-                            do {
-                                try await viewModel.updateAccountPassword()
-                                appState.sourceModel.showSuccess("Cập nhật mật khẩu tài khoản thành công")
-                            } catch {
-                                appState.sourceModel.showError(error.localizedDescription)
-                            }
-                        }
-                    } label: {
-                        Text("Cập nhật mật khẩu tài khoản")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                    .disabled(!viewModel.isAccountPasswordValid)
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(radius: 1)
+                passwordSection(
+                    title: "Mật khẩu tài khoản",
+                    icon: "lock.fill",
+                    currentPassword: $viewModel.currentPassword,
+                    newPassword: $viewModel.newPassword,
+                    confirmPassword: $viewModel.confirmPassword,
+                    currentField: .currentPassword,
+                    newField: .newPassword,
+                    confirmField: .confirmPassword,
+                    isValid: viewModel.isAccountPasswordValid,
+                    action: updateAccountPassword
+                )
                 
                 // Owner Password Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Mật khẩu chủ cửa hàng")
-                        .font(.headline)
-                    
-                    SecureField("Mật khẩu chủ cửa hàng hiện tại", text: $viewModel.currentOwnerPassword)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .keyboardType(.default)
-                        .focused($focusedField, equals: .currentOwnerPassword)
-                    
-                    SecureField("Mật khẩu chủ cửa hàng mới", text: $viewModel.newOwnerPassword)
-                        .keyboardType(.default)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .focused($focusedField, equals: .newOwnerPassword)
-                    
-                    SecureField("Xác nhận mật khẩu chủ cửa hàng mới", text: $viewModel.confirmOwnerPassword)
-                        .keyboardType(.default)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .focused($focusedField, equals: .confirmOwnerPassword)
-                    
-                    Button {
-                        Task {
-                            do {
-                                try await viewModel.updateOwnerPassword()
-                                appState.sourceModel.showSuccess("Cập nhật mật khẩu chủ cửa hàng thành công")
-                            } catch {
-                                appState.sourceModel.showError(error.localizedDescription)
-                            }
-                        }
-                    } label: {
-                        Text("Cập nhật mật khẩu chủ cửa hàng")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                passwordSection(
+                    title: "Mật khẩu chủ cửa hàng",
+                    icon: "key.fill",
+                    currentPassword: $viewModel.currentOwnerPassword,
+                    newPassword: $viewModel.newOwnerPassword,
+                    confirmPassword: $viewModel.confirmOwnerPassword,
+                    currentField: .currentOwnerPassword,
+                    newField: .newOwnerPassword,
+                    confirmField: .confirmOwnerPassword,
+                    isValid: viewModel.isOwnerPasswordValid,
+                    action: updateOwnerPassword
+                )
+            }
+            .padding(.vertical)
+        }
+        .background(Color(.systemGroupedBackground))
+        .scrollDismissesKeyboard(.immediately)
+        .ignoresSafeArea(.keyboard)
+        .onTapGesture {
+            focusedField = nil
+        }
+    }
+    
+    private func passwordSection(
+        title: String,
+        icon: String,
+        currentPassword: Binding<String>,
+        newPassword: Binding<String>,
+        confirmPassword: Binding<String>,
+        currentField: Field,
+        newField: Field,
+        confirmField: Field,
+        isValid: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                Text(title)
+                    .font(.headline)
+            }
+            
+            // Password Fields
+            CustomSecureField(
+                title: "Mật khẩu hiện tại",
+                text: currentPassword,
+                isFocused: focusedField == currentField,
+                onFocus: { focusedField = currentField }
+            )
+            
+            CustomSecureField(
+                title: "Mật khẩu mới",
+                text: newPassword,
+                isFocused: focusedField == newField,
+                onFocus: { focusedField = newField }
+            )
+            
+            CustomSecureField(
+                title: "Xác nhận mật khẩu mới",
+                text: confirmPassword,
+                isFocused: focusedField == confirmField,
+                onFocus: { focusedField = confirmField }
+            )
+            
+            // Update Button
+            Button(action: action) {
+                HStack {
+                    if appState.sourceModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .padding(.trailing, 8)
                     }
-                    .disabled(!viewModel.isOwnerPasswordValid)
+                    Text("Cập nhật \(title.lowercased())")
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(radius: 1)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(isValid ? Color.blue : Color.gray)
+                        .shadow(color: isValid ? Color.blue.opacity(0.3) : Color.clear, radius: 8, y: 4)
+                )
+            }
+            .disabled(!isValid || appState.sourceModel.isLoading)
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10)
+        )
+        .padding(.horizontal)
+    }
+    
+    private func updateAccountPassword() {
+        Task {
+            do {
+                try await viewModel.updateAccountPassword()
+                appState.sourceModel.showSuccess("Cập nhật mật khẩu tài khoản thành công")
+                clearFields(.account)
+            } catch {
+                appState.sourceModel.showError(error.localizedDescription)
+            }
+        }
+    }
+    
+    private func updateOwnerPassword() {
+        Task {
+            do {
+                try await viewModel.updateOwnerPassword()
+                appState.sourceModel.showSuccess("Cập nhật mật khẩu chủ cửa hàng thành công")
+                clearFields(.owner)
+            } catch {
+                appState.sourceModel.showError(error.localizedDescription)
+            }
+        }
+    }
+    
+    private func clearFields(_ type: PasswordType) {
+        switch type {
+        case .account:
+            viewModel.currentPassword = ""
+            viewModel.newPassword = ""
+            viewModel.confirmPassword = ""
+        case .owner:
+            viewModel.currentOwnerPassword = ""
+            viewModel.newOwnerPassword = ""
+            viewModel.confirmOwnerPassword = ""
+        }
+        focusedField = nil
+    }
+    
+    private enum PasswordType {
+        case account
+        case owner
+    }
+}
+
+struct CustomSecureField: View {
+    let title: String
+    @Binding var text: String
+    let isFocused: Bool
+    let onFocus: () -> Void
+    @State private var isSecure: Bool = true
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
+            HStack(spacing: 12) {
+                Group {
+                    if isSecure {
+                        SecureField(title, text: $text)
+                    } else {
+                        TextField(title, text: $text)
+                    }
+                }
+                .textFieldStyle(.plain)
+                .onTapGesture {
+                    onFocus()
+                }
+                
+                Button {
+                    isSecure.toggle()
+                } label: {
+                    Image(systemName: isSecure ? "eye.slash.fill" : "eye.fill")
+                        .foregroundColor(.gray)
+                }
             }
             .padding()
-            .padding(.bottom, 100) // Thêm padding bottom để tránh bàn phím che nội dung
-        }
-        .scrollDismissesKeyboard(.immediately)
-        .ignoresSafeArea(.keyboard) // Ngăn keyboard đẩy view
-        .onTapGesture {
-            focusedField = nil // Đóng bàn phím khi tap ra ngoài
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isFocused ? Color.blue : Color.clear, lineWidth: 1)
+                    )
+            )
         }
     }
 }
