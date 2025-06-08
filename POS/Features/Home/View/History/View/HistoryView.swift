@@ -51,10 +51,11 @@ struct HistoryView: View {
                     ordersListSection
                 }
                 .padding(.bottom, 20)
+                .background(Color(.systemGray6))
             }
         }
-        .navigationTitle("Lịch sử đơn hàng")
-        .navigationBarTitleDisplayMode(.large)
+//        .navigationTitle("Lịch sử đơn hàng")
+//        .navigationBarTitleDisplayMode(.large)
         .sheet(item: $selectedOrder) { order in
             EnhancedOrderDetailView(order: order, viewModel: viewModel)
         }
@@ -497,111 +498,109 @@ struct EnhancedOrderDetailView: View {
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header card
-                    VStack(spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Đơn hàng")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Text(order.formattedId)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("Trạng thái")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 8, height: 8)
-                                    Text("Hoàn thành")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.green)
-                                }
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        VStack(spacing: 12) {
-                            DetailRow(title: "Thời gian", value: viewModel.formatDate(order.createdAt), icon: "clock")
-                            DetailRow(title: "Thanh toán", value: order.paymentMethod.rawValue, icon: "creditcard")
-                        }
-                    }
-                    .padding(20)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
-                    
-                    // Items section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Danh sách món (\(order.items.count))")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 20)
-                        
-                        LazyVStack(spacing: 12) {
-                            ForEach(order.items) { item in
-                                EnhancedItemRow(item: item, viewModel: viewModel)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                    
-                    // Total section
-                    VStack(spacing: 16) {
-                        HStack {
-                            Text("Tổng cộng")
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header card
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Đơn hàng")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text(order.formattedId)
                                 .font(.title2)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Text(viewModel.formatPrice(order.totalAmount))
-                                .font(.title)
                                 .fontWeight(.bold)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Trạng thái")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                Text("Hoàn thành")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
+                            }
                         }
                     }
-                    .padding(20)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.05), Color.purple.opacity(0.05)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(LinearGradient(colors: [.blue.opacity(0.2), .purple.opacity(0.2)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
-                    )
+                    
+                    Divider()
+                    
+                    VStack(spacing: 12) {
+                        DetailRow(title: "Thời gian", value: viewModel.formatDate(order.createdAt), icon: "clock")
+                        DetailRow(title: "Thanh toán", value: order.paymentMethod.rawValue, icon: "creditcard")
+                    }
                 }
                 .padding(20)
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Chi tiết đơn hàng")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") {
-                        dismiss()
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
+                
+                // Items section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Danh sách món (\(order.items.count))")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 20)
+                    
+                    LazyVStack(spacing: 12) {
+                        ForEach(order.items) { item in
+                            EnhancedItemRow(item: item, viewModel: viewModel)
+                        }
                     }
-                    .fontWeight(.medium)
+                    .padding(.horizontal, 20)
                 }
+                
+                // Total section
+                VStack(spacing: 16) {
+                    HStack {
+                        Text("Tổng cộng")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Text(viewModel.formatPrice(order.totalAmount))
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    }
+                }
+                .padding(20)
+                .background(
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.05), Color.purple.opacity(0.05)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(LinearGradient(colors: [.blue.opacity(0.2), .purple.opacity(0.2)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
+                )
+            }
+            .padding(20)
+        }
+        .background(Color(.systemGray6))
+        .navigationTitle("Chi tiết đơn hàng")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Đóng") {
+                    dismiss()
+                }
+                .fontWeight(.medium)
             }
         }
     }

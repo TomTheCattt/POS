@@ -1,7 +1,7 @@
 import Foundation
 
 enum DatabaseCollection: String {
-    case users, shops, orders, menu, menuItems, recipes, ingredientsUsage
+    case users, shops, orders, menu, menuItems, ingredientsUsage, staff
     
     enum PathType {
         // users
@@ -18,10 +18,10 @@ enum DatabaseCollection: String {
         
         // Thêm case cho nested subcollection (shop's collections)
         
-        // menu, recipes, ingredientsUsage
+        // menu, staff, ingredientsUsage
         case nestedSubcollection(userId: String, shopId: String)
         
-        // specific menu || recipe || ingredientUsage
+        // specific menu || staff || ingredientUsage
         case deepNestedDocument(userId: String, shopId: String, optionId: String)
         
         // deep nested subcollection (menu's collections)
@@ -59,17 +59,17 @@ enum DatabaseCollection: String {
         case (.menu, .deepNestedDocument(let userId, let shopId, let menuId)):
             return "users/\(userId)/shops/\(shopId)/menu/\(menuId)"
             
-            // RECIPE cases
-        case (.recipes, .nestedSubcollection(let userId, let shopId)):
-            return "users/\(userId)/shops/\(shopId)/recipes"
-        case (.recipes, .deepNestedDocument(let userId, let shopId, let recipeId)):
-            return "users/\(userId)/shops/\(shopId)/recipes/\(recipeId)"
-            
             // INGREDIENTS USAGE cases
         case (.ingredientsUsage, .nestedSubcollection(let userId, let shopId)):
             return "users/\(userId)/shops/\(shopId)/ingredientsUsage"
         case (.ingredientsUsage, .deepNestedDocument(let userId, let shopId, let ingredientsUsageId)):
             return "users/\(userId)/shops/\(shopId)/ingredientsUsage/\(ingredientsUsageId)"
+            
+            // STAFF cases
+        case (.staff, .nestedSubcollection(let userId, let shopId)):
+            return "users/\(userId)/shops/\(shopId)/staff"
+        case (.staff, .deepNestedDocument(let userId, let shopId, let staffId)):
+            return "users/\(userId)/shops/\(shopId)/staff/\(staffId)"
             
             // MENU ITEMS cases
         case (.menuItems, .deepNestedSubCollection(let userId, let shopId, let menuId)):
@@ -117,12 +117,12 @@ extension DatabaseCollection {
         return DatabaseCollection.menu.path(for: .deepNestedDocument(userId: userId, shopId: shopId, optionId: menuItemId))
     }
     
-    static func getRecipesCollection(userId: String, shopId: String) -> String {
-        return DatabaseCollection.recipes.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
+    static func getStaffsCollection(userId: String, shopId: String) -> String {
+        return DatabaseCollection.staff.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    static func getRecipeDocument(userId: String, shopId: String, recipeId: String) -> String {
-        return DatabaseCollection.recipes.path(for: .deepNestedDocument(userId: userId, shopId: shopId, optionId: recipeId))
+    static func getStaffDocument(userId: String, shopId: String, staffId: String) -> String {
+        return DatabaseCollection.staff.path(for: .deepNestedDocument(userId: userId, shopId: shopId, optionId: staffId))
     }
     
     static func getIngredientsCollection(userId: String, shopId: String) -> String {

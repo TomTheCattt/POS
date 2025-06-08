@@ -265,7 +265,8 @@ class AppCoordinator: ObservableObject {
                     let viewModel = routerViewModel.authVM
                     AuthenticationView(viewModel: viewModel)
                 case .ownerAuth:
-                    OwnerAuthView()
+                    let viewModel = routerViewModel.settingsVM
+                    OwnerAuthView(viewModel: viewModel)
                 case .signIn:
                     let viewModel = routerViewModel.authVM
                     LoginSectionView(viewModel: viewModel)
@@ -314,6 +315,9 @@ class AppCoordinator: ObservableObject {
                 case .addShop:
                     let viewModel = routerViewModel.shopVM
                     AddShopSheet(viewModel: viewModel)
+                case .staff:
+                    let viewModel = routerViewModel.staffVM
+                    StaffView(viewModel: viewModel)
                 case .accountDetail:
                     let viewModel = routerViewModel.profileVM
                     AccountDetailView(viewModel: viewModel)

@@ -112,7 +112,7 @@ struct OrderItemView: View {
                     .background(Color.purple.opacity(0.1))
                     .clipShape(Capsule())
                 }
-                .font(.footnote)
+                    .font(.footnote)
                 
                 // Note section if exists
                 if let note = orderItem.note, !note.isEmpty {
@@ -120,7 +120,7 @@ struct OrderItemView: View {
                         Image(systemName: "note.text")
                             .foregroundStyle(Color.blue)
                         Text(note)
-                            .font(.footnote)
+                    .font(.footnote)
                             .foregroundStyle(Color.blue)
                             .lineLimit(2)
                     }

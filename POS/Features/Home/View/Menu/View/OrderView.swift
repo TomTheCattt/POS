@@ -6,18 +6,88 @@ struct OrderView: View {
     @EnvironmentObject var appState: AppState
     @Namespace private var animation
     @State private var showOrderSummary = false
+    @State private var selectedCategory: String?
+    @State private var searchText = ""
+    @State private var isSearching = false
+    
+    private let isIphone = UIDevice.current.userInterfaceIdiom == .phone
     
     var body: some View {
-        GeometryReader { geometry in
-            HStack(alignment: .top, spacing: 20) {
-                leftSideMenu(geometry: geometry)
-                rightSideOrder(geometry: geometry)
+        Group {
+            if isIphone {
+                iphoneLayout
+            } else {
+                ipadLayout
+            }
             }
             .onAppear {
                 appState.sourceModel.setupMenuItemsListener(shopId: appState.sourceModel.activatedShop?.id ?? "", menuId: nil)
             }
             .onDisappear {
                 appState.sourceModel.removeMenuItemsListener(shopId: appState.sourceModel.activatedShop?.id ?? "", menuId: nil)
+            }
+        }
+    
+    // MARK: - iPhone Layout
+    private var iphoneLayout: some View {
+        ZStack {
+            // Main content
+            VStack(spacing: 0) {
+                // Enhanced Search Bar
+                searchBar
+        .padding(.horizontal)
+                
+                // Category Scroll
+                categoryScrollView()
+                    .padding(.top, 8)
+                
+                // Menu Items Grid
+                ScrollView {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ],
+                        spacing: 16
+                    ) {
+                        ForEach(viewModel.filteredMenuItems) { item in
+                            CompactMenuItemCard(viewModel: viewModel, item: item)
+                                .matchedGeometryEffect(id: item.id, in: animation)
+                        }
+                    }
+                    .padding(16)
+                }
+                
+                // Cart Button
+                cartButton
+            }
+            
+            // Order Summary Sheet
+            if showOrderSummary {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3)) {
+                            showOrderSummary = false
+                        }
+                    }
+                
+                OrderSummarySheet(
+                    viewModel: viewModel,
+                    isPresented: $showOrderSummary
+                )
+                .transition(.move(edge: .bottom))
+            }
+        }
+        .background(Color(.systemGray6))
+    }
+    
+    // MARK: - iPad Layout (Existing)
+    private var ipadLayout: some View {
+        GeometryReader { geometry in
+            HStack(alignment: .top, spacing: 20) {
+                leftSideMenu(geometry: geometry)
+                rightSideOrder(geometry: geometry)
             }
         }
         .padding(.horizontal, 24)
@@ -28,6 +98,91 @@ struct OrderView: View {
                 endPoint: .bottomTrailing
             )
         )
+    }
+    
+    // MARK: - iPhone Components
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                
+                TextField("Tìm món...", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .onTapGesture {
+                        withAnimation {
+                            isSearching = true
+                        }
+                    }
+                
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.05), radius: 5)
+            
+            if isSearching {
+                Button("Hủy") {
+                    withAnimation {
+                        isSearching = false
+                        searchText = ""
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                }
+                .foregroundColor(.blue)
+            }
+        }
+    }
+    
+    private var cartButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.3)) {
+                showOrderSummary = true
+            }
+        } label: {
+            HStack {
+                Image(systemName: "cart.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                
+                VStack(alignment: .leading) {
+                    Text("\(viewModel.selectedItems.count) món")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(viewModel.totalPrice)
+                        .font(.system(size: 14, weight: .medium))
+                }
+                
+                Spacer()
+                
+                Text("Xem giỏ hàng")
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                LinearGradient(
+                    colors: [.blue, .purple],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(16)
+            .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
     }
     
     // MARK: - Left side containing categories and menu items
@@ -158,8 +313,8 @@ struct OrderView: View {
                 ForEach(viewModel.filteredMenuItems) { item in
                     appState.coordinator.makeView(for: .orderMenuItemCard(item))
                     .matchedGeometryEffect(id: item.id, in: animation)
+                    }
                 }
-            }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
@@ -237,7 +392,7 @@ struct OrderView: View {
                 HStack {
                     Text("\(viewModel.selectedItems.count) items")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                    .foregroundColor(.secondary)
                     if !viewModel.selectedItems.isEmpty {
                         Circle()
                             .fill(Color.green)
@@ -346,10 +501,7 @@ struct OrderView: View {
             
             HStack(spacing: 12) {
                 ForEach(PaymentMethod.allCases, id: \.self) { method in
-                    PaymentMethodButton(
-                        method: method,
-                        isSelected: viewModel.paymentMethod == method
-                    ) {
+                    PaymentMethodButton(method: method, isSelected: viewModel.paymentMethod == method) {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             viewModel.updatePaymentMethod(method)
                         }
@@ -425,7 +577,7 @@ struct MenuItemCard: View {
                     )
                     .aspectRatio(16/9, contentMode: .fit)
                 
-                Image(systemName: "cup.and.saucer.fill")
+        Image(systemName: "cup.and.saucer.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(
                         LinearGradient(
@@ -437,11 +589,11 @@ struct MenuItemCard: View {
             }
             
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
+        HStack {
                     Text(item.name)
                         .font(.headline.weight(.semibold))
                         .lineLimit(2)
-                    Spacer()
+            Spacer()
                     Text("$\(String(format: "%.2f", item.price))")
                         .font(.headline.weight(.bold))
                         .foregroundStyle(
@@ -456,12 +608,12 @@ struct MenuItemCard: View {
                 // Options selector
                 VStack(alignment: .leading, spacing: 12) {
                     // Temperature selector
-                    HStack {
-                        ForEach(TemperatureOption.allCases, id: \.self) { option in
+            HStack {
+                ForEach(TemperatureOption.allCases, id: \.self) { option in
                             Button {
                                 withAnimation(.spring(response: 0.3)) {
-                                    temperature = option
-                                }
+                        temperature = option
+                    }
                             } label: {
                                 VStack(spacing: 6) {
                                     Image(systemName: option == .hot ? "thermometer.sun.fill" : "thermometer.snowflake")
@@ -485,12 +637,12 @@ struct MenuItemCard: View {
                     }
                     
                     // Consumption selector
-                    HStack {
-                        ForEach(ConsumptionOption.allCases, id: \.self) { option in
+            HStack {
+                ForEach(ConsumptionOption.allCases, id: \.self) { option in
                             Button {
                                 withAnimation(.spring(response: 0.3)) {
-                                    consumption = option
-                                }
+                        consumption = option
+                    }
                             } label: {
                                 VStack(spacing: 6) {
                                     Image(systemName: option == .stay ? "house.fill" : "takeoutbag.and.cup.and.straw.fill")
@@ -516,8 +668,8 @@ struct MenuItemCard: View {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         viewModel.addItemToOrder(item, temperature, consumption)
-                        temperature = .hot
-                        consumption = .stay
+            temperature = .hot
+            consumption = .stay
                     }
                 } label: {
         HStack {
@@ -527,14 +679,14 @@ struct MenuItemCard: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(
+                .background(
                         LinearGradient(
                             colors: [.blue, .purple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
-                    )
-                    .foregroundColor(.white)
+                )
+                .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -796,7 +948,7 @@ struct ModernOptionButton: View {
                     )
                     .shadow(color: isSelected ? .blue.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
             )
-            .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isSelected ? .white : .primary)
         }
         .scaleEffect(isSelected ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
@@ -811,7 +963,7 @@ struct PaymentMethodButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: paymentIcon(for: method))
+                Image(systemName: method.icon)
                     .font(.system(size: 20))
                     .foregroundColor(isSelected ? .white : .primary)
                 
@@ -831,11 +983,374 @@ struct PaymentMethodButton: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
     
-    private func paymentIcon(for method: PaymentMethod) -> String {
-        switch method {
-        case .cash: return "banknote.fill"
-        case .card: return "creditcard.fill"
-        case .bankTransfer: return "iphone"
+//    private func paymentIcon(for method: PaymentMethod) -> String {
+//        switch method {
+//        case .cash: return "banknote.fill"
+//        case .card: return "creditcard.fill"
+//        case .bankTransfer: return "iphone"
+//        }
+//    }
+}
+
+// MARK: - Compact Menu Item Card for iPhone
+struct CompactMenuItemCard: View {
+    @ObservedObject var viewModel: OrderViewModel
+    let item: MenuItem
+    @State private var isExpanded = false
+    @State private var selectedTemperature: TemperatureOption = .hot
+    @State private var selectedConsumption: ConsumptionOption = .stay
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Item Image
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray5))
+                    .aspectRatio(1, contentMode: .fit)
+                
+                Image(systemName: "cup.and.saucer.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text(item.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(1)
+                
+                Text("$\(String(format: "%.2f", item.price))")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Text(isExpanded ? "Thu gọn" : "Tùy chọn")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.blue)
+                }
+                
+                if isExpanded {
+                    VStack(alignment: .leading, spacing: 8) {
+                        QuickOptionRow(
+                            title: "Nhiệt:",
+                            options: TemperatureOption.allCases,
+                            selection: $selectedTemperature
+                        )
+                        
+                        QuickOptionRow(
+                            title: "Loại:",
+                            options: ConsumptionOption.allCases,
+                            selection: $selectedConsumption
+                        )
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+                
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        viewModel.addItemToOrder(item, selectedTemperature, selectedConsumption)
+                        // Reset về giá trị mặc định sau khi thêm
+                        selectedTemperature = .hot
+                        selectedConsumption = .stay
+                        isExpanded = false
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Thêm")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+    }
+}
+
+// MARK: - Order Summary Sheet
+struct OrderSummarySheet: View {
+    @ObservedObject var viewModel: OrderViewModel
+    @Binding var isPresented: Bool
+    @State private var dragOffset: CGFloat = 0
+    @State private var selectedPaymentMethod: PaymentMethod = .cash
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Drag Indicator
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color(.systemGray3))
+                .frame(width: 40, height: 5)
+                .padding(.top, 8)
+            
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Order Items
+                    ForEach(viewModel.selectedItems) { item in
+                        ModernOrderItemView(viewModel: viewModel, item: item)
+                    }
+                    
+                    if viewModel.selectedItems.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "cart")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray)
+                            Text("Giỏ hàng trống")
+                                .font(.headline)
+                            Text("Hãy thêm món bạn yêu thích")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                    }
+                }
+                .padding()
+            }
+            
+            if !viewModel.selectedItems.isEmpty {
+                VStack(spacing: 16) {
+                    // Order Summary
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Tạm tính")
+                            Spacer()
+                            Text(viewModel.totalPrice)
+                        }
+                        .font(.subheadline)
+                        
+                        HStack {
+                            Text("Tổng cộng")
+                                .fontWeight(.bold)
+                            Spacer()
+                            Text(viewModel.totalPrice)
+                                .fontWeight(.bold)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // Payment Method Selection
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Phương thức thanh toán")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(PaymentMethod.allCases, id: \.self) { method in
+                                    PaymentOptionCard(
+                                        method: method,
+                                        isSelected: method == selectedPaymentMethod
+                                    ) {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            selectedPaymentMethod = method
+                                            viewModel.updatePaymentMethod(method)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // Place Order Button
+                    Button {
+                        Task {
+                            try await viewModel.createOrder()
+                            withAnimation {
+                                isPresented = false
+                            }
+                        }
+                    } label: {
+                        Text("Đặt hàng")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+            }
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(24)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    let translation = value.translation.height
+                    if translation > 0 {
+                        dragOffset = translation
+                    }
+                }
+                .onEnded { value in
+                    let translation = value.translation.height
+                    withAnimation(.spring(response: 0.3)) {
+                        if translation > 100 {
+                            isPresented = false
+                        } else {
+                            dragOffset = 0
+                        }
+                    }
+                }
+        )
+        .frame(maxHeight: UIScreen.main.bounds.height * 0.85)
+        .frame(maxWidth: .infinity)
+        .transition(.move(edge: .bottom))
+    }
+}
+
+// MARK: - Payment Option Card
+struct PaymentOptionCard: View {
+    let method: PaymentMethod
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? method.color.opacity(0.15) : Color(.systemGray5))
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: method.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(isSelected ? method.color : .gray)
+                }
+                
+                // Title and Description
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(method.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+                    
+                    Text(method.description)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                
+                // Selection Indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? method.color : Color(.systemGray4), lineWidth: 2)
+                        .frame(width: 20, height: 20)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(method.color)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+            }
+                .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: isSelected ? method.color.opacity(0.3) : .black.opacity(0.05),
+                           radius: isSelected ? 8 : 4,
+                           x: 0,
+                           y: isSelected ? 4 : 2)
+            )
+        }
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+}
+
+// MARK: - Payment Method Extensions
+extension PaymentMethod {
+    var icon: String {
+        switch self {
+        case .cash:
+            return "banknote.fill"
+        case .card:
+            return "creditcard.fill"
+        case .bankTransfer:
+            return "iphone"
+        }
+    }
+    
+    var title: String {
+        switch self {
+        case .cash:
+            return "Tiền mặt"
+        case .card:
+            return "Thẻ"
+        case .bankTransfer:
+            return "Chuyển khoản"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .cash:
+            return "Thanh toán khi nhận hàng"
+        case .card:
+            return "Thẻ tín dụng/ghi nợ"
+        case .bankTransfer:
+            return "Chuyển khoản ngân hàng"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .cash:
+            return .green
+        case .card:
+            return .blue
+        case .bankTransfer:
+            return .purple
         }
     }
 }

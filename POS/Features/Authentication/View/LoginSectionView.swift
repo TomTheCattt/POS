@@ -161,7 +161,6 @@ struct LoginSectionView: View {
             viewModel.password = ""
             viewModel.rePassword = ""
             viewModel.displayName = ""
-            viewModel.shopName = ""
         }
     }
 }

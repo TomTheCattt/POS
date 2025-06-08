@@ -18,234 +18,272 @@ extension View {
 struct ShopManagementView: View {
     @StateObject var viewModel: ShopManagementViewModel
     @EnvironmentObject private var appState: AppState
-    @State private var isShowingShopList = false
     @Environment(\.colorScheme) private var colorScheme
     
+    @State private var showingSearchBar = false
+    @State private var searchText = ""
+    @State private var animateHeader = false
+    
+    var filteredShops: [Shop] {
+        if searchText.isEmpty {
+            return appState.sourceModel.shops ?? []
+        }
+        return (appState.sourceModel.shops ?? []).filter {
+            $0.shopName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    
     var body: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: 0) {
-                // Top Bar
-                shopSelectorView
-                
-                // Content Area
-                contentView
-            }
-            
-            // Shop List Overlay
-            if isShowingShopList {
-                shopListOverlay
+        Group {
+            if let shops = appState.sourceModel.shops, shops.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "building.2.crop.circle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("Chưa có cửa hàng nào")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    
+                    Button {
+                        appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
+                    } label: {
+                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .foregroundColor(.white)
+                            .cornerRadius(15)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 10)
+                }
+                .padding()
+            } else {
+                VStack(spacing: 0) {
+                    // Enhanced Header
+                    headerSection
+                        .opacity(animateHeader ? 1 : 0)
+                        .offset(y: animateHeader ? 0 : -20)
+                    
+                    // Search Bar
+                    if showingSearchBar {
+                        EnhancedSearchBar(
+                            text: $searchText,
+                            placeholder: "Tìm kiếm cửa hàng..."
+                        )
+                        .transition(.asymmetric(
+                            insertion: .scale.combined(with: .opacity),
+                            removal: .scale.combined(with: .opacity)
+                        ))
+                        .padding()
+                    }
+                    
+                    // Shops List
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(filteredShops) { shop in
+                                ShopRow(shop: shop)
+//                                    .onTapGesture {
+//                                        viewModel.activatedShop = shop
+//                                        appState.coordinator.navigateTo(.shopDetail)
+//                                    }
+                            }
+                        }
+                        .padding()
+                    }
+                }
+                .navigationTitle("Quản lý cửa hàng")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    showingSearchBar.toggle()
+                                }
+                            }) {
+                                Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                                    .font(.title2)
+                                    .foregroundStyle(.primary)
+                            }
+                            
+                            Button {
+                                appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            }
+                        }
+                    }
+                }
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        animateHeader = true
+                    }
+                }
             }
         }
     }
     
-    private var shopSelectorView: some View {
-        VStack(spacing: 16) {
-            // Shop Selector
-            HStack(spacing: 16) {
-                Button {
-                    withAnimation(.spring()) {
-                        isShowingShopList.toggle()
-                    }
-                } label: {
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Cửa hàng hiện tại")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            
-                            HStack {
-                                Text(viewModel.activatedShop?.shopName ?? "Chọn cửa hàng")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.gray)
-                                    .rotationEffect(.degrees(isShowingShopList ? 180 : 0))
-                            }
-                        }
+                        Image(systemName: "building.2.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.orange, .red],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                         
-                        Spacer()
-                        
-                        Circle()
-                            .fill(viewModel.activatedShop != nil ? Color.green : Color.gray)
-                            .frame(width: 8, height: 8)
+                        Text("\(filteredShops.count) cửa hàng")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
                     }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(
-                        color: Color.black.opacity(0.05),
-                        radius: 2,
-                        x: 0,
-                        y: 1
-                    )
                 }
                 
-                // Toggle Buttons
-                HStack(spacing: 0) {
-                    toggleButton(
-                        title: "Menu",
-                        systemImage: "list.bullet",
-                        isSelected: viewModel.currentView == .menu
-                    ) {
-                        if viewModel.currentView != .menu {
-                            viewModel.toggleView()
-                        }
-                    }
-                    
-                    toggleButton(
-                        title: "Kho",
-                        systemImage: "cube.box",
-                        isSelected: viewModel.currentView == .inventory
-                    ) {
-                        if viewModel.currentView != .inventory {
-                            viewModel.toggleView()
-                        }
-                    }
-                }
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(
-                    color: Color.black.opacity(0.05),
-                    radius: 2,
-                    x: 0,
-                    y: 1
-                )
+                Spacer()
+            }
+            
+            // Decorative divider
+            HStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.orange.opacity(0.6), .red.opacity(0.6)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 2)
+                    .frame(maxWidth: 100)
+                
+                Spacer()
             }
         }
-        .padding()
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .background(
-            Color(.systemGroupedBackground)
-                .cornerRadius(16)
-                .shadow(
-                    color: Color.black.opacity(0.05),
-                    radius: 3,
-                    x: 0,
-                    y: 2
-                )
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        )
+        .padding(.horizontal)
+        .padding(.bottom, 16)
+    }
+}
+
+struct ShopRow: View {
+    let shop: Shop
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
+                // Icon section với gradient background
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: shop.isActive ?
+                                [.blue.opacity(0.8), .purple.opacity(0.8)] :
+                                    [.gray.opacity(0.5), .gray.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "building.2.fill")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .shadow(color: shop.isActive ? .blue.opacity(0.3) : .gray.opacity(0.3), radius: 4, x: 0, y: 2)
+                
+                // Content section
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(shop.shopName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    HStack(spacing: 12) {
+                        // Ground Rent
+                        Label(shop.formattedGroundRent, systemImage: "banknote.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        // Created Date
+                        Label(formatDate(shop.createdAt), systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Status Badge
+                if shop.isActive {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                        
+                        Text("Đang hoạt động")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(.green.opacity(0.1))
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
         )
     }
     
-    private var shopListOverlay: some View {
-        ZStack {
-            Color.white.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation(.spring()) {
-                        isShowingShopList = false
-                    }
-                }
-            
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Chọn cửa hàng")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemBackground))
-                
-                Divider()
-                
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.shops) { shop in
-                            Button {
-                                Task {
-                                    await viewModel.selectShop(shop)
-                                    withAnimation(.spring()) {
-                                        isShowingShopList = false
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(shop.shopName)
-                                            .font(.body)
-                                            .foregroundColor(.primary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if shop.id == viewModel.activatedShop?.id {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.blue)
-                                            .font(.system(size: 20))
-                                    }
-                                }
-                                .padding()
-                                .background(
-                                    shop.id == viewModel.activatedShop?.id ?
-                                        Color.blue.opacity(0.1) : Color.clear
-                                )
-                            }
-                            
-                            if shop.id != viewModel.shops.last?.id {
-                                Divider()
-                                    .padding(.horizontal)
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.gray.opacity(0.1), lineWidth: 1)
-            )
-            .shadow(
-                color: Color.black.opacity(0.1),
-                radius: 10,
-                x: 0,
-                y: 5
-            )
-            .padding(.horizontal)
-            .padding(.top, 70)
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
-        }
-        .transition(.move(edge: .trailing).combined(with: .opacity))
-    }
-    
-    private var contentView: some View {
-        ZStack {
-            if viewModel.currentView == .menu {
-                appState.coordinator.makeView(for: .menuSection)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .trailing)
-                    ))
-            }
-            
-            if viewModel.currentView == .inventory {
-                appState.coordinator.makeView(for: .ingredientSection)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .trailing)
-                    ))
-            }
-        }
-        .animation(.easeInOut, value: viewModel.currentView)
-    }
-    
-    private func toggleButton(title: String, systemImage: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: systemImage)
-                Text(title)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.blue : Color.clear)
-            .foregroundColor(isSelected ? .white : .primary)
-        }
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.locale = Locale(identifier: "vi_VN")
+        return formatter.string(from: date)
     }
 }

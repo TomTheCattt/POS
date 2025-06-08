@@ -17,147 +17,453 @@ struct IngredientSectionView: View {
     @State private var showingImportSheet = false
     @State private var showingHistorySheet = false
     @State private var selectedAction: ActionType?
+    @State private var showingSearchBar = false
+    @State private var animateHeader = false
+    
+    var totalInventoryValue: Double {
+        viewModel.filteredAndSortedItems.reduce(0) { total, item in
+            total + (item.costPrice * item.quantity)
+        }
+    }
+    
+    var lowStockItemsCount: Int {
+        viewModel.filteredAndSortedItems.filter { $0.stockStatus == .lowStock }.count
+    }
+    
+    var outOfStockItemsCount: Int {
+        viewModel.filteredAndSortedItems.filter { $0.stockStatus == .outOfStock }.count
+    }
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Toolbar
-            toolbarView
-            
-            // Action Buttons when in multi-select mode
-            if isMultiSelectMode && !selectedItems.isEmpty {
-                multiSelectActionView
-            }
-            
-            // Inventory List
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.filteredAndSortedItems) { item in
-                        IngredientUsageItem(
-                            item: item,
-                            isSelected: selectedItems.contains(item),
-                            isMultiSelectMode: isMultiSelectMode
-                        ) { item in
-                            if isMultiSelectMode {
-                                toggleItemSelection(item)
-                            } else {
-                                viewModel.selectedItem = item
+        Group {
+            if let shops = appState.sourceModel.shops, shops.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "building.2.crop.circle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("Chưa có cửa hàng nào")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Bạn cần tạo cửa hàng trước khi quản lý kho")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    
+                    Button {
+                        appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
+                    } label: {
+                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .foregroundColor(.white)
+                            .cornerRadius(15)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 10)
+                }
+                .padding()
+            } else {
+                VStack(spacing: 16) {
+                    // Enhanced Header
+                    headerSection
+                        .opacity(animateHeader ? 1 : 0)
+                        .offset(y: animateHeader ? 0 : -20)
+                    
+                    // Quick Stats
+                    quickStatsSection
+                        .opacity(animateHeader ? 1 : 0)
+                        .offset(y: animateHeader ? 0 : -20)
+                    
+                    if viewModel.filteredAndSortedItems.isEmpty {
+                        VStack(spacing: 20) {
+                            Image(systemName: "cube.box.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            
+                            Text("Chưa có sản phẩm nào trong kho")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            
+                            Text("Hãy thêm sản phẩm đầu tiên vào kho của bạn")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                            
+                            Button {
+                                viewModel.selectedItem = nil
                                 appState.coordinator.navigateTo(.ingredientForm(viewModel.selectedItem), using: .present, with: .present)
+                            } label: {
+                                Label("Thêm sản phẩm mới", systemImage: "plus.circle.fill")
+                                    .font(.headline)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .foregroundColor(.white)
+                                    .cornerRadius(15)
+                            }
+                            .padding(.horizontal, 40)
+                            .padding(.top, 10)
+                            
+                            // Suggestion for importing data
+                            Button {
+                                showingImportSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "square.and.arrow.down.fill")
+                                    Text("Hoặc nhập từ Excel/CSV")
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                            }
+                            .padding(.top, 5)
+                        }
+                        .padding()
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        // Search Bar
+                        if showingSearchBar {
+                            EnhancedSearchBar(
+                                text: Binding(
+                                    get: { viewModel.searchKey },
+                                    set: { viewModel.updateSearchKey($0) }
+                                ),
+                                placeholder: "Tìm kiếm sản phẩm..."
+                            )
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .scale.combined(with: .opacity)
+                            ))
+                            .padding()
+                        }
+                        
+                        // Filters
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                // Stock status filter
+                                Menu {
+                                    Picker("Trạng thái", selection: Binding(
+                                        get: { viewModel.selectedStockStatus },
+                                        set: { viewModel.updateSelectedStockStatus($0) }
+                                    )) {
+                                        Text("Tất cả").tag(Optional<IngredientUsage.StockStatus>.none)
+                                        Text("Còn hàng").tag(Optional<IngredientUsage.StockStatus>.some(.inStock))
+                                        Text("Sắp hết").tag(Optional<IngredientUsage.StockStatus>.some(.lowStock))
+                                        Text("Hết hàng").tag(Optional<IngredientUsage.StockStatus>.some(.outOfStock))
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                        Text(viewModel.selectedStockStatus?.description ?? "Tất cả")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    )
+                                    .foregroundColor(.primary)
+                                }
+                                
+                                // Sort order
+                                Menu {
+                                    Picker("Sắp xếp", selection: $viewModel.sortOrder) {
+                                        Text("Tên A-Z").tag(IngredientViewModel.SortOrder.name)
+                                        Text("Số lượng").tag(IngredientViewModel.SortOrder.quantity)
+                                        Text("Cập nhật").tag(IngredientViewModel.SortOrder.lastUpdated)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "arrow.up.arrow.down.circle.fill")
+                                        Text("Sắp xếp")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    )
+                                    .foregroundColor(.primary)
+                                }
+                                
+                                // Low stock filter
+                                Button(action: { viewModel.showLowStockOnly.toggle() }) {
+                                    HStack {
+                                        Image(systemName: viewModel.showLowStockOnly ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
+                                        Text("Sắp hết hàng")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    )
+                                    .foregroundColor(viewModel.showLowStockOnly ? .orange : .primary)
+                                }
+                                
+                                // Multi-select mode
+                                Button(action: { isMultiSelectMode.toggle() }) {
+                                    HStack {
+                                        Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
+                                        Text("Chọn nhiều")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    )
+                                    .foregroundColor(isMultiSelectMode ? .blue : .primary)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .padding(.vertical, 8)
+                        
+                        // Action Buttons when in multi-select mode
+                        if isMultiSelectMode && !selectedItems.isEmpty {
+                            multiSelectActionView
+                        }
+                        
+                        // Inventory List
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(viewModel.filteredAndSortedItems) { item in
+                                    IngredientUsageItem(
+                                        item: item,
+                                        isSelected: selectedItems.contains(item),
+                                        isMultiSelectMode: isMultiSelectMode
+                                    ) { item in
+                                        if isMultiSelectMode {
+                                            toggleItemSelection(item)
+                                        } else {
+                                            viewModel.selectedItem = item
+                                            appState.coordinator.navigateTo(.ingredientForm(viewModel.selectedItem), using: .present, with: .present)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.vertical)
+                        
+                        // Bottom Toolbar
+                        bottomToolbarView
+                            .background(
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .edgesIgnoringSafeArea(.bottom)
+                            )
                     }
                 }
-                .padding(.vertical)
-            }
-            
-            // Bottom Toolbar
-            bottomToolbarView
-                .background(
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .edgesIgnoringSafeArea(.bottom)
-                )
-        }
-        .navigationTitle("Quản lý kho")
-        .sheet(isPresented: $showingBatchUpdateSheet) {
-            BatchUpdateView(items: Array(selectedItems))
-        }
-        .sheet(isPresented: $showingImportSheet) {
-            ImportDataView()
-        }
-        .sheet(isPresented: $showingHistorySheet) {
-            InventoryHistoryView()
-        }
-        .overlay {
-            if viewModel.isLoading {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black.opacity(0.2))
-            }
-        }
-        .onAppear(perform: {
-            appState.sourceModel.setupIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
-        })
-        .onDisappear {
-            Task {
-                appState.sourceModel.removeIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+                .navigationTitle("Quản lý kho")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    showingSearchBar.toggle()
+                                }
+                            }) {
+                                Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                                    .font(.title2)
+                                    .foregroundStyle(.primary)
+                            }
+                            
+                            Button {
+                                viewModel.selectedItem = nil
+                                appState.coordinator.navigateTo(.ingredientForm(viewModel.selectedItem), using: .present, with: .present)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            }
+                        }
+                    }
+                }
+                .sheet(isPresented: $showingBatchUpdateSheet) {
+                    BatchUpdateView(items: Array(selectedItems))
+                }
+                .sheet(isPresented: $showingImportSheet) {
+                    ImportDataView()
+                }
+                .sheet(isPresented: $showingHistorySheet) {
+                    InventoryHistoryView()
+                }
+                .overlay {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.black.opacity(0.2))
+                    }
+                }
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        animateHeader = true
+                    }
+                    appState.sourceModel.setupIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+                }
+                .onDisappear {
+                    Task {
+                        appState.sourceModel.removeIngredientsListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+                    }
+                }
             }
         }
     }
     
-    private var toolbarView: some View {
-        VStack(spacing: 12) {
-            // Search bar
-            SearchBar(
-                text: Binding(
-                    get: { viewModel.searchKey },
-                    set: { viewModel.updateSearchKey($0) }
-                ),
-                placeholder: "Tìm kiếm sản phẩm..."
-            )
-            .padding()
-            
-            // Filters
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    // Stock status filter
-                    Menu {
-                        Picker("Trạng thái", selection: Binding(
-                            get: { viewModel.selectedStockStatus },
-                            set: { viewModel.updateSelectedStockStatus($0) }
-                        )) {
-                            Text("Tất cả").tag(Optional<IngredientUsage.StockStatus>.none)
-                            Text("Còn hàng").tag(Optional<IngredientUsage.StockStatus>.some(.inStock))
-                            Text("Sắp hết").tag(Optional<IngredientUsage.StockStatus>.some(.lowStock))
-                            Text("Hết hàng").tag(Optional<IngredientUsage.StockStatus>.some(.outOfStock))
-                        }
-                    } label: {
-                        Label(
-                            viewModel.selectedStockStatus?.description ?? "Tất cả",
-                            systemImage: "line.3.horizontal.decrease.circle"
-                        )
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "cube.box.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        
+                        Text("\(viewModel.filteredAndSortedItems.count) sản phẩm")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.bordered)
-                    
-                    // Sort order
-                    Menu {
-                        Picker("Sắp xếp", selection: $viewModel.sortOrder) {
-                            Text("Tên A-Z").tag(IngredientViewModel.SortOrder.name)
-                            Text("Số lượng").tag(IngredientViewModel.SortOrder.quantity)
-                            Text("Cập nhật").tag(IngredientViewModel.SortOrder.lastUpdated)
-                        }
-                    } label: {
-                        Label(
-                            "Sắp xếp",
-                            systemImage: "arrow.up.arrow.down"
-                        )
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    // Low stock filter
-                    Button(action: { viewModel.showLowStockOnly.toggle() }) {
-                        Label(
-                            "Sắp hết hàng",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(viewModel.showLowStockOnly ? .orange : nil)
-                    
-                    // Multi-select mode
-                    Button(action: { isMultiSelectMode.toggle() }) {
-                        Label(
-                            "Chọn nhiều",
-                            systemImage: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle"
-                        )
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(isMultiSelectMode ? .accentColor : nil)
                 }
-                .padding(.horizontal)
+                
+                Spacer()
+            }
+            
+            // Decorative divider
+            HStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 2)
+                    .frame(maxWidth: 100)
+                
+                Spacer()
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        )
+        .padding(.horizontal)
+    }
+    
+    private var quickStatsSection: some View {
+        HStack(spacing: 16) {
+            // Total Value
+            statsCard(
+                title: "Giá trị tồn kho",
+                value: formatCurrency(totalInventoryValue),
+                icon: "banknote.fill",
+                color: .green
+            )
+            
+            // Low Stock
+            statsCard(
+                title: "Sắp hết hàng",
+                value: "\(lowStockItemsCount)",
+                icon: "exclamationmark.triangle.fill",
+                color: .orange
+            )
+            
+            // Out of Stock
+            statsCard(
+                title: "Hết hàng",
+                value: "\(outOfStockItemsCount)",
+                icon: "xmark.circle.fill",
+                color: .red
+            )
+        }
+        .padding(.horizontal)
+    }
+    
+    private func statsCard(title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(value)
+                .font(.headline)
+                .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: color.opacity(0.1), radius: 8, x: 0, y: 4)
+        )
+    }
+    
+    private func formatCurrency(_ value: Double) -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        numberFormatter.groupingSeparator = "."
+        
+        let formattedNumber = numberFormatter.string(from: NSNumber(value: value)) ?? "0"
+        return "\(formattedNumber)đ"
     }
     
     private var multiSelectActionView: some View {
@@ -189,20 +495,40 @@ struct IngredientSectionView: View {
             Menu {
                 Button(action: { selectedAction = .import }) {
                     Label("Nhập từ Excel/CSV", systemImage: "square.and.arrow.down")
+                        .foregroundColor(.primary)
                 }
                 
                 Button(action: { selectedAction = .export }) {
                     Label("Xuất dữ liệu", systemImage: "square.and.arrow.up")
+                        .foregroundColor(.primary)
                 }
                 
                 Button(action: { selectedAction = .history }) {
                     Label("Lịch sử thay đổi", systemImage: "clock.arrow.circlepath")
+                        .foregroundColor(.primary)
                 }
             } label: {
-                Label("Thao tác", systemImage: "ellipsis.circle")
-                    .font(.body.bold())
+                HStack {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.title3)
+                    Text("Thao tác")
+                        .font(.headline)
+                }
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue.opacity(0.8), .purple.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+                )
             }
-            .buttonStyle(.bordered)
             
             Spacer()
             
@@ -210,12 +536,28 @@ struct IngredientSectionView: View {
                 viewModel.selectedItem = nil
                 appState.coordinator.navigateTo(.ingredientForm(viewModel.selectedItem), using: .present, with: .present)
             }) {
-                Label("Thêm sản phẩm", systemImage: "plus")
-                    .font(.body.bold())
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                    Text("Thêm sản phẩm mới")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+                .shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 2)
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
     
     private func toggleItemSelection(_ item: IngredientUsage) {
@@ -258,18 +600,18 @@ struct IngredientUsageItem: View {
         VStack(spacing: 12) {
             HStack(alignment: .top) {
                 // Checkbox cho multi-select mode
-                if isMultiSelectMode {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(isSelected ? .accentColor : .gray)
+            if isMultiSelectMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .accentColor : .gray)
                         .font(.system(size: 20))
-                }
-                
+            }
+            
                 // Thông tin chính
                 VStack(alignment: .leading, spacing: 6) {
                     // Tên và trạng thái
                     HStack {
-                        Text(item.name)
-                            .font(.headline)
+                Text(item.name)
+                    .font(.headline)
                         
                         Spacer()
                         
@@ -277,7 +619,7 @@ struct IngredientUsageItem: View {
                     }
                     
                     // Thông tin số lượng
-                    HStack {
+                HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             // Số lượng đơn vị
                             HStack(spacing: 4) {
@@ -292,13 +634,13 @@ struct IngredientUsageItem: View {
                                 Image(systemName: "sum")
                                     .foregroundColor(.gray)
                                 Text("\(String(format: "%.1f", availableAmount))/\(String(format: "%.1f", item.totalMeasurement)) \(item.measurementPerUnit.unit.shortDisplayName)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
                         // Hiển thị phần trăm đã sử dụng
                         ZStack {
                             Circle()
@@ -380,14 +722,14 @@ struct IngredientUsageItem: View {
     private var stockStatusBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: item.stockStatus.systemImage)
-            Text(item.stockStatus.description)
+        Text(item.stockStatus.description)
         }
-        .font(.caption)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(item.stockStatus.color.opacity(0.2))
-        .foregroundColor(item.stockStatus.color)
-        .clipShape(Capsule())
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(item.stockStatus.color.opacity(0.2))
+            .foregroundColor(item.stockStatus.color)
+            .clipShape(Capsule())
     }
 }
 

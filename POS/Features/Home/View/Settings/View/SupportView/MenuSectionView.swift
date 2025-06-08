@@ -16,49 +16,242 @@ struct MenuSectionView: View {
     @State private var showingAddEditSheet = false
     @State private var selectedItem: MenuItem?
     @State private var selectedAction: ActionType?
+    @State private var showingSearchBar = false
+    @State private var animateHeader = false
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Search & Filter
-            HStack {
-                SearchBar(text: $searchText, placeholder: "Tìm kiếm thực đơn...")
-            }
-            .padding()
-            
-            // Menu Grid
-            ScrollView {
+        Group {
+            if let shops = appState.sourceModel.shops, shops.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "building.2.crop.circle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("Chưa có cửa hàng nào")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Bạn cần tạo cửa hàng trước khi quản lý thực đơn")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    
+                    Button {
+                        appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
+                    } label: {
+                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .foregroundColor(.white)
+                            .cornerRadius(15)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 10)
+                }
+                .padding()
+            } else {
                 VStack(spacing: 16) {
-                    ForEach(viewModel.menuList) { menu in
-                        Button {
-                            viewModel.selectMenu(menu)
-                            appState.coordinator.navigateTo(.menuDetail)
-                        } label: {
-                            appState.coordinator.makeView(for: .menuRow(menu))
+                    // Enhanced Header
+                    headerSection
+                        .opacity(animateHeader ? 1 : 0)
+                        .offset(y: animateHeader ? 0 : -20)
+                    
+                    if viewModel.menuList.isEmpty {
+                        VStack(spacing: 20) {
+                            Image(systemName: "menucard.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            
+                            Text("Chưa có thực đơn nào")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            
+                            Text("Hãy tạo thực đơn đầu tiên cho cửa hàng của bạn")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                            
+                            Button {
+                                selectedItem = nil
+                                appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
+                            } label: {
+                                Label("Tạo thực đơn mới", systemImage: "plus.circle.fill")
+                                    .font(.headline)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .foregroundColor(.white)
+                                    .cornerRadius(15)
+                            }
+                            .padding(.horizontal, 40)
+                            .padding(.top, 10)
+                        }
+                        .padding()
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        // Search Bar
+                        if showingSearchBar {
+                            EnhancedSearchBar(
+                                text: $searchText,
+                                placeholder: "Tìm kiếm thực đơn..."
+                            )
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .scale.combined(with: .opacity)
+                            ))
+                            .padding()
+                        }
+                        
+                        // Menu Grid
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(viewModel.menuList) { menu in
+                                    Button {
+                                        viewModel.selectMenu(menu)
+                                        appState.coordinator.navigateTo(.menuDetail)
+                                    } label: {
+                                        appState.coordinator.makeView(for: .menuRow(menu))
+                                    }
+                                }
+                            }
+                            .padding()
+                        }
+                        
+                        // Bottom Toolbar
+                        bottomToolbar
+                            .background(
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .edgesIgnoringSafeArea(.bottom)
+                            )
+                    }
+                }
+                .navigationTitle("Quản lý thực đơn")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    showingSearchBar.toggle()
+                                }
+                            }) {
+                                Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                                    .font(.title2)
+                                    .foregroundStyle(.primary)
+                            }
+                            
+                            Button {
+                                selectedItem = nil
+                                appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            }
                         }
                     }
                 }
-                .padding()
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        animateHeader = true
+                    }
+                    Task {
+                        appState.sourceModel.setupMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+                    }
+                }
+                .onDisappear {
+                    Task {
+                        appState.sourceModel.removeMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+                    }
+                }
+            }
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+        HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "menucard.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        
+                        Text("\(viewModel.menuList.count) thực đơn")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                    }
             }
             
-            // Bottom Toolbar
-            bottomToolbar
-                .background(
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .edgesIgnoringSafeArea(.bottom)
-                )
-        }
-        .navigationTitle("Quản lý thực đơn")
-        .onAppear(perform: {
-            Task {
-                appState.sourceModel.setupMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
-        }
-        })
-        .onDisappear {
-            Task {
-                appState.sourceModel.removeMenuListListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
+            Spacer()
+            }
+            
+            // Decorative divider
+            HStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 2)
+                    .frame(maxWidth: 100)
+                
+                Spacer()
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        )
+        .padding(.horizontal)
+        .padding(.bottom, 16)
     }
     
     private var bottomToolbar: some View {
@@ -66,20 +259,40 @@ struct MenuSectionView: View {
             Menu {
                 Button(action: { selectedAction = .import }) {
                     Label("Nhập từ Excel/CSV", systemImage: "square.and.arrow.down")
+                        .foregroundColor(.primary)
                 }
                 
                 Button(action: { selectedAction = .export }) {
                     Label("Xuất dữ liệu", systemImage: "square.and.arrow.up")
+                        .foregroundColor(.primary)
                 }
                 
                 Button(action: { selectedAction = .history }) {
                     Label("Lịch sử thay đổi", systemImage: "clock.arrow.circlepath")
+                        .foregroundColor(.primary)
                 }
             } label: {
-                Label("Thao tác", systemImage: "ellipsis.circle")
-                    .font(.body.bold())
+                HStack {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.title3)
+                    Text("Thao tác")
+                        .font(.headline)
+                }
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue.opacity(0.8), .purple.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+                )
             }
-            .buttonStyle(.bordered)
             
             Spacer()
             
@@ -87,12 +300,28 @@ struct MenuSectionView: View {
                 selectedItem = nil
                 appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
             }) {
-                Label("Thêm thực đơn mới", systemImage: "plus.circle.fill")
-                    .font(.body.bold())
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                    Text("Thêm thực đơn mới")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+                .shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 2)
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
 }
 
@@ -801,24 +1030,6 @@ struct MenuDetailView: View {
         .padding(.horizontal)
         .padding(.bottom, 16)
     }
-    
-//    private func updateMenu() async {
-//        guard var menu = viewModel.currentMenu else { return }
-//        
-//        menu.menuName = editedMenuName.trimmingCharacters(in: .whitespacesAndNewlines)
-//        menu.description = editedMenuDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : editedMenuDescription.trimmingCharacters(in: .whitespacesAndNewlines)
-//        menu.updatedAt = Date()
-//        
-//        await viewModel.updateMenu(menu)
-//        appState.sourceModel.showSuccess("Cập nhật thực đơn thành công!")
-//    }
-//    
-//    private func deleteMenu() async {
-//        guard let menu = viewModel.currentMenu else { return }
-//        
-//        await viewModel.deleteMenu(menu)
-//        appState.sourceModel.showSuccess("Đã xóa thực đơn thành công!")
-//    }
     
     private var searchAndFilterSection: some View {
         VStack(spacing: 16) {

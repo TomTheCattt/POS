@@ -24,6 +24,7 @@ class RouterViewModel: ObservableObject {
     let printerVM: PrinterViewModel
     let passwordVM: PasswordViewModel
     let shopVM: ShopManagementViewModel
+    let staffVM: StaffViewModel
     
     init(source: SourceModel) {
         self.source = source
@@ -39,5 +40,6 @@ class RouterViewModel: ObservableObject {
         self.printerVM = PrinterViewModel(source: source)
         self.passwordVM = PasswordViewModel(source: source)
         self.shopVM = ShopManagementViewModel(source: source)
+        self.staffVM = StaffViewModel(source: source)
     }
 }

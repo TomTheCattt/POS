@@ -8,6 +8,11 @@ final class ShopManagementViewModel: ObservableObject {
     var shops: [Shop] = []
     @Published var searchText: String = ""
     @Published var currentView: ViewType = .menu
+    @Published var shopName: String = ""
+    @Published var address: String = ""
+    @Published var groundRent: Double = 0.0
+    @Published var currency: Currency = .vnd
+    @Published var isActive: Bool = true
     
     // MARK: - Dependencies
     private let source: SourceModel
@@ -54,23 +59,21 @@ final class ShopManagementViewModel: ObservableObject {
         return userShops.count < Shop.maxShopsPerUser
     }
     
-    func createNewShop(name: String) async throws {
+    func createNewShop() async throws {
         guard let userId = source.currentUser?.id else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Người dùng chưa đăng nhập"])
         }
         
+        guard !shopName.isEmpty else {
+            return
+        }
+        
         do {
             // Validate before creating
-            try Shop.validate(shopName: name, ownerId: userId, existingShops: shops)
+            try Shop.validate(shopName: shopName, groundRent: 0, ownerId: userId, existingShops: shops)
             
             // Create new shop
-            let newShop = Shop(
-                shopName: name,
-                isActive: false,
-                createdAt: Date(),
-                updatedAt: Date(),
-                ownerId: userId
-            )
+            let newShop = Shop(shopName: shopName, isActive: false, createdAt: Date(), updatedAt: Date(), ownerId: userId, groundRent: 0, currency: .vnd, address: address)
             
             // Save to database
             let _ = try await source.environment.databaseService.createShop(newShop, userId: userId)

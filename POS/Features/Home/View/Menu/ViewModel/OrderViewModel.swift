@@ -9,7 +9,7 @@ final class OrderViewModel: ObservableObject {
     @Published private(set) var selectedCategory: String = "All"
     @Published private(set) var menuItems: [MenuItem] = []
     @Published private(set) var categories: [String] = ["All"]
-    private(set) var paymentMethod: PaymentMethod = .cash
+    @Published private(set) var paymentMethod: PaymentMethod = .cash
     @Published private(set) var ingredientAlerts: [IngredientAlert] = []
     
     // MARK: - Dependencies
@@ -164,7 +164,7 @@ final class OrderViewModel: ObservableObject {
             try await updateIngredientUsage(for: newOrder)
             
             // Sau khi kiểm tra nguyên liệu thành công, tạo đơn hàng mới
-            _ = try await source.environment.databaseService.createOrder(
+            let createdOrderId = try await source.environment.databaseService.createOrder(
                 newOrder,
                 userId: userId,
                 shopId: shopId
@@ -172,6 +172,8 @@ final class OrderViewModel: ObservableObject {
             
             // Xóa giỏ hàng sau khi đặt hàng thành công
             clearOrder()
+            let shortId = String(createdOrderId.suffix(6)).uppercased()
+            source.showSuccess("Order created with ID#\(shortId)")
         } catch {
             source.handleError(error)
             throw error
@@ -182,6 +184,9 @@ final class OrderViewModel: ObservableObject {
         var alerts: [IngredientAlert] = []
         
         try await source.environment.databaseService.runTransaction { transaction in
+            // BƯỚC 1: Đọc tất cả ingredients cần thiết và tính toán số lượng
+            var ingredientUpdates: [(ingredient: IngredientUsage, requiredAmount: Double)] = []
+            
             for item in order.items {
                 guard let menuItem = self.menuItems.first(where: { $0.name == item.name }) else {
                     print("⚠️ MenuItem not found: \(item.name)")
@@ -190,51 +195,65 @@ final class OrderViewModel: ObservableObject {
                 
                 for recipe in menuItem.recipe {
                     do {
-                        var ingredient = try self.source.environment.databaseService.getIngredientUsageInTransaction(
+                        // Đọc ingredient từ database
+                        let ingredient = try self.source.environment.databaseService.getIngredientUsageInTransaction(
                             transaction,
                             userId: self.source.userId,
                             shopId: self.source.activatedShop!.id!,
                             ingredientId: recipe.ingredientId
                         )
                         
-                        // Tính toán lượng nguyên liệu cần sử dụng cho mỗi đơn vị
+                        // Tính toán lượng nguyên liệu cần sử dụng
                         let requiredAmount = recipe.requiredAmount
                         guard let convertedAmount = requiredAmount.converted(to: ingredient.measurementPerUnit.unit) else {
                             print("⚠️ Cannot convert measurement units for: \(recipe.ingredientName)")
                             continue
                         }
                         
-                        // Tính tổng lượng nguyên liệu cần sử dụng cho đơn hàng
+                        // Tính tổng lượng nguyên liệu cần cho đơn hàng
                         let totalRequired = convertedAmount.value * Double(item.quantity)
                         
-                        // Kiểm tra xem có đủ nguyên liệu không
+                        // Kiểm tra số lượng tồn kho
                         let availableAmount = ingredient.totalMeasurement - ingredient.used
                         guard availableAmount >= totalRequired else {
                             throw AppError.database(.insufficientIngredient(name: ingredient.name))
                         }
                         
-                        // Cập nhật số lượng đã sử dụng
-                        ingredient.used += totalRequired
-                        ingredient.updatedAt = Date()
-                        
-                        // Kiểm tra và thêm cảnh báo nếu tồn kho thấp
-                        if ingredient.isLowStock {
-                            alerts.append(IngredientAlert(ingredient: ingredient))
+                        // Thêm vào danh sách cần update
+                        if let existingIndex = ingredientUpdates.firstIndex(where: { $0.ingredient.id == ingredient.id }) {
+                            // Cộng dồn số lượng nếu ingredient đã tồn tại
+                            ingredientUpdates[existingIndex].requiredAmount += totalRequired
+                        } else {
+                            // Thêm mới nếu chưa có
+                            ingredientUpdates.append((ingredient: ingredient, requiredAmount: totalRequired))
                         }
-                        
-                        // Cập nhật ingredient trong transaction
-                        try self.source.environment.databaseService.updateIngredientUsageInTransaction(
-                            transaction,
-                            ingredientUsage: ingredient,
-                            userId: self.source.userId,
-                            shopId: self.source.activatedShop!.id!
-                        )
                     } catch {
-                        print("🔥 Error updating ingredient \(recipe.ingredientName): \(error.localizedDescription)")
+                        print("🔥 Error reading ingredient \(recipe.ingredientName): \(error.localizedDescription)")
                         throw error
                     }
                 }
             }
+            
+            // BƯỚC 2: Thực hiện tất cả các updates sau khi đã đọc xong
+            for var update in ingredientUpdates {
+                // Cập nhật số lượng đã sử dụng
+                update.ingredient.used += update.requiredAmount
+                update.ingredient.updatedAt = Date()
+                
+                // Kiểm tra và thêm cảnh báo nếu tồn kho thấp
+                if update.ingredient.isLowStock {
+                    alerts.append(IngredientAlert(ingredient: update.ingredient))
+                }
+                
+                // Cập nhật ingredient trong transaction
+                try self.source.environment.databaseService.updateIngredientUsageInTransaction(
+                    transaction,
+                    ingredientUsage: update.ingredient,
+                    userId: self.source.userId,
+                    shopId: self.source.activatedShop!.id!
+                )
+            }
+            
             return nil
         }
         

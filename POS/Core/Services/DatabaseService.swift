@@ -424,25 +424,25 @@ extension DatabaseService {
         try await delete(id: ingredientsUsageId, from: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    // MARK: - Recipes Operations
-    func createRecipe<T: Codable>(_ recipe: T, userId: String, shopId: String) async throws -> String {
-        return try await create(recipe, in: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    // MARK: - Staffs Operations
+    func createStaff<T: Codable>(_ staff: T, userId: String, shopId: String) async throws -> String {
+        return try await create(staff, in: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getRecipe<T: Codable>(userId: String, shopId: String, recipeId: String) async throws -> T {
-        return try await get(id: recipeId, from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func getStaff<T: Codable>(userId: String, shopId: String, staffId: String) async throws -> T {
+        return try await get(id: staffId, from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func getAllRecipes<T: Codable>(userId: String, shopId: String) async throws -> [T] {
-        return try await getAll(from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func getAllStaffs<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func updateRecipe<T: Codable>(_ recipe: T, userId: String, shopId: String, recipeId: String) async throws {
-        let _ = try await update(recipe, id: recipeId, in: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func updateStaff<T: Codable>(_ staff: T, userId: String, shopId: String, staffId: String) async throws {
+        let _ = try await update(staff, id: staffId, in: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    func deleteRecipe(userId: String, shopId: String, recipeId: String) async throws {
-        try await delete(id: recipeId, from: .recipes, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    func deleteStaff(userId: String, shopId: String, staffId: String) async throws {
+        try await delete(id: staffId, from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
     // MARK: - Menu Items Operations
@@ -468,6 +468,14 @@ extension DatabaseService {
     
     // MARK: - Real-time Listeners
     
+    func listenToCurrentUser<T: Codable>(userId: String, completion: @escaping (Result<T?, Error>) -> Void) {
+        addDocumentListener(collection: .users, type: .document, key: "users_\(userId)", id: userId, completion: completion)
+    }
+    
+    func removeCurrentUserListener(userId: String) {
+        removeListener(forKey: "users_\(userId)")
+    }
+    
     func listenToShops<T: Codable>(userId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
         addCollectionListener(
             collection: .shops,
@@ -476,6 +484,10 @@ extension DatabaseService {
             queryBuilder: queryBuilder,
             completion: completion
         )
+    }
+    
+    func removeShopsListener(userId: String) {
+        removeListener(forKey: "shops_\(userId)")
     }
     
 //    func listenToShop<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<T?, Error>) -> Void) {
@@ -556,5 +568,19 @@ extension DatabaseService {
     
     func removeMenuItemsListener(shopId: String, menuId: String) {
         removeListener(forKey: "menu_items_\(shopId)_\(menuId)")
+    }
+    
+    func listenToStaffs<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .staff,
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "staffs_\(userId)_\(shopId)",
+            queryBuilder: queryBuilder,
+            completion: completion
+        )
+    }
+    
+    func removeStaffsListener(userId: String, shopId: String) {
+        removeListener(forKey: "staffs_\(userId)_\(shopId)")
     }
 }

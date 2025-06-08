@@ -327,11 +327,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         )
     }
     
-    private func processSalesReport(
-        from documents: [QueryDocumentSnapshot],
-        startDate: Date,
-        endDate: Date
-    ) async throws -> SalesReport {
+    private func processSalesReport(from documents: [QueryDocumentSnapshot], startDate: Date, endDate: Date) async throws -> SalesReport {
         var totalRevenue = 0.0
         var totalOrders = 0
         var salesByDay: [Date: Double] = [:]
@@ -383,10 +379,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         )
     }
     
-    private func processSalesTrend(
-        from documents: [QueryDocumentSnapshot],
-        interval: Calendar.Component
-    ) throws -> [SalesTrendPoint] {
+    private func processSalesTrend(from documents: [QueryDocumentSnapshot], interval: Calendar.Component) throws -> [SalesTrendPoint] {
         var points: [SalesTrendPoint] = []
         var previousValue: Double?
         
@@ -453,10 +446,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         )
     }
     
-    private func processEventStats(
-        from documents: [QueryDocumentSnapshot],
-        eventName: String
-    ) throws -> EventStats {
+    private func processEventStats(from documents: [QueryDocumentSnapshot],eventName: String) throws -> EventStats {
         let totalOccurrences = documents.count
         var frequency: [Date: Int] = [:]
         var parameters: [String: [String: Int]] = [:]
@@ -517,4 +507,204 @@ struct SaleItem: Codable {
     let quantity: Int
     let price: Double
     let total: Double
-} 
+}
+
+struct AnalyticsMetrics {
+    let totalRevenue: Double
+    let totalOrders: Int
+    let averageOrderValue: Double
+    let topSellingItem: String
+    let revenueChange: Double
+    let ordersChange: Double
+    let averageOrderChange: Double
+}
+
+struct AnalyticsInsight {
+    let peakHours: String
+    let peakHoursPercentage: Double
+    let bestDay: String
+    let bestDayDetail: String
+    let newCustomers: Int
+    let newCustomersChange: Double
+    let returnRate: Double
+    let returnRateChange: Double
+}
+
+extension AnalyticsService {
+    // MARK: - Analytics View Data
+    
+    /// Lấy dữ liệu metrics cho dashboard
+    func getAnalyticsMetrics(for timeFilter: TimeFilter) async throws -> AnalyticsMetrics {
+        let (currentPeriod, previousPeriod) = getTimeFilterDateRanges(for: timeFilter)
+        
+        async let currentReport = getSalesReport(from: currentPeriod.start, to: currentPeriod.end)
+        async let previousReport = getSalesReport(from: previousPeriod.start, to: previousPeriod.end)
+        async let topItems = getTopSellingItems(limit: 1)
+        
+        let (current, previous, topSellingItems) = try await (currentReport, previousReport, topItems)
+        
+        let revenueChange = calculatePercentageChange(
+            current: current.totalRevenue,
+            previous: previous.totalRevenue
+        )
+        
+        let ordersChange = calculatePercentageChange(
+            current: Double(current.totalOrders),
+            previous: Double(previous.totalOrders)
+        )
+        
+        let avgOrderChange = calculatePercentageChange(
+            current: current.averageOrderValue,
+            previous: previous.averageOrderValue
+        )
+        
+        return AnalyticsMetrics(
+            totalRevenue: current.totalRevenue,
+            totalOrders: current.totalOrders,
+            averageOrderValue: current.averageOrderValue,
+            topSellingItem: topSellingItems.first?.name ?? "",
+            revenueChange: revenueChange,
+            ordersChange: ordersChange,
+            averageOrderChange: avgOrderChange
+        )
+    }
+    
+    /// Lấy dữ liệu insights cho dashboard
+    func getAnalyticsInsights(for timeFilter: TimeFilter) async throws -> AnalyticsInsight {
+        let (currentPeriod, previousPeriod) = getTimeFilterDateRanges(for: timeFilter)
+        
+        async let currentStats = getCustomerStats()
+        async let previousStats = getCustomerStatsForPeriod(from: previousPeriod.start, to: previousPeriod.end)
+        async let salesReport = getSalesReport(from: currentPeriod.start, to: currentPeriod.end)
+        
+        let (current, previous, report) = try await (currentStats, previousStats, salesReport)
+        
+        // Tính toán giờ cao điểm
+        let (peakHour, percentage) = calculatePeakHours(from: report)
+        
+        // Tính ngày tốt nhất
+        let (bestDay, detail) = calculateBestDay(from: report)
+        
+        let newCustomersChange = calculatePercentageChange(
+            current: Double(current.newCustomers),
+            previous: Double(previous.newCustomers)
+        )
+        
+        let returnRateChange = calculatePercentageChange(
+            current: Double(current.returningCustomers) / Double(current.totalCustomers),
+            previous: Double(previous.returningCustomers) / Double(previous.totalCustomers)
+        )
+        
+        return AnalyticsInsight(
+            peakHours: peakHour,
+            peakHoursPercentage: percentage,
+            bestDay: bestDay,
+            bestDayDetail: detail,
+            newCustomers: current.newCustomers,
+            newCustomersChange: newCustomersChange,
+            returnRate: Double(current.returningCustomers) / Double(current.totalCustomers) * 100,
+            returnRateChange: returnRateChange
+        )
+    }
+    
+    /// Lấy dữ liệu revenue theo thời gian
+    func getRevenueData(for timeFilter: TimeFilter) async throws -> [RevenueData] {
+        let (period, _) = getTimeFilterDateRanges(for: timeFilter)
+        let salesTrend = try await getSalesTrend(period: convertTimeFilterToAnalyticsPeriod(timeFilter))
+        
+        return salesTrend.map { point in
+            RevenueData(date: point.date, revenue: point.value)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func getTimeFilterDateRanges(for filter: TimeFilter) -> (current: (start: Date, end: Date), previous: (start: Date, end: Date)) {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        var currentStart: Date
+        var currentEnd = now
+        
+        switch filter {
+        case .day:
+            currentStart = calendar.startOfDay(for: now)
+        case .week:
+            currentStart = calendar.date(byAdding: .day, value: -7, to: now)!
+        case .month:
+            currentStart = calendar.date(byAdding: .month, value: -1, to: now)!
+        }
+        
+        let periodLength = calendar.dateComponents([.second], from: currentStart, to: currentEnd).second!
+        let previousEnd = currentStart
+        let previousStart = calendar.date(byAdding: .second, value: -periodLength, to: previousEnd)!
+        
+        return (
+            current: (start: currentStart, end: currentEnd),
+            previous: (start: previousStart, end: previousEnd)
+        )
+    }
+    
+    private func calculatePercentageChange(current: Double, previous: Double) -> Double {
+        guard previous != 0 else { return 0 }
+        return ((current - previous) / previous) * 100
+    }
+    
+    private func calculatePeakHours(from report: SalesReport) -> (hours: String, percentage: Double) {
+        // Giả sử report có thông tin về số đơn hàng theo giờ
+        let peakHour = "7:00 - 9:00 AM" // Implement logic to find actual peak hours
+        let percentage = 35.0 // Implement logic to calculate actual percentage
+        return (peakHour, percentage)
+    }
+    
+    private func calculateBestDay(from report: SalesReport) -> (day: String, detail: String) {
+        // Implement logic to find the best performing day
+        return ("Thứ 6", "Doanh thu cao nhất tuần")
+    }
+    
+    private func convertTimeFilterToAnalyticsPeriod(_ filter: TimeFilter) -> AnalyticsPeriod {
+        switch filter {
+        case .day: return .day
+        case .week: return .week
+        case .month: return .month
+        }
+    }
+    
+    private func getCustomerStatsForPeriod(from: Date, to: Date) async throws -> CustomerStats {
+        // Implement logic to get customer stats for a specific period
+        let snapshot = try await db.collection("customers")
+            .whereField("createdAt", isGreaterThanOrEqualTo: from)
+            .whereField("createdAt", isLessThan: to)
+            .getDocuments()
+        
+        return try processCustomerStats(from: snapshot.documents)
+    }
+}
+
+// Add TimeFilter enum if not already defined elsewhere
+enum TimeFilter: CaseIterable {
+    case day, week, month
+    
+    var displayName: String {
+        switch self {
+        case .day: return "Ngày"
+        case .week: return "Tuần"
+        case .month: return "Tháng"
+        }
+    }
+    
+    var chartDescription: String {
+        switch self {
+        case .day: return "24 giờ qua"
+        case .week: return "7 ngày qua"
+        case .month: return "4 tuần qua"
+        }
+    }
+    
+    var axisStride: Calendar.Component {
+        switch self {
+        case .day: return .hour
+        case .week: return .day
+        case .month: return .weekOfYear
+        }
+    }
+}

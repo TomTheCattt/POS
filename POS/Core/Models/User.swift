@@ -12,11 +12,11 @@ struct AppUser: Codable, Identifiable, Equatable {
     @DocumentID var id: String?
     let uid: String
     let email: String
-    let displayName: String
-    let photoURL: URL?
+    var displayName: String
+    var photoURL: URL?
     var ownerPassword: String
     let createdAt: Date
-    let updatedAt: Date
+    var updatedAt: Date
     
     var dictionary: [String: Any] {
         [

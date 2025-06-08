@@ -6,66 +6,113 @@ import FirebaseStorage
 
 @MainActor
 class ProfileViewModel: ObservableObject {
-    private let source: SourceModel
-    
+    // MARK: - Properties
     @Published var fullName: String = ""
     @Published var email: String = ""
     @Published var avatarUrl: URL?
-    @Published var isShowingImagePicker: Bool = false
-    @Published var selectedImage: UIImage?
     
+    private let source: SourceModel
+    
+    // MARK: - Initialization
     init(source: SourceModel) {
         self.source = source
+        setupBinding()
+    }
+    
+    // MARK: - Public Methods
+    func setupBinding() {
         source.currentUserPublisher
-            .sink { [weak self] user in
-                self?.fullName = user?.displayName ?? "Unknown User"
-                self?.email = user?.email ?? "Unknown Email"
-                self?.avatarUrl = user?.photoURL
+            .sink { [weak self] currentUser in
+                guard let self = self,
+                      let currentUser = currentUser else { return }
+                self.fullName = currentUser.displayName
+                self.email = currentUser.email
+                self.avatarUrl = currentUser.photoURL
             }
             .store(in: &source.cancellables)
     }
     
     func updateProfile() async throws {
-        guard let currentUser = source.currentUser, let userId = currentUser.id else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Người dùng chưa đăng nhập"])
+        guard let user = source.currentUser else {
+            throw AppError.auth(.userNotFound)
         }
         
         do {
             try await source.withLoading {
-                let _ = try await source.environment.databaseService.updateUser(AppUser(uid: currentUser.uid, email: email, displayName: fullName, photoURL: avatarUrl, ownerPassword: currentUser.ownerPassword, createdAt: currentUser.createdAt, updatedAt: Date()), userId: userId)
-                source.showSuccess("Cập nhật thông tin thành công")
+                let newUser = AppUser(uid: user.uid, email: user.email, displayName: fullName, photoURL: user.photoURL, ownerPassword: user.ownerPassword, createdAt: user.createdAt, updatedAt: Date())
+                let _ = try await source.environment.databaseService.updateUser(newUser, userId: user.id ?? "")
             }
         } catch {
             source.showError(error.localizedDescription)
         }
     }
     
-    func deleteAvatar() async throws {
-        guard let currentUser = source.currentUser, let userId = currentUser.id, let photoURL = currentUser.photoURL else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Người dùng chưa đăng nhập"])
+    func updateProfileImage(_ image: UIImage) async throws {
+        guard let userId = source.currentUser?.uid,
+              let imageData = image.jpegData(compressionQuality: 0.7) else {
+            throw NSError(domain: "ProfileError", code: 400, userInfo: [NSLocalizedDescriptionKey: "Không thể xử lý ảnh"])
         }
         
         do {
             try await source.withLoading {
-                if avatarUrl != nil {
-                    try await source.environment.storageService.deleteImage(at: photoURL)
-                    let _ = try await source.environment.databaseService.updateUser(AppUser(uid: currentUser.uid, email: email, displayName: fullName, photoURL: nil, ownerPassword: currentUser.ownerPassword, createdAt: currentUser.createdAt, updatedAt: Date()), userId: userId)
-                    self.avatarUrl = nil
-                    source.showSuccess("Đã xóa ảnh đại diện")
+                let path = "user/\(userId)/\(UUID().uuidString)"
+                let photoURL = try await source.environment.storageService.uploadImage(imageData, path: path)
+                if let currentUser = source.currentUser {
+                    var updateUser = currentUser
+                    updateUser.photoURL = photoURL
+                    updateUser.updatedAt = Date()
+                    let _ = try await source.environment.databaseService.updateUser(updateUser, userId: userId)
+                    avatarUrl = photoURL
                 }
+                
             }
         } catch {
             source.showError(error.localizedDescription)
         }
     }
     
-    func validateProfile() -> Bool {
-        // Kiểm tra fullName không được trống
-        guard !fullName.trimmingCharacters(in: .whitespaces).isEmpty else {
-            source.showError("Vui lòng nhập họ tên")
-            return false
+    // MARK: - Error Handling
+    private func handleError(_ error: Error) {
+        let errorMessage: String
+        switch error {
+        case let storageError as StorageError:
+            switch storageError {
+            case .fileNotFound:
+                errorMessage = "Không tìm thấy file ảnh"
+            case .permissionDenied:
+                errorMessage = "Không có quyền truy cập"
+            default:
+                errorMessage = "Lỗi khi tải ảnh lên: \(storageError.localizedDescription)"
+            }
+        case let firestoreError as FirestoreError:
+            errorMessage = "Lỗi cập nhật dữ liệu: \(firestoreError.localizedDescription)"
+        default:
+            errorMessage = error.localizedDescription
         }
         
-        return true
-    } 
+        source.showError(errorMessage)
+    }
+}
+
+// MARK: - Custom Errors
+extension ProfileViewModel {
+    enum ProfileError: LocalizedError {
+        case imageProcessingFailed
+        case uploadFailed
+        case updateFailed
+        case userNotFound
+        
+        var errorDescription: String? {
+            switch self {
+            case .imageProcessingFailed:
+                return "Không thể xử lý ảnh"
+            case .uploadFailed:
+                return "Không thể tải ảnh lên"
+            case .updateFailed:
+                return "Không thể cập nhật thông tin"
+            case .userNotFound:
+                return "Không tìm thấy thông tin người dùng"
+            }
+        }
+    }
 }

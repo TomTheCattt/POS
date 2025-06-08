@@ -17,7 +17,6 @@ final class AuthenticationViewModel: ObservableObject {
     // MARK: - Published Properties
     var email = ""
     var displayName = ""
-    var shopName = ""
     var ownerPassword = ""
     var password = ""
     var rePassword = ""
@@ -50,9 +49,6 @@ final class AuthenticationViewModel: ObservableObject {
                 
                 let newUser = AppUser(uid: authResult.uid, email: email, displayName: displayName, photoURL: nil, ownerPassword: ownerPassword, createdAt: Date(), updatedAt: Date())
                 let userId = try await source.environment.databaseService.createUser(newUser)
-                
-                let shop = Shop(shopName: shopName, isActive: true, createdAt: Date(), updatedAt: Date(), ownerId: userId)
-                let _ = try await source.environment.databaseService.createShop(shop, userId: userId)
                 
             }
             await source.showSuccess(AppLocalizedString.verifyEmailSentContent)
@@ -90,9 +86,6 @@ final class AuthenticationViewModel: ObservableObject {
     private func validateRegisterInput() throws {
         if displayName.isEmpty {
             throw AppError.validation(.emptyField(field: "display name"))
-        }
-        if shopName.isEmpty {
-            throw AppError.validation(.emptyField(field: "shop name"))
         }
         if email.isEmpty {
             throw AppError.validation(.emptyField(field: "email"))
@@ -135,7 +128,6 @@ final class AuthenticationViewModel: ObservableObject {
         password = ""
         rePassword = ""
         displayName = ""
-        shopName = ""
         ownerPassword = ""
     }
 }

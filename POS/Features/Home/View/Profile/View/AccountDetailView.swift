@@ -12,22 +12,44 @@ struct AccountDetailView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject var viewModel: ProfileViewModel
     @Environment(\.colorScheme) var colorScheme
+    @State private var selectedImage: UIImage?
+    @State private var isShowingImagePicker = false
     
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 32) {
-                // Header
-                Text("Thông tin tài khoản")
-                    .font(.title2.bold())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+            VStack(spacing: 24) {
+                // Header với animation
+                HStack {
+                    Text("Thông tin tài khoản")
+                        .font(.system(size: 28, weight: .bold))
+                    Spacer()
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
                 
-                // Profile Image Section
+                // Profile Image Section với hiệu ứng
                 profileImageSection
-                    .padding(.bottom)
+                    .padding(.vertical, 20)
                 
                 // Information Card
                 VStack(spacing: 24) {
+                    // Thời gian tạo tài khoản
+                    HStack {
+                        Label("Ngày tạo tài khoản", systemImage: "calendar")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        Spacer()
+                        Text(appState.sourceModel.currentUser?.createdAt.formatted(date: .abbreviated, time: .shortened) ?? "")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal)
+                    
+                    Divider()
+                        .padding(.horizontal)
+                    
                     // User Information Section
                     informationSection
                     
@@ -36,60 +58,82 @@ struct AccountDetailView: View {
                 }
                 .padding(24)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 20)
                         .fill(Color(.systemBackground))
-                        .shadow(color: Color.black.opacity(0.05), radius: 10)
+                        .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
                 )
                 .padding(.horizontal)
             }
             .padding(.vertical)
         }
         .background(Color(.systemGroupedBackground))
-        .sheet(isPresented: $viewModel.isShowingImagePicker) {
-//            PhotosPicker(selection: $viewModel.imageSelection,
-//                        matching: .images,
-//                        photoLibrary: .shared()) {
-//                Text("Chọn ảnh")
-//            }
+        .sheet(isPresented: $isShowingImagePicker) {
+            ImagePicker(image: $selectedImage)
+                .ignoresSafeArea()
+                .onDisappear {
+                    if let image = selectedImage {
+                        Task {
+                            //await viewModel.updateProfileImage(image)
+                        }
+                    }
+                }
+        }
+        .onAppear {
+            //appState.sourceModel.setupCurrentUserListener()
+        }
+        .onDisappear {
+            //appState.sourceModel.removeCurrentUserListener()
         }
     }
     
     private var profileImageSection: some View {
         VStack(spacing: 16) {
             ZStack {
+                // Background Circle
                 Circle()
-                    .fill(Color(.systemGray6))
-                    .frame(width: 140, height: 140)
-                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    .fill(Color(.systemBackground))
+                    .frame(width: 150, height: 150)
+                    .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
                 
-                if let image = viewModel.selectedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 130, height: 130)
-                        .clipShape(Circle())
-                } else if let photoURL = viewModel.avatarUrl {
-                    AsyncImage(url: photoURL) { image in
-                        image
+                // Profile Image
+                Group {
+                    if let image = selectedImage {
+                        Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
-                    } placeholder: {
-                        ProgressView()
-                            .frame(width: 40, height: 40)
+                            .frame(width: 140, height: 140)
+                            .clipShape(Circle())
+                            .transition(.scale.combined(with: .opacity))
+                    } else if let photoURL = viewModel.avatarUrl {
+                        AsyncImage(url: photoURL) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .transition(.scale.combined(with: .opacity))
+                        } placeholder: {
+                            ProgressView()
+                                .frame(width: 40, height: 40)
+                        }
+                        .frame(width: 140, height: 140)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 140, height: 140)
+                            .foregroundColor(.gray)
                     }
-                    .frame(width: 130, height: 130)
-                    .clipShape(Circle())
-                } else {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 130, height: 130)
-                        .foregroundColor(.gray)
                 }
+                .overlay(
+                    Circle()
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 3)
+                )
                 
-                // Camera Button
+                // Camera Button với animation
                 Button {
-                    viewModel.isShowingImagePicker = true
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isShowingImagePicker = true
+                    }
                 } label: {
                     Circle()
                         .fill(Color.blue)
@@ -99,33 +143,48 @@ struct AccountDetailView: View {
                                 .font(.system(size: 20))
                                 .foregroundColor(.white)
                         )
-                        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+                        .shadow(color: .black.opacity(0.2), radius: 5, y: 3)
                 }
-                .offset(x: 45, y: 45)
+                .offset(x: 50, y: 50)
+                .transition(.scale.combined(with: .opacity))
             }
             
             if appState.sourceModel.isLoading {
-                ProgressView("Đang tải ảnh lên...")
-                    .progressViewStyle(CircularProgressViewStyle())
+                HStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                    Text("Đang tải ảnh lên...")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(
+                    Capsule()
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+                )
             }
         }
     }
     
     private var informationSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             CustomTextField(
                 title: "Tên hiển thị",
                 text: $viewModel.fullName,
-                icon: "person.fill"
+                icon: "person.fill",
+                placeholder: "Nhập tên hiển thị"
             )
             
             CustomTextField(
                 title: "Email",
                 text: $viewModel.email,
-                icon: "envelope.fill"
+                icon: "envelope.fill",
+                placeholder: "Email của bạn",
+                isDisabled: true
             )
             .textInputAutocapitalization(.never)
-            .disabled(true) // Email không thể thay đổi
         }
     }
     
@@ -146,18 +205,21 @@ struct AccountDetailView: View {
                         .padding(.trailing, 8)
                 }
                 Text("Cập nhật thông tin")
+                    .fontWeight(.semibold)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .semibold))
             }
-            .fontWeight(.semibold)
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(height: 54)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 15)
                     .fill(Color.blue)
-                    .shadow(color: Color.blue.opacity(0.3), radius: 8, y: 4)
+                    .shadow(color: Color.blue.opacity(0.3), radius: 10, y: 5)
             )
         }
         .disabled(appState.sourceModel.isLoading)
+        .buttonStyle(ScaleButtonStyle())
     }
 }
 
@@ -165,70 +227,87 @@ struct CustomTextField: View {
     let title: String
     @Binding var text: String
     let icon: String
+    var placeholder: String
+    var isDisabled: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.gray)
             
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .foregroundColor(.gray)
+                    .foregroundColor(isDisabled ? .gray : .blue)
                     .frame(width: 24)
                 
-                TextField(title, text: $text)
+                TextField(placeholder, text: $text)
                     .textFieldStyle(.plain)
+                    .disabled(isDisabled)
+                    .opacity(isDisabled ? 0.7 : 1)
             }
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
+                    .fill(isDisabled ? Color(.systemGray6) : Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.03), radius: 5, y: 2)
             )
         }
     }
 }
 
-//struct ImagePicker: UIViewControllerRepresentable {
-//    @Binding var image: UIImage?
-//    @Environment(\.presentationMode) var presentationMode
-//    
-//    func makeUIViewController(context: Context) -> PHPickerViewController {
-//        var config = PHPickerConfiguration()
-//        config.filter = .images
-//        let picker = PHPickerViewController(configuration: config)
-//        picker.delegate = context.coordinator
-//        return picker
-//    }
-//    
-//    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
-//    
-//    func makeCoordinator() -> Coordinator {
-//        Coordinator(self)
-//    }
-//    
-//    class Coordinator: NSObject, PHPickerViewControllerDelegate {
-//        let parent: ImagePicker
-//        
-//        init(_ parent: ImagePicker) {
-//            self.parent = parent
-//        }
-//        
-//        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-//            parent.presentationMode.wrappedValue.dismiss()
-//            
-//            guard let provider = results.first?.itemProvider else { return }
-//            
-//            if provider.canLoadObject(ofClass: UIImage.self) {
-//                provider.loadObject(ofClass: UIImage.self) { [weak self] image, _ in
-//                    Task { @MainActor in
-//                        self?.parent.image = image as? UIImage
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.presentationMode) private var presentationMode
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = true
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let editedImage = info[.editedImage] as? UIImage {
+                parent.image = editedImage
+            } else if let originalImage = info[.originalImage] as? UIImage {
+                parent.image = originalImage
+            }
+            
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
 
 //#Preview {
 //    AccountDetailView()

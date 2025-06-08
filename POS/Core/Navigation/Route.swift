@@ -29,6 +29,7 @@ enum Route: Hashable, Identifiable {
     /// Settings
     case settings
     case addShop
+    case staff
     case ingredientSection
     case ingredientForm(IngredientUsage?)
     case menuSection
@@ -77,6 +78,8 @@ enum Route: Hashable, Identifiable {
             return "analytics"
         case .inventory:
             return "inventory"
+        case .staff:
+            return "staff"
         case .note(let orderItem):
             return "note-\(orderItem.id)"
         case .settings:

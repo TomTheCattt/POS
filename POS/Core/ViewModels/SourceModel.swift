@@ -16,6 +16,9 @@ class SourceModel: ObservableObject {
     @Published private(set) var currentUser: AppUser?
     @Published private(set) var isOwnerAuthenticated: Bool?
     @Published private(set) var remainingTime: TimeInterval = 0
+    @Published private(set) var authAttempts = 0
+    @Published private(set) var isLocked = false
+    @Published private(set) var lockEndTime: Date?
     
     // Shop Management
     @Published private(set) var shops: [Shop]?
@@ -25,12 +28,15 @@ class SourceModel: ObservableObject {
     @Published private(set) var menuList: [AppMenu]?
     @Published private(set) var activatedMenu: AppMenu?
     @Published private(set) var menuItems: [MenuItem]?
-    
+
     // Order Management
     @Published private(set) var orders: [Order]?
     
-    // Inventory Management
+    // Ingredient Management
     @Published private(set) var ingredients: [IngredientUsage]?
+    
+    // Staff Management
+    @Published private(set) var staffs: [Staff]?
     
     // UI State
     @Published private(set) var isLoading = false
@@ -39,13 +45,13 @@ class SourceModel: ObservableObject {
     @Published private(set) var error: AppError?
     @Published private(set) var alert: AlertItem?
     @Published private(set) var toastMessage: (type: ToastType, message: String)?
-    
+
     // MARK: - Persistence
     @AppStorage("userId") var userId: String = ""
-    
+
     // MARK: - Combine
     var cancellables = Set<AnyCancellable>()
-    
+
     // MARK: - Authentication Properties
     private let authTimeoutInterval: TimeInterval = 3600
     private var authTimer: AnyCancellable?
@@ -58,6 +64,24 @@ class SourceModel: ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
     
+    var lockEndTimeRemaining: String? {
+        if let lockEndTime = lockEndTime {
+            let remaining = Int(lockEndTime.timeIntervalSinceNow)
+            if remaining <= 0 {
+                isLocked = false
+                authAttempts = 0
+                self.lockEndTime = nil
+                return nil
+            }
+            
+            let minutes = (remaining / 60) % 60
+            let seconds = remaining % 60
+            return String(format: "%02d:%02d", minutes, seconds)
+        } else {
+            return nil
+        }
+    }
+
     // MARK: - Publishers
     // Authentication
     var currentUserPublisher: AnyPublisher<AppUser?, Never> {
@@ -95,21 +119,26 @@ class SourceModel: ObservableObject {
         $orders.eraseToAnyPublisher()
     }
     
-    // Inventory Management
+    // Ingredient Management
     var ingredientsPublisher: AnyPublisher<[IngredientUsage]?, Never> {
         $ingredients.eraseToAnyPublisher()
+    }
+    
+    // Ingredient Management
+    var staffsPublisher: AnyPublisher<[Staff]?, Never> {
+        $staffs.eraseToAnyPublisher()
     }
     
     // UI State
     var errorPublisher: AnyPublisher<AppError?, Never> {
         $error.eraseToAnyPublisher()
     }
-    
+
     var loadingPublisher: AnyPublisher<(Bool, String?), Never> {
         Publishers.CombineLatest($isLoading, $loadingText)
             .eraseToAnyPublisher()
     }
-    
+
     var loadingWithProgressPublisher: AnyPublisher<(Double?), Never> {
         $progress.eraseToAnyPublisher()
     }
@@ -128,7 +157,7 @@ class SourceModel: ObservableObject {
         setupAuthStateListener()
         setupInitialState()
     }
-    
+
     deinit {
         Task { @MainActor [weak self] in
             await self?.cleanupResources()
@@ -258,7 +287,7 @@ class SourceModel: ObservableObject {
             
             if let activatedShop = fetchedShops.first(where: { $0.isActive }) {
                 await MainActor.run {
-                    self.activatedShop = activatedShop
+                self.activatedShop = activatedShop
                 }
                 await fetchActivatedShop(activatedShop)
             }
@@ -310,6 +339,7 @@ class SourceModel: ObservableObject {
             
             await fetchActivatedShop(updatedNewShop)
             activatedShop = updatedNewShop
+            environment.hapticsService.impact(.medium)
             
         } catch {
             handleError(AppError.shop(.updateFailed))
@@ -433,15 +463,42 @@ class SourceModel: ObservableObject {
     }
     
     // MARK: - Listener Management
-    private func setupShopsListener() {
+    
+    func setupCurrentUserListener() {
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
+        environment.databaseService.listenToCurrentUser(userId: userId) { [weak self] (result: Result<AppUser?, Error>) in
+            guard let self = self else { return }
+            Task {
+                switch result {
+                case .success(let user):
+                    self.currentUser = user
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi thông tin người dùng")
+                }
+            }
+        }
+    }
+    
+    func removeCurrentUserListener() {
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
+        environment.databaseService.removeCurrentUserListener(userId: userId)
+    }
+    
+    func setupShopsListener() {
         environment.databaseService.listenToShops(userId: userId, queryBuilder: nil, completion: { [weak self] (result: Result<[Shop], Error>) in
             guard let self = self else { return }
             
-            Task { @MainActor in
+            Task {
                 switch result {
                 case .success(let shops):
                     self.shops = shops
-                    
+                    self.activatedShop = shops.first(where: { $0.isActive })
                 case .failure(let error):
                     self.handleError(error, action: "lắng nghe thay đổi cửa hàng")
                 }
@@ -449,7 +506,20 @@ class SourceModel: ObservableObject {
         })
     }
     
+    func removeShopsListener() {
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
+        environment.databaseService.removeShopsListener(userId: userId)
+    }
+    
     func setupMenuListListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            menuList = []
+            return
+        }
         environment.databaseService.listenToMenuCollection(
             userId: userId,
             shopId: shopId,
@@ -478,10 +548,19 @@ class SourceModel: ObservableObject {
     }
     
     func removeMenuListListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeMenuCollectionListener(userId: userId, shopId: shopId)
     }
     
     func setupOrdersListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            orders = []
+            return
+        }
         
         environment.databaseService.listenToOrders(
             userId: userId,
@@ -502,10 +581,19 @@ class SourceModel: ObservableObject {
     }
     
     func removeOrdersListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeOrdersListener(userId: userId, shopId: shopId)
     }
     
     func setupIngredientsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            ingredients = []
+            return
+        }
         
         environment.databaseService.listenToIngredients(
             userId: userId,
@@ -526,12 +614,55 @@ class SourceModel: ObservableObject {
     }
     
     func removeIngredientsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeIngredientsListener(userId: userId, shopId: shopId)
     }
     
+    func setupStaffsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            ingredients = []
+            return
+        }
+        
+        environment.databaseService.listenToStaffs(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: { $0.order(by: "name", descending: false) }
+        ) { [weak self] (result: Result<[Staff], Error>) in
+            guard let self = self else { return }
+            
+            Task {
+                switch result {
+                case .success(let staffs):
+                    self.staffs = staffs
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi nhân viên")
+                }
+            }
+        }
+    }
+    
+    func removeStaffsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
+        environment.databaseService.removeStaffsListener(userId: userId, shopId: shopId)
+    }
+    
     func setupMenuItemsListener(shopId: String, menuId: String?) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            menuItems = []
+            return
+        }
         
         guard let activatedMenu, let activatedMenuId = activatedMenu.id else {
+            self.menuItems = []
             return
         }
         
@@ -555,12 +686,16 @@ class SourceModel: ObservableObject {
     }
     
     func removeMenuItemsListener(shopId: String, menuId: String?) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
         guard let activatedMenu, let activatedMenuId = activatedMenu.id else {
             return
         }
         environment.databaseService.removeMenuItemsListener(shopId: shopId, menuId: menuId ?? activatedMenuId)
     }
-    
+
     private func removeAllListeners() async {
         let listenerKeys = [
             "user_\(userId)",
@@ -603,8 +738,8 @@ class SourceModel: ObservableObject {
     }
     
     func withProgress<T>(_ operation: (@escaping (Double) -> Void) async throws -> T) async throws -> T {
-        await MainActor.run { [weak self] in
-            self?.isLoading = true
+        await MainActor.run { [weak self] in 
+            self?.isLoading = true 
         }
         
         defer {
@@ -615,8 +750,8 @@ class SourceModel: ObservableObject {
         }
         
         return try await operation { [weak self] value in
-            Task { @MainActor in
-                self?.progress = value
+            Task { @MainActor in 
+                self?.progress = value 
             }
         }
     }
@@ -634,8 +769,8 @@ class SourceModel: ObservableObject {
         toastMessage = (.info, message)
     }
     
-    func showAlert(title: String, message: String, primaryButton: AlertButton? = nil) {
-        alert = AlertItem(title: title, message: message, primaryButton: primaryButton)
+    func showAlert(title: String, message: String, primaryButton: AlertButton? = nil, secondaryButton: AlertButton? = nil) {
+        alert = AlertItem(title: title, message: message, primaryButton: primaryButton, secondaryButton: secondaryButton)
     }
     
     func showConfirmation(title: String, message: String, confirmAction: @escaping () -> Void) {
@@ -646,7 +781,7 @@ class SourceModel: ObservableObject {
             secondaryButton: AlertButton(title: "Hủy", role: .cancel)
         )
     }
-    
+
     // MARK: - Error Handling
     func handleError(_ error: Error, action: String? = nil, completion: (() -> Void)? = nil) {
         environment.crashlyticsService.log(action ?? "Không xác định")
@@ -663,7 +798,7 @@ class SourceModel: ObservableObject {
             showError("Lỗi khi \(action): \(error.localizedDescription)")
         }
     }
-    
+
     // MARK: - State Management
     private func resetState() async {
         currentUser = nil
@@ -684,13 +819,23 @@ class SourceModel: ObservableObject {
     // MARK: - Owner Authentication Methods
     func authenticateAsOwner(password: String) -> Bool {
         guard password == currentUser?.ownerPassword else {
+            authAttempts += 1
+            environment.hapticsService.notification(.error)
+            if authAttempts >= 3 {
+                isLocked = true
+                lockEndTime = Date().addingTimeInterval(3600)
+                environment.hapticsService.impact(.heavy)
+            }
             return false
         }
         
         isOwnerAuthenticated = true
+        isLocked = false
+        lockEndTime = nil
         startAuthTimer()
         startRemainingTimer()
         remainingTime = authTimeoutInterval
+        
         return true
     }
     

@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "vi",
   "strings" : {
+    "" : {
+
+    },
     "%.0fđ" : {
 
     },
@@ -43,6 +46,12 @@
     "%lld" : {
 
     },
+    "%lld cửa hàng" : {
+
+    },
+    "%lld giờ" : {
+
+    },
     "%lld items" : {
 
     },
@@ -53,6 +62,15 @@
 
     },
     "%lld nguyên liệu" : {
+
+    },
+    "%lld nhân viên" : {
+
+    },
+    "%lld sản phẩm" : {
+
+    },
+    "%lld thực đơn" : {
 
     },
     "%lld/%lld" : {
@@ -69,6 +87,15 @@
 
     },
     "%lld₫" : {
+
+    },
+    "•" : {
+
+    },
+    "≈ %@/giờ" : {
+
+    },
+    "≈ %@/tháng" : {
 
     },
     "$%@" : {
@@ -126,16 +153,46 @@
         }
       }
     },
+    "Bạn cần tạo cửa hàng trước khi quản lý kho" : {
+
+    },
+    "Bạn cần tạo cửa hàng trước khi quản lý nhân viên" : {
+
+    },
+    "Bạn cần tạo cửa hàng trước khi quản lý thực đơn" : {
+
+    },
     "Bạn có chắc chắn muốn xóa món ăn này?" : {
+
+    },
+    "Bạn có chắc chắn muốn xóa nhân viên này?" : {
 
     },
     "Bạn đang được cấp quyền chủ cửa hàng" : {
 
     },
-    "Bắt đầu bằng cách thêm cửa hàng đầu tiên của bạn" : {
+    "Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay" : {
+
+    },
+    "Barista POS" : {
+
+    },
+    "Bắt đầu" : {
+
+    },
+    "Biểu đồ doanh thu" : {
+
+    },
+    "Ca làm việc gần đây" : {
+
+    },
+    "Cài đặt" : {
 
     },
     "Cài đặt máy in" : {
+
+    },
+    "Cài đặt thông báo" : {
 
     },
     "cancel" : {
@@ -170,6 +227,9 @@
     "Cập nhật thông tin" : {
 
     },
+    "Cập nhật thông tin nhân viên" : {
+
+    },
     "Cập Nhật Thực Đơn" : {
 
     },
@@ -190,6 +250,12 @@
         }
       }
     },
+    "Chế độ sáng" : {
+
+    },
+    "Chế độ tối" : {
+
+    },
     "Chi tiết đơn hàng" : {
 
     },
@@ -202,10 +268,10 @@
     "Chỉnh Sửa Món" : {
 
     },
-    "Chỉnh sửa thực đơn" : {
+    "Chỉnh sửa nhân viên" : {
 
     },
-    "Chọn cửa hàng" : {
+    "Chỉnh sửa thực đơn" : {
 
     },
     "Chọn file" : {
@@ -221,6 +287,9 @@
 
     },
     "Chọn một mục từ menu bên trái để xem chi tiết" : {
+
+    },
+    "Chọn một nhân viên để xem chi tiết" : {
 
     },
     "Chọn một tùy chọn từ menu" : {
@@ -247,6 +316,9 @@
     "Chưa chọn file" : {
 
     },
+    "Chưa có ca làm việc nào" : {
+
+    },
     "Chưa có cửa hàng nào" : {
 
     },
@@ -257,6 +329,18 @@
 
     },
     "Chưa có nguyên liệu nào" : {
+
+    },
+    "Chưa có nhân viên nào" : {
+
+    },
+    "Chưa có sản phẩm nào trong kho" : {
+
+    },
+    "Chưa có thực đơn nào" : {
+
+    },
+    "Chụp ảnh mới" : {
 
     },
     "Clear" : {
@@ -301,9 +385,6 @@
     "Cửa hàng đang hoạt động" : {
 
     },
-    "Cửa hàng hiện tại" : {
-
-    },
     "Đã cập nhật" : {
 
     },
@@ -330,13 +411,22 @@
     "Đang hoạt động" : {
 
     },
+    "Đang phát triển..." : {
+
+    },
     "Đang sử dụng" : {
 
     },
     "Đang tải ảnh lên..." : {
 
     },
+    "Đang tải dữ liệu..." : {
+
+    },
     "Đang xử lý..." : {
+
+    },
+    "Đăng xuất" : {
 
     },
     "Đăng xuất chủ sở hữu" : {
@@ -352,6 +442,9 @@
 
     },
     "Danh sách nguyên liệu" : {
+
+    },
+    "Đặt hàng" : {
 
     },
     "Đặt lại bộ lọc" : {
@@ -377,10 +470,13 @@
         }
       }
     },
-    "Địa chỉ" : {
+    "Điền thông tin chi tiết về món ăn" : {
 
     },
-    "Điền thông tin chi tiết về món ăn" : {
+    "Điền thông tin để tạo cửa hàng của bạn" : {
+
+    },
+    "Điền thông tin để thêm nhân viên mới" : {
 
     },
     "Định lượng cho 1 đơn vị" : {
@@ -402,6 +498,12 @@
           }
         }
       }
+    },
+    "Do nhập sai mật khẩu quá nhiều lần" : {
+
+    },
+    "Doanh thu" : {
+
     },
     "Đổi mật khẩu" : {
 
@@ -485,6 +587,9 @@
           }
         }
       }
+    },
+    "English" : {
+
     },
     "error.auth.email_in_use" : {
       "extractionState" : "manual",
@@ -1097,7 +1202,22 @@
     "Giao diện" : {
 
     },
+    "Giỏ hàng trống" : {
+
+    },
     "Good morning! ☀️" : {
+
+    },
+    "Hãy tạo thực đơn đầu tiên cho cửa hàng của bạn" : {
+
+    },
+    "Hãy thêm món bạn yêu thích" : {
+
+    },
+    "Hãy thêm nhân viên đầu tiên cho cửa hàng của bạn" : {
+
+    },
+    "Hãy thêm sản phẩm đầu tiên vào kho của bạn" : {
 
     },
     "Hello, World!" : {
@@ -1124,6 +1244,9 @@
       }
     },
     "Hoặc nhập danh mục khác..." : {
+
+    },
+    "Hoặc nhập từ Excel/CSV" : {
 
     },
     "Hoàn thành" : {
@@ -1189,19 +1312,19 @@
         }
       }
     },
-    "Kiểu cập nhật" : {
+    "Kết thúc" : {
 
     },
-    "Lịch sử đơn hàng" : {
+    "Kích hoạt cửa hàng" : {
+
+    },
+    "Kiểu cập nhật" : {
 
     },
     "Lịch sử thay đổi" : {
 
     },
     "Lọc theo %@" : {
-
-    },
-    "Log Out" : {
 
     },
     "login" : {
@@ -1255,6 +1378,9 @@
         }
       }
     },
+    "Lương theo giờ" : {
+
+    },
     "Lưu" : {
 
     },
@@ -1268,6 +1394,9 @@
 
     },
     "Lưu ý: File cần có các cột: Tên sản phẩm, Số lượng, Đơn vị, Giá nhập, Danh mục" : {
+
+    },
+    "Mật khẩu" : {
 
     },
     "Mật khẩu chủ cửa hàng" : {
@@ -1440,6 +1569,9 @@
         }
       }
     },
+    "Ngày tạo tài khoản" : {
+
+    },
     "Ngôn ngữ" : {
 
     },
@@ -1456,6 +1588,12 @@
 
     },
     "Nhập mật khẩu chủ sở hữu để tiếp tục" : {
+
+    },
+    "Nhập mật khẩu chủ sở hữu để tiếp tục. Còn %lld lần thử" : {
+
+    },
+    "Nhập tên nhân viên" : {
 
     },
     "Nhập tên thực đơn" : {
@@ -1592,6 +1730,12 @@
         }
       }
     },
+    "Phân tích doanh thu" : {
+
+    },
+    "Phương thức thanh toán" : {
+
+    },
     "Place Order" : {
 
     },
@@ -1666,6 +1810,9 @@
         }
       }
     },
+    "Quản lý bán hàng" : {
+
+    },
     "Quản lý cửa hàng" : {
 
     },
@@ -1675,10 +1822,16 @@
     "Quản lý kho" : {
 
     },
+    "Quản lý nhân viên" : {
+
+    },
     "Quản lý thực đơn" : {
 
     },
     "Quyền hạn của chủ cửa hàng" : {
+
+    },
+    "Quyền riêng tư" : {
 
     },
     "re_enter_password_placeholder" : {
@@ -1801,9 +1954,6 @@
         }
       }
     },
-    "Số điện thoại" : {
-
-    },
     "Số lượng" : {
 
     },
@@ -1859,10 +2009,19 @@
     "Subtotal" : {
 
     },
-    "Tài khoản" : {
+    "Tài khoản đã bị khóa" : {
+
+    },
+    "Tài khoản đã bị khóa. Vui lòng thử lại sau %@" : {
+
+    },
+    "Tạm tính" : {
 
     },
     "Tạo cửa hàng" : {
+
+    },
+    "Tạo cửa hàng mới" : {
 
     },
     "Tạo Thực Đơn" : {
@@ -1877,13 +2036,16 @@
     "Tên A-Z" : {
 
     },
-    "Tên cửa hàng" : {
+    "Tên nhân viên" : {
 
     },
     "Tên sản phẩm" : {
 
     },
     "Tên thực đơn" : {
+
+    },
+    "Test in" : {
 
     },
     "Thao tác" : {
@@ -1893,6 +2055,9 @@
 
     },
     "Thêm" : {
+
+    },
+    "Thêm cửa hàng" : {
 
     },
     "Thêm cửa hàng mới" : {
@@ -1913,7 +2078,16 @@
     "Thêm nguyên liệu" : {
 
     },
+    "Thêm nhân viên" : {
+
+    },
+    "Thêm nhân viên mới" : {
+
+    },
     "Thêm sản phẩm" : {
+
+    },
+    "Thêm sản phẩm mới" : {
 
     },
     "Thêm Thực Đơn" : {
@@ -1925,10 +2099,22 @@
     "Theo phần trăm" : {
 
     },
+    "Thời gian" : {
+
+    },
     "Thời gian còn lại" : {
 
     },
+    "Thời gian còn lại: %@" : {
+
+    },
+    "Thông tin" : {
+
+    },
     "Thông tin bổ sung" : {
+
+    },
+    "Thông tin chi tiết" : {
 
     },
     "Thông tin cửa hàng" : {
@@ -1940,7 +2126,22 @@
     "Thông tin tài khoản" : {
 
     },
+    "Thu gọn" : {
+
+    },
     "Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm để xem kết quả" : {
+
+    },
+    "Tiền thuê mặt bằng" : {
+
+    },
+    "Tiếng Việt" : {
+
+    },
+    "Tìm kiếm nhân viên..." : {
+
+    },
+    "Tìm món..." : {
 
     },
     "Tìm theo mã đơn, tên món..." : {
@@ -1950,6 +2151,12 @@
 
     },
     "Tổng cộng" : {
+
+    },
+    "Tổng lương tháng: %@" : {
+
+    },
+    "Tổng quan doanh thu" : {
 
     },
     "Tổng tiền:" : {
@@ -1978,7 +2185,13 @@
     "Trạng thái" : {
 
     },
+    "Trạng thái kết nối" : {
+
+    },
     "Trạng thái thực đơn" : {
+
+    },
+    "Tùy chọn" : {
 
     },
     "và %lld món khác..." : {
@@ -2017,6 +2230,12 @@
           }
         }
       }
+    },
+    "Vị trí" : {
+
+    },
+    "VNĐ/giờ" : {
+
     },
     "warning_low_stock" : {
       "extractionState" : "manual",
@@ -2067,6 +2286,12 @@
     "Xác thực ngay" : {
 
     },
+    "Xem giỏ hàng" : {
+
+    },
+    "Xem thông tin" : {
+
+    },
     "Xin chào! 👋" : {
 
     },
@@ -2074,6 +2299,9 @@
 
     },
     "Xóa món ăn" : {
+
+    },
+    "Xóa nhân viên" : {
 
     },
     "Xóa thực đơn" : {
@@ -2101,6 +2329,9 @@
           }
         }
       }
+    },
+    "Yêu cầu mật khẩu:" : {
+
     },
     "Your cart is empty" : {
 

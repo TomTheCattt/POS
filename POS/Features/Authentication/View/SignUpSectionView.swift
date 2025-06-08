@@ -10,7 +10,7 @@ import SwiftUI
 struct SignUpSectionView: View {
     
     enum SignUpField {
-        case shopName, email, displayName, ownerPassword, password, rePassword
+        case email, displayName, ownerPassword, password, rePassword
     }
     
     @State private var isSignUpPressed = false
@@ -34,41 +34,24 @@ struct SignUpSectionView: View {
     func handleSignUp() {
         isSignUpPressed = true
         
-        guard !viewModel.shopName.isEmpty else {
-            shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyShopName
-            return
-        }
-        
         guard !viewModel.email.isEmpty else {
             shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyEmail
             return
         }
         guard !viewModel.displayName.isEmpty else {
             shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyDisplayName
             return
         }
         guard !viewModel.password.isEmpty else {
             shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorEmptyPassword
             return
         }
         guard !viewModel.rePassword.isEmpty else {
             shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorReEnterPasswordEmpty
             return
         }
         guard viewModel.password == viewModel.rePassword else {
             shakeAnimation = true
-//            viewModel.showError = true
-//            viewModel.errorMessage = ValidationLocalizedString.authErrorValidatePasswordFailed
             return
         }
         Task {
@@ -82,22 +65,6 @@ struct SignUpSectionView: View {
     
     var body: some View {
         VStack {
-            // Shop Name
-            TextField(AppLocalizedString.shopNamePlaceholder, text: $viewModel.shopName)
-                .keyboardType(.default)
-                .padding()
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                      .stroke(lineWidth: 2)
-                      .foregroundColor(borderColor(for: viewModel.shopName))
-                  )
-                .padding(.leading)
-                .padding(.trailing)
-                .padding(.bottom)
-                .modifier(ShakeEffect(shake: $shakeAnimation))
-                .focused($focusedField, equals: .shopName)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
             // Display Name
             TextField(AppLocalizedString.displayNamePlaceholder, text: $viewModel.displayName)
                 .keyboardType(.default)
@@ -217,8 +184,6 @@ struct SignUpSectionView: View {
         }
         .onSubmit {
             switch focusedField {
-            case .shopName:
-                focusedField = .displayName
             case .displayName:
                 focusedField = .email
             case .email:
@@ -240,7 +205,6 @@ struct SignUpSectionView: View {
             viewModel.password = ""
             viewModel.rePassword = ""
             viewModel.displayName = ""
-            viewModel.shopName = ""
         }
     }
 }

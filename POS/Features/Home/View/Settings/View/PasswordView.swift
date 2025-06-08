@@ -17,16 +17,22 @@ struct PasswordView: View {
     
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 24) {
+            VStack(spacing: 32) {
                 // Header
-                Text("Đổi mật khẩu")
-                    .font(.title2.bold())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+                HStack {
+                    Text("Đổi mật khẩu")
+                        .font(.system(size: 28, weight: .bold))
+                    Spacer()
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
                 
                 // Account Password Section
                 passwordSection(
                     title: "Mật khẩu tài khoản",
+                    description: "Mật khẩu dùng để đăng nhập vào ứng dụng",
                     icon: "lock.fill",
                     currentPassword: $viewModel.currentPassword,
                     newPassword: $viewModel.newPassword,
@@ -41,6 +47,7 @@ struct PasswordView: View {
                 // Owner Password Section
                 passwordSection(
                     title: "Mật khẩu chủ cửa hàng",
+                    description: "Mật khẩu dùng để xác thực các thao tác quan trọng",
                     icon: "key.fill",
                     currentPassword: $viewModel.currentOwnerPassword,
                     newPassword: $viewModel.newOwnerPassword,
@@ -64,6 +71,7 @@ struct PasswordView: View {
     
     private func passwordSection(
         title: String,
+        description: String,
         icon: String,
         currentPassword: Binding<String>,
         newPassword: Binding<String>,
@@ -74,37 +82,72 @@ struct PasswordView: View {
         isValid: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 24) {
             // Header
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
-                Text(title)
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                    Text(title)
+                        .font(.headline)
+                }
+                
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
             }
             
             // Password Fields
-            CustomSecureField(
-                title: "Mật khẩu hiện tại",
-                text: currentPassword,
-                isFocused: focusedField == currentField,
-                onFocus: { focusedField = currentField }
-            )
+            VStack(spacing: 20) {
+                CustomSecureField(
+                    title: "Mật khẩu hiện tại",
+                    text: currentPassword,
+                    isFocused: focusedField == currentField,
+                    onFocus: { focusedField = currentField }
+                )
+                
+                CustomSecureField(
+                    title: "Mật khẩu mới",
+                    text: newPassword,
+                    isFocused: focusedField == newField,
+                    onFocus: { focusedField = newField }
+                )
+                
+                CustomSecureField(
+                    title: "Xác nhận mật khẩu mới",
+                    text: confirmPassword,
+                    isFocused: focusedField == confirmField,
+                    onFocus: { focusedField = confirmField }
+                )
+            }
             
-            CustomSecureField(
-                title: "Mật khẩu mới",
-                text: newPassword,
-                isFocused: focusedField == newField,
-                onFocus: { focusedField = newField }
-            )
-            
-            CustomSecureField(
-                title: "Xác nhận mật khẩu mới",
-                text: confirmPassword,
-                isFocused: focusedField == confirmField,
-                onFocus: { focusedField = confirmField }
-            )
+            // Password Requirements
+            if !newPassword.wrappedValue.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Yêu cầu mật khẩu:")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    
+                    PasswordRequirementRow(
+                        text: "Ít nhất 8 ký tự",
+                        isMet: newPassword.wrappedValue.count >= 8
+                    )
+                    
+                    PasswordRequirementRow(
+                        text: "Chứa chữ hoa và chữ thường",
+                        isMet: newPassword.wrappedValue.containsUppercase && newPassword.wrappedValue.containsLowercase
+                    )
+                    
+                    PasswordRequirementRow(
+                        text: "Chứa ít nhất 1 số",
+                        isMet: newPassword.wrappedValue.containsNumber
+                    )
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
             
             // Update Button
             Button(action: action) {
@@ -115,24 +158,29 @@ struct PasswordView: View {
                             .padding(.trailing, 8)
                     }
                     Text("Cập nhật \(title.lowercased())")
+                        .fontWeight(.semibold)
+                    if isValid {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
                 }
-                .fontWeight(.semibold)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                .frame(height: 54)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isValid ? Color.blue : Color.gray)
-                        .shadow(color: isValid ? Color.blue.opacity(0.3) : Color.clear, radius: 8, y: 4)
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(isValid ? Color.blue : Color.gray.opacity(0.5))
+                        .shadow(color: isValid ? Color.blue.opacity(0.3) : Color.clear, radius: 10, y: 5)
                 )
             }
             .disabled(!isValid || appState.sourceModel.isLoading)
+            .buttonStyle(ScaleButtonStyle())
         }
         .padding(24)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20)
                 .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10)
+                .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
         )
         .padding(.horizontal)
     }
@@ -191,7 +239,7 @@ struct CustomSecureField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.gray)
             
             HStack(spacing: 12) {
@@ -208,10 +256,13 @@ struct CustomSecureField: View {
                 }
                 
                 Button {
-                    isSecure.toggle()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isSecure.toggle()
+                    }
                 } label: {
                     Image(systemName: isSecure ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(.gray)
+                        .foregroundColor(isFocused ? .blue : .gray)
+                        .frame(width: 24)
                 }
             }
             .padding()
@@ -220,9 +271,38 @@ struct CustomSecureField: View {
                     .fill(Color(.systemGray6))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(isFocused ? Color.blue : Color.clear, lineWidth: 1)
+                            .stroke(isFocused ? Color.blue : Color.gray.opacity(0.2), lineWidth: 1)
                     )
             )
         }
+    }
+}
+
+struct PasswordRequirementRow: View {
+    let text: String
+    let isMet: Bool
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isMet ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(isMet ? .green : .gray)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(isMet ? .primary : .gray)
+        }
+    }
+}
+
+extension String {
+    var containsUppercase: Bool {
+        return contains(where: { $0.isUppercase })
+    }
+    
+    var containsLowercase: Bool {
+        return contains(where: { $0.isLowercase })
+    }
+    
+    var containsNumber: Bool {
+        return contains(where: { $0.isNumber })
     }
 }

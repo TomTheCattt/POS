@@ -1,8 +1,6 @@
 import Foundation
 import Combine
 
-
-
 // MARK: - Supporting Types
 struct DailySales: Codable {
     let date: Date

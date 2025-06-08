@@ -9,6 +9,15 @@ class SettingsViewModel: ObservableObject {
     @Published var selectedTheme: AppTheme
     @Published var isOwnerAuthenticated: Bool = false
     
+    @Published var isAccountExpanded: Bool = false
+    @Published var isManageShopExpanded: Bool = false
+    @Published var selectedOption: SettingsOption?
+    @Published var selectedSubOption: SubOption?
+    @Published var authAttempts: Int = 0
+    @Published var showAuthAlert = false
+    @Published var ownerPassword = ""
+    @Published var showPassword: Bool = false
+    
     private var source: SourceModel
     
     // MARK: - Initialization
@@ -39,6 +48,12 @@ class SettingsViewModel: ObservableObject {
                 self?.selectedTheme = theme
             }
             .store(in: &source.cancellables)
+        source.$authAttempts
+            .sink { [weak self] authAttempts in
+                guard let self = self else { return }
+                self.authAttempts = authAttempts
+            }
+            .store(in: &source.cancellables)
     }
     
     // MARK: - Methods
@@ -49,4 +64,14 @@ class SettingsViewModel: ObservableObject {
     func updateTheme(_ theme: AppTheme) {
         source.environment.settingsService.setTheme(theme)
     }
-} 
+    
+    func authenticateOwner() {
+        if !source.authenticateAsOwner(password: ownerPassword) {
+            ownerPassword = ""
+        }
+    }
+    
+    func switchShop(to shop: Shop) async {
+        await source.switchShop(to: shop)
+    }
+}
