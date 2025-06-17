@@ -18,16 +18,16 @@ struct AppUser: Codable, Identifiable, Equatable {
     let createdAt: Date
     var updatedAt: Date
     
-    var dictionary: [String: Any] {
-        [
-            "uid": uid,
-            "email": email,
-            "displayName": displayName,
-            "photoURL": photoURL?.absoluteString as Any,
-            "ownerPassword": ownerPassword,
-            "createdAt": createdAt,
-            "updatedAt": updatedAt
-        ]
-    }
+//    var dictionary: [String: Any] {
+//        [
+//            "uid": uid,
+//            "email": email,
+//            "displayName": displayName,
+//            "photoURL": photoURL?.absoluteString as Any,
+//            "ownerPassword": ownerPassword,
+//            "createdAt": createdAt,
+//            "updatedAt": updatedAt
+//        ]
+//    }
 }
 

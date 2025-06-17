@@ -28,6 +28,6 @@ struct CustomTextFieldStyle: TextFieldStyle {
                             .stroke(Color(.systemGray4), lineWidth: 1)
                     )
             )
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+//            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 }

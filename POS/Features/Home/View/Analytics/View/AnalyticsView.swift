@@ -1,5 +1,5 @@
 //
-//  AnalyticsView.swift
+//  revenueRecordView.swift
 //  POS
 //
 //  Created by Việt Anh Nguyễn on 16/5/25.
@@ -8,23 +8,18 @@
 import SwiftUI
 import Charts
 
-struct AnalyticsView: View {
+struct RevenueRecordView: View {
     
     @EnvironmentObject private var appState: AppState
-    @ObservedObject var viewModel: AnalyticsViewModel
+    @ObservedObject var viewModel: RevenueRecordViewModel
     
     @State private var selectedTimeFilter: TimeFilter = .week
-    @State private var revenueData: [RevenueData] = []
-    @State private var isLoading: Bool = false
+    @State private var selectedDataPoint: RevenueRecord?
     @State private var showContent: Bool = false
-    @State private var selectedDataPoint: RevenueData?
     @State private var animationProgress: Double = 0.0
+    @Environment(\.colorScheme) var colorScheme
     
-    // Mock data - replace with your actual data source
-    @State private var totalRevenue: Double = 25450.50
-    @State private var totalOrders: Int = 342
-    @State private var averageOrderValue: Double = 74.35
-    @State private var topSellingItem: String = "Cappuccino"
+    let shop: Shop?
     
     var body: some View {
         ScrollView {
@@ -52,14 +47,13 @@ struct AnalyticsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("Phân tích doanh thu")
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
                 showContent = true
             }
-            loadAnalyticsData()
+            viewModel.loadData(for: selectedTimeFilter)
         }
         .refreshable {
             await refreshData()
@@ -71,22 +65,23 @@ struct AnalyticsView: View {
         VStack(spacing: 16) {
             HStack {
                 Text("Tổng quan doanh thu")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        appState.sourceModel.currentThemeColors.revenue.primaryColor
+                    )
                 
                 Spacer()
                 
                 Button(action: {
                     withAnimation {
-                        loadAnalyticsData()
+                        viewModel.loadData(for: selectedTimeFilter)
                     }
                 }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.title3)
                         .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(isLoading ? 360 : 0))
-                        .animation(isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isLoading)
+                        .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                        .animation(viewModel.isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: viewModel.isLoading)
                 }
             }
             
@@ -101,7 +96,7 @@ struct AnalyticsView: View {
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedTimeFilter = filter
-                        loadAnalyticsData()
+                        viewModel.loadData(for: filter)
                     }
                 }) {
                     Text(filter.displayName)
@@ -112,18 +107,14 @@ struct AnalyticsView: View {
                         .padding(.horizontal, 20)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(selectedTimeFilter == filter ? Color.brown : Color.clear)
+                                .fill(selectedTimeFilter == filter ? appState.sourceModel.currentThemeColors.revenue.primaryColor : Color.clear)
                                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTimeFilter)
                         )
                 }
             }
         }
         .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-        )
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
     }
     
     // MARK: - Metrics Cards Section
@@ -134,43 +125,45 @@ struct AnalyticsView: View {
         ], spacing: 16) {
             MetricCard(
                 title: "Tổng doanh thu",
-                value: formatCurrency(totalRevenue),
+                value: formatCurrency(viewModel.totalRevenue),
                 icon: "chart.line.uptrend.xyaxis",
                 color: .green,
-                trend: "+12.5%",
+                trend: "+\(String(format: "%.1f", calculateRevenueGrowth()))%",
                 showContent: showContent,
                 delay: 0.2
             )
             
             MetricCard(
                 title: "Số đơn hàng",
-                value: "\(totalOrders)",
+                value: "\(viewModel.totalOrders)",
                 icon: "cart.fill",
                 color: .blue,
-                trend: "+8.3%",
+                trend: "+\(String(format: "%.1f", calculateOrdersGrowth()))%",
                 showContent: showContent,
                 delay: 0.3
             )
             
             MetricCard(
                 title: "Đơn hàng trung bình",
-                value: formatCurrency(averageOrderValue),
+                value: formatCurrency(viewModel.averageOrderValue),
                 icon: "chart.bar.fill",
                 color: .orange,
-                trend: "+3.7%",
+                trend: "+\(String(format: "%.1f", calculateAverageOrderGrowth()))%",
                 showContent: showContent,
                 delay: 0.4
             )
             
-            MetricCard(
-                title: "Món bán chạy",
-                value: topSellingItem,
-                icon: "cup.and.saucer.fill",
-                color: .brown,
-                trend: "156 ly",
-                showContent: showContent,
-                delay: 0.5
-            )
+            if let topItem = viewModel.topSellingItem {
+                MetricCard(
+                    title: "Món bán chạy",
+                    value: topItem.name,
+                    icon: "cup.and.saucer.fill",
+                    color: appState.sourceModel.currentThemeColors.revenue.primaryColor,
+                    trend: "\(topItem.quantity) món",
+                    showContent: showContent,
+                    delay: 0.5
+                )
+            }
         }
     }
     
@@ -190,8 +183,10 @@ struct AnalyticsView: View {
             }
             .transition(.opacity.combined(with: .move(edge: .top)))
             
-            if isLoading {
+            if viewModel.isLoading {
                 chartLoadingView
+            } else if viewModel.revenueRecords.isEmpty {
+                emptyChartView
             } else {
                 revenueChart
             }
@@ -202,18 +197,34 @@ struct AnalyticsView: View {
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-        )
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
+    }
+    
+    private var emptyChartView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+            
+            Text("Chưa có dữ liệu")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Text("Hãy tạo đơn hàng để xem biểu đồ doanh thu")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(height: 200)
+        .frame(maxWidth: .infinity)
+        .transition(.opacity.combined(with: .scale))
     }
     
     private var revenueChart: some View {
-        Chart(revenueData) { data in
-            let maxX = revenueData.count
-            let isSelected = selectedDataPoint?.date == data.date
-            let index = revenueData.firstIndex(of: data) ?? 0
+        Chart(viewModel.revenueRecords) { record in
+            let maxX = viewModel.revenueRecords.count
+            let isSelected = selectedDataPoint?.id == record.id
+            let index = viewModel.revenueRecords.firstIndex(of: record) ?? 0
             
             // Tính toán progress cho animation từ trái sang phải
             let normalizedIndex = Double(index) / Double(max(maxX - 1, 1))
@@ -222,12 +233,12 @@ struct AnalyticsView: View {
                 min(1.0, max(0.0, (animationProgress - animationDelay) / 0.5)) : 0.0
 
             AreaMark(
-                x: .value("Thời gian", data.date),
-                y: .value("Doanh thu", data.revenue * adjustedProgress)
+                x: .value("Thời gian", record.date),
+                y: .value("Doanh thu", record.revenue * adjustedProgress)
             )
             .foregroundStyle(
                 LinearGradient(
-                    colors: [.brown.opacity(0.6), .brown.opacity(0.1)],
+                    colors: [appState.sourceModel.currentThemeColors.revenue.primaryColor.opacity(0.6), appState.sourceModel.currentThemeColors.revenue.primaryColor.opacity(0.1)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -236,20 +247,20 @@ struct AnalyticsView: View {
             .opacity(adjustedProgress > 0 ? 1.0 : 0.0)
 
             LineMark(
-                x: .value("Thời gian", data.date),
-                y: .value("Doanh thu", data.revenue * adjustedProgress)
+                x: .value("Thời gian", record.date),
+                y: .value("Doanh thu", record.revenue * adjustedProgress)
             )
-            .foregroundStyle(.brown)
+            .foregroundStyle(appState.sourceModel.currentThemeColors.revenue.primaryColor)
             .lineStyle(StrokeStyle(lineWidth: 3))
             .interpolationMethod(.catmullRom)
             .opacity(adjustedProgress > 0 ? 1.0 : 0.0)
 
             if isSelected {
                 PointMark(
-                    x: .value("Thời gian", data.date),
-                    y: .value("Doanh thu", data.revenue)
+                    x: .value("Thời gian", record.date),
+                    y: .value("Doanh thu", record.revenue)
                 )
-                .foregroundStyle(.brown)
+                .foregroundStyle(appState.sourceModel.currentThemeColors.revenue.primaryColor)
                 .symbolSize(100)
             }
         }
@@ -322,7 +333,7 @@ struct AnalyticsView: View {
             Spacer()
             VStack(spacing: 12) {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .brown))
+                    .progressViewStyle(CircularProgressViewStyle(tint: appState.sourceModel.currentThemeColors.revenue.primaryColor))
                     .scaleEffect(1.2)
                 
                 Text("Đang tải dữ liệu...")
@@ -335,7 +346,7 @@ struct AnalyticsView: View {
         .transition(.opacity.combined(with: .scale))
     }
     
-    private func selectedDataView(data: RevenueData) -> some View {
+    private func selectedDataView(data: RevenueRecord) -> some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(formatAxisLabel(data.date))
@@ -351,9 +362,8 @@ struct AnalyticsView: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                let previousData = findPreviousDataPoint(from: data)
-                if let previous = previousData {
-                    let percentageChange = ((data.revenue - previous.revenue) / previous.revenue) * 100
+                if let previousData = findPreviousDataPoint(from: data) {
+                    let percentageChange = ((data.revenue - previousData.revenue) / previousData.revenue) * 100
                     HStack(spacing: 4) {
                         Image(systemName: percentageChange >= 0 ? "arrow.up.right" : "arrow.down.right")
                             .font(.caption)
@@ -367,11 +377,7 @@ struct AnalyticsView: View {
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        )
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
     
@@ -383,110 +389,80 @@ struct AnalyticsView: View {
                 .fontWeight(.semibold)
             
             VStack(spacing: 12) {
-                InsightRow(
-                    icon: "clock.fill",
-                    title: "Giờ cao điểm",
-                    value: "7:00 - 9:00 AM",
-                    detail: "35% tổng doanh thu",
-                    showContent: showContent,
-                    delay: 0.6
-                )
+                if let peakHour = viewModel.peakHours.first {
+                    InsightRow(
+                        icon: "clock.fill",
+                        title: "Giờ cao điểm",
+                        value: "\(peakHour.hour):00",
+                        detail: "\(String(format: "%.1f", peakHour.percentage))% tổng doanh thu",
+                        showContent: showContent,
+                        delay: 0.6
+                    )
+                }
                 
-                InsightRow(
-                    icon: "calendar.badge.plus",
-                    title: "Ngày tốt nhất",
-                    value: "Thứ 6",
-                    detail: "Doanh thu cao nhất tuần",
-                    showContent: showContent,
-                    delay: 0.7
-                )
+                if let bestDay = viewModel.bestDayOfWeek {
+                    let weekdays = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
+                    InsightRow(
+                        icon: "calendar.badge.plus",
+                        title: "Ngày tốt nhất",
+                        value: weekdays[bestDay.day % 7],
+                        detail: "\(String(format: "%.1f", bestDay.percentage))% tổng doanh thu",
+                        showContent: showContent,
+                        delay: 0.7
+                    )
+                }
                 
                 InsightRow(
                     icon: "person.2.fill",
                     title: "Khách hàng mới",
-                    value: "23 người",
-                    detail: "Tăng 15% so với tuần trước",
+                    value: "\(viewModel.newCustomers) người",
+                    detail: "Tỷ lệ quay lại \(String(format: "%.1f", viewModel.returnRate))%",
                     showContent: showContent,
                     delay: 0.8
                 )
                 
-                InsightRow(
-                    icon: "percent",
-                    title: "Tỷ lệ trả lại",
-                    value: "2.1%",
-                    detail: "Giảm 0.5% so với tháng trước",
-                    showContent: showContent,
-                    delay: 0.9
-                )
+                if let topPayment = viewModel.paymentMethodStats.first {
+                    InsightRow(
+                        icon: "creditcard.fill",
+                        title: "Thanh toán phổ biến",
+                        value: topPayment.method.rawValue,
+                        detail: "\(String(format: "%.1f", topPayment.percentage))% đơn hàng",
+                        showContent: showContent,
+                        delay: 0.9
+                    )
+                }
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-        )
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
     }
     
     // MARK: - Helper Functions
-    private func loadAnalyticsData() {
-        isLoading = true
-        
-        // Simulate API call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            revenueData = generateMockData()
-            isLoading = false
-        }
-    }
-    
     private func refreshData() async {
-        isLoading = true
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        revenueData = generateMockData()
-        isLoading = false
+        viewModel.loadData(for: selectedTimeFilter)
     }
     
-    private func findClosestDataPoint(to date: Date) -> RevenueData? {
-        return revenueData.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+    private func findClosestDataPoint(to date: Date) -> RevenueRecord? {
+        return viewModel.revenueRecords.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
     }
     
-    private func findPreviousDataPoint(from data: RevenueData) -> RevenueData? {
-        guard let index = revenueData.firstIndex(where: { $0.id == data.id }),
+    private func findPreviousDataPoint(from data: RevenueRecord) -> RevenueRecord? {
+        guard let index = viewModel.revenueRecords.firstIndex(where: { $0.id == data.id }),
               index > 0 else { return nil }
-        return revenueData[index - 1]
+        return viewModel.revenueRecords[index - 1]
     }
     
-    private func generateMockData() -> [RevenueData] {
-        let calendar = Calendar.current
-        let now = Date()
-        var data: [RevenueData] = []
-        
+    private func formatAxisLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
         switch selectedTimeFilter {
         case .day:
-            for hour in 0..<24 {
-                if let date = calendar.date(byAdding: .hour, value: -hour, to: now) {
-                    let revenue = Double.random(in: 50...300)
-                    data.append(RevenueData(date: date, revenue: revenue))
-                }
-            }
+            formatter.dateFormat = "HH:mm"
         case .week:
-            for day in 0..<7 {
-                if let date = calendar.date(byAdding: .day, value: -day, to: now) {
-                    let revenue = Double.random(in: 1000...4000)
-                    data.append(RevenueData(date: date, revenue: revenue))
-                }
-            }
+            formatter.dateFormat = "EEE"
         case .month:
-            for week in 0..<4 {
-                if let date = calendar.date(byAdding: .weekOfYear, value: -week, to: now) {
-                    let revenue = Double.random(in: 15000...25000)
-                    data.append(RevenueData(date: date, revenue: revenue))
-                }
-            }
+            formatter.dateFormat = "dd/MM"
         }
-        
-        return data.reversed()
+        return formatter.string(from: date)
     }
     
     private func formatCurrency(_ amount: Double) -> String {
@@ -508,17 +484,32 @@ struct AnalyticsView: View {
         }
     }
     
-    private func formatAxisLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        switch selectedTimeFilter {
-        case .day:
-            formatter.dateFormat = "HH:mm"
-        case .week:
-            formatter.dateFormat = "EEE"
-        case .month:
-            formatter.dateFormat = "dd/MM"
-        }
-        return formatter.string(from: date)
+    private func calculateRevenueGrowth() -> Double {
+        // Tính tỷ lệ tăng trưởng doanh thu
+        guard viewModel.revenueRecords.count >= 2 else { return 0 }
+        let sortedData = viewModel.revenueRecords.sorted(by: { $0.date < $1.date })
+        let previousRevenue = sortedData.first?.revenue ?? 0
+        let currentRevenue = sortedData.last?.revenue ?? 0
+        guard previousRevenue > 0 else { return 0 }
+        return ((currentRevenue - previousRevenue) / previousRevenue) * 100
+    }
+    
+    private func calculateOrdersGrowth() -> Double {
+        guard viewModel.revenueRecords.count >= 2 else { return 0 }
+        let sortedData = viewModel.revenueRecords.sorted(by: { $0.date < $1.date })
+        let previousOrders = Double(sortedData.first?.totalOrders ?? 0)
+        let currentOrders = Double(sortedData.last?.totalOrders ?? 0)
+        guard previousOrders > 0 else { return 0 }
+        return ((currentOrders - previousOrders) / previousOrders) * 100
+    }
+    
+    private func calculateAverageOrderGrowth() -> Double {
+        guard viewModel.revenueRecords.count >= 2 else { return 0 }
+        let sortedData = viewModel.revenueRecords.sorted(by: { $0.date < $1.date })
+        let previousAvg = sortedData.first?.averageOrderValue ?? 0
+        let currentAvg = sortedData.last?.averageOrderValue ?? 0
+        guard previousAvg > 0 else { return 0 }
+        return ((currentAvg - previousAvg) / previousAvg) * 100
     }
 }
 
@@ -531,6 +522,9 @@ struct MetricCard: View {
     let trend: String
     let showContent: Bool
     let delay: Double
+    
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) var colorScheme
     
     @State private var showCard = false
     
@@ -567,18 +561,7 @@ struct MetricCard: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 1)
-        )
-        .opacity(showCard ? 1 : 0)
-        .offset(y: showCard ? 0 : 20)
-        .onAppear {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(delay)) {
-                showCard = true
-            }
-        }
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
     }
 }
 
@@ -590,12 +573,13 @@ struct InsightRow: View {
     let showContent: Bool
     let delay: Double
     
+    @EnvironmentObject private var appState: AppState
     @State private var showRow = false
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(.brown)
+                .foregroundColor(appState.sourceModel.currentThemeColors.revenue.primaryColor)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {
@@ -624,13 +608,6 @@ struct InsightRow: View {
             }
         }
     }
-}
-
-// MARK: - Data Models
-struct RevenueData: Identifiable, Equatable {
-    let id = UUID()
-    let date: Date
-    let revenue: Double
 }
 
 

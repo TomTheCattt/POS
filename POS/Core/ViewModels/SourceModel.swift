@@ -12,6 +12,24 @@ class SourceModel: ObservableObject {
     let environment: AppEnvironment
     
     // MARK: - Published Properties
+    
+    // Settings & Theme
+    @Published private(set) var currentLanguage: AppLanguage = .vietnamese
+    @Published private(set) var currentThemeStyle: AppThemeStyle = .default
+    @Published private(set) var currentThemeColors: AppThemeColors = AppThemeStyle.default.colors
+    
+    // UI State
+    @Published private(set) var appThemeColors: AppThemeColors?
+    @Published private(set) var appLanguage: AppLanguage?
+    
+    // Session State
+    @AppStorage("lastActiveRoute") private var lastActiveRoute: String = ""
+    @AppStorage("lastActiveShopId") private var lastActiveShopId: String = ""
+    @AppStorage("lastActiveMenuId") private var lastActiveMenuId: String = ""
+    @AppStorage("lastActiveOrderId") private var lastActiveOrderId: String = ""
+    @AppStorage("lastActiveTimestamp") private var lastActiveTimestamp: Double = 0
+    @AppStorage("sessionData") private var sessionData: Data = Data()
+    
     // Authentication
     @Published private(set) var currentUser: AppUser?
     @Published private(set) var isOwnerAuthenticated: Bool?
@@ -28,7 +46,7 @@ class SourceModel: ObservableObject {
     @Published private(set) var menuList: [AppMenu]?
     @Published private(set) var activatedMenu: AppMenu?
     @Published private(set) var menuItems: [MenuItem]?
-
+    
     // Order Management
     @Published private(set) var orders: [Order]?
     
@@ -38,6 +56,12 @@ class SourceModel: ObservableObject {
     // Staff Management
     @Published private(set) var staffs: [Staff]?
     
+    // Customer Management
+    @Published private(set) var customers: [Customer]?
+    
+    // Revenue Record Management
+    @Published private(set) var revenueRecords: [RevenueRecord]?
+    
     // UI State
     @Published private(set) var isLoading = false
     @Published private(set) var loadingText: String?
@@ -45,17 +69,22 @@ class SourceModel: ObservableObject {
     @Published private(set) var error: AppError?
     @Published private(set) var alert: AlertItem?
     @Published private(set) var toastMessage: (type: ToastType, message: String)?
-
+    
     // MARK: - Persistence
     @AppStorage("userId") var userId: String = ""
-
+    
     // MARK: - Combine
     var cancellables = Set<AnyCancellable>()
-
+    
     // MARK: - Authentication Properties
     private let authTimeoutInterval: TimeInterval = 3600
     private var authTimer: AnyCancellable?
     private var remainingTimer: AnyCancellable?
+    
+    // Thêm các thuộc tính mới cho background session
+    @AppStorage("sessionStartTime") private var sessionStartTime: Double = 0
+    @AppStorage("lastRemainingTime") private var lastRemainingTime: Double = 0
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     
     // MARK: - Computed Properties
     var remainingTimeString: String {
@@ -81,7 +110,7 @@ class SourceModel: ObservableObject {
             return nil
         }
     }
-
+    
     // MARK: - Publishers
     // Authentication
     var currentUserPublisher: AnyPublisher<AppUser?, Never> {
@@ -124,21 +153,30 @@ class SourceModel: ObservableObject {
         $ingredients.eraseToAnyPublisher()
     }
     
-    // Ingredient Management
+    // Staff Management
     var staffsPublisher: AnyPublisher<[Staff]?, Never> {
         $staffs.eraseToAnyPublisher()
+    }
+    
+    // Customer Management
+    var customersPublisher: AnyPublisher<[Customer]?, Never> {
+        $customers.eraseToAnyPublisher()
+    }
+    
+    var revenueRecordsPublisher: AnyPublisher<[RevenueRecord]?, Never> {
+        $revenueRecords.eraseToAnyPublisher() 
     }
     
     // UI State
     var errorPublisher: AnyPublisher<AppError?, Never> {
         $error.eraseToAnyPublisher()
     }
-
+    
     var loadingPublisher: AnyPublisher<(Bool, String?), Never> {
         Publishers.CombineLatest($isLoading, $loadingText)
             .eraseToAnyPublisher()
     }
-
+    
     var loadingWithProgressPublisher: AnyPublisher<(Double?), Never> {
         $progress.eraseToAnyPublisher()
     }
@@ -151,13 +189,38 @@ class SourceModel: ObservableObject {
         $alert.eraseToAnyPublisher()
     }
     
+    var languagePublisher: AnyPublisher<AppLanguage, Never> {
+        $currentLanguage.eraseToAnyPublisher()
+    }
+    
+    var themeStylePublisher: AnyPublisher<AppThemeStyle, Never> {
+        $currentThemeStyle.eraseToAnyPublisher()
+    }
+    
+    var themeColorsPublisher: AnyPublisher<AppThemeColors, Never> {
+        $currentThemeColors.eraseToAnyPublisher()
+    }
+    
     // MARK: - Initialization & Cleanup
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
+        
         setupAuthStateListener()
-        setupInitialState()
+        setupSettingsSubscriptions()
+        
+        // Khôi phục phiên nếu có
+        if sessionStartTime > 0 {
+            resumeSession()
+        }
+        
+        // Khôi phục trạng thái phiên làm việc
+        if let sessionInfo = restoreSessionState() {
+            Task { @MainActor in
+                await restoreWorkSession(sessionInfo)
+            }
+        }
     }
-
+    
     deinit {
         Task { @MainActor [weak self] in
             await self?.cleanupResources()
@@ -165,14 +228,6 @@ class SourceModel: ObservableObject {
     }
     
     // MARK: - Setup Methods
-    private func setupInitialState() {
-        Task {
-            if !userId.isEmpty {
-                await fetchStoredUserData()
-            }
-        }
-    }
-    
     private func setupAuthStateListener() {
         environment.authService.setupAuthStateListener { [weak self] state in
             Task { @MainActor [weak self] in
@@ -185,42 +240,52 @@ class SourceModel: ObservableObject {
                     await self?.handleSignOut()
                 case .emailNotVerified:
                     await self?.handleEmailNotVerified()
-                case .loading:
-                    self?.isLoading = true
                 }
             }
         }
     }
     
-    // MARK: - Authentication Methods
     private func handleAuthStateChange(_ user: FirebaseAuth.User?) async {
-        if let user = user {
-            do {
-                try await environment.authService.checkEmailVerification()
-                
-                if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
-                    await MainActor.run {
-                        self.userId = userData.id!
-                    }
-                    await fetchShops(for: userId)
+        do {
+            try await withLoading("Đang xác thực người dùng...") {
+                if let user = user {
+                    // 1. Kiểm tra email verification
+                    try await environment.authService.checkEmailVerification()
                     
-                    await MainActor.run {
-                        self.currentUser = userData
-                    }
-                }
-            } catch let error as AppError {
-                if case .auth(.unverifiedEmail) = error {
-                    await MainActor.run {
-                        self.userId = user.uid
-                        self.currentUser = nil
+                    // 2. Lấy dữ liệu user từ database
+                    if let userData: AppUser = try await environment.databaseService.getUser(userId: user.uid) {
+                        // 3. Lưu userId vào UserDefaults nếu chưa có
+                        if userId.isEmpty {
+                            await MainActor.run {
+                                self.userId = userData.id!
+                            }
+                        }
+                        
+                        // 4. Fetch shops và dữ liệu liên quan
+                        await fetchShops(for: userData.id!)
+                        
+                        // 5. Cập nhật currentUser cuối cùng để trigger UI update
+                        await MainActor.run {
+                            self.currentUser = userData
+                        }
+                    } else {
+                        // Không tìm thấy user trong database
+                        await handleSignOut()
                     }
                 } else {
                     await handleSignOut()
                 }
-            } catch {
+            }
+        } catch let error as AppError {
+            if case .auth(.unverifiedEmail) = error {
+                await MainActor.run {
+                    self.userId = user?.uid ?? ""
+                    self.currentUser = nil
+                }
+            } else {
                 await handleSignOut()
             }
-        } else {
+        } catch {
             await handleSignOut()
         }
     }
@@ -260,7 +325,7 @@ class SourceModel: ObservableObject {
     // MARK: - Data Fetching Methods
     private func fetchStoredUserData() async {
         do {
-            guard !userId.isEmpty else { return }
+//            guard userId.isEmpty else { return }
             
             if let userData: AppUser = try await environment.databaseService.getUser(userId: userId) {
                 await fetchShops(for: userId)
@@ -270,10 +335,7 @@ class SourceModel: ObservableObject {
                 }
             }
         } catch {
-            await MainActor.run {
-                self.handleError(error, action: "tải dữ liệu người dùng")
-                self.currentUser = nil
-            }
+            self.currentUser = nil
         }
     }
     
@@ -287,7 +349,7 @@ class SourceModel: ObservableObject {
             
             if let activatedShop = fetchedShops.first(where: { $0.isActive }) {
                 await MainActor.run {
-                self.activatedShop = activatedShop
+                    self.activatedShop = activatedShop
                 }
                 await fetchActivatedShop(activatedShop)
             }
@@ -302,9 +364,17 @@ class SourceModel: ObservableObject {
             return
         }
         
+        guard !userId.isEmpty else {
+            handleError(AppError.auth(.userNotFound))
+            return
+        }
+        
         await fetchShopMenu(shopId: shopId)
         await fetchShopOrders(shopId: shopId)
         await fetchShopIngredients(shopId: shopId)
+        await fetchShopStaffs(shopId: shopId)
+        await fetchShopCustomers(shopId: shopId)
+        await fetchShopRevenueRecords(shopId: shopId)
     }
     
     // MARK: - Shop Management Methods
@@ -343,6 +413,62 @@ class SourceModel: ObservableObject {
             
         } catch {
             handleError(AppError.shop(.updateFailed))
+        }
+    }
+    
+    func activateShop(_ shop: Shop) async {
+        guard let shopId = activatedShop?.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        do {
+            if let currentActiveShop = self.shops?.first(where: { $0.isActive && $0.id != shopId }) {
+                var updatedCurrentShop = currentActiveShop
+                updatedCurrentShop.isActive = false
+                let _ = try await environment.databaseService.updateShop(
+                    updatedCurrentShop,
+                    userId: userId,
+                    shopId: shopId
+                )
+            }
+            
+            var updatedShop = shop
+            updatedShop.isActive = true
+            let _ = try await environment.databaseService.updateShop(
+                updatedShop,
+                userId: userId,
+                shopId: shopId
+            )
+            self.activatedShop = updatedShop
+            showSuccess("Đã kích hoạt cửa hàng \(shop.shopName)")
+        } catch {
+            handleError(error, action: "kích hoạt cửa hàng")
+        }
+    }
+    
+    func deactivateShop(_ shop: Shop) async {
+        guard let shopId = activatedShop?.id else {
+            handleError(AppError.shop(.notFound))
+            return
+        }
+        
+        do {
+            if let anotherShop = self.shops?.first(where: { $0.id != shopId }) {
+                var updatedCurrentShop = shop
+                updatedCurrentShop.isActive = false
+                let _ = try await environment.databaseService.updateShop(
+                    updatedCurrentShop,
+                    userId: userId,
+                    shopId: shopId
+                )
+                
+                await activateShop(anotherShop)
+            } else {
+                showError("Không thể tắt cửa hàng duy nhất")
+            }
+        } catch {
+            handleError(error, action: "tắt cửa hàng")
         }
     }
     
@@ -462,6 +588,33 @@ class SourceModel: ObservableObject {
         }
     }
     
+    // MARK: - Staff Management Methods
+    private func fetchShopStaffs(shopId: String) async {
+        do {
+            staffs = try await environment.databaseService.getAllStaffs(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải danh sách nhân viên")
+        }
+    }
+    
+    // MARK: - Customer Management Methods
+    private func fetchShopCustomers(shopId: String) async {
+        do {
+            staffs = try await environment.databaseService.getAllCustomers(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải danh sách khách hàng")
+        }
+    }
+    
+    // MARK: - Revenue Record Management Methods
+    private func fetchShopRevenueRecords(shopId: String) async {
+        do {
+            staffs = try await environment.databaseService.getAllRevenueRecords(userId: userId, shopId: shopId)
+        } catch {
+            handleError(error, action: "tải báo cáo doanh thu")
+        }
+    }
+    
     // MARK: - Listener Management
     
     func setupCurrentUserListener() {
@@ -491,6 +644,10 @@ class SourceModel: ObservableObject {
     }
     
     func setupShopsListener() {
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
         environment.databaseService.listenToShops(userId: userId, queryBuilder: nil, completion: { [weak self] (result: Result<[Shop], Error>) in
             guard let self = self else { return }
             
@@ -517,6 +674,11 @@ class SourceModel: ObservableObject {
     func setupMenuListListener(shopId: String) {
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
+            menuList = []
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
             menuList = []
             return
         }
@@ -548,6 +710,10 @@ class SourceModel: ObservableObject {
     }
     
     func removeMenuListListener(shopId: String) {
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
             return
@@ -558,6 +724,11 @@ class SourceModel: ObservableObject {
     func setupOrdersListener(shopId: String) {
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
+            orders = []
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
             orders = []
             return
         }
@@ -585,12 +756,21 @@ class SourceModel: ObservableObject {
             showError(AppError.shop(.notFound).localizedDescription)
             return
         }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeOrdersListener(userId: userId, shopId: shopId)
     }
     
     func setupIngredientsListener(shopId: String) {
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
+            ingredients = []
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
             ingredients = []
             return
         }
@@ -618,13 +798,23 @@ class SourceModel: ObservableObject {
             showError(AppError.shop(.notFound).localizedDescription)
             return
         }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeIngredientsListener(userId: userId, shopId: shopId)
     }
     
     func setupStaffsListener(shopId: String) {
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
-            ingredients = []
+            staffs = []
+            return
+        }
+        
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            staffs = []
             return
         }
         
@@ -651,12 +841,107 @@ class SourceModel: ObservableObject {
             showError(AppError.shop(.notFound).localizedDescription)
             return
         }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
         environment.databaseService.removeStaffsListener(userId: userId, shopId: shopId)
+    }
+    
+    func setupCustomersListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            customers = []
+            return
+        }
+        
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            customers = []
+            return
+        }
+        
+        environment.databaseService.listenToCustomers(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: nil
+        ) { [weak self] (result: Result<[Customer], Error>) in
+            guard let self = self else { return }
+            
+            Task {
+                switch result {
+                case .success(let customers):
+                    self.customers = customers
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi khách hàng")
+                }
+            }
+        }
+    }
+    
+    func removeCustomersListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
+        environment.databaseService.removeCustomersListener(userId: userId, shopId: shopId)
+    }
+    
+    func setupRevenueRecordsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            revenueRecords = []
+            return
+        }
+        
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            revenueRecords = []
+            return
+        }
+        
+        environment.databaseService.listenToRevenueRecords(
+            userId: userId,
+            shopId: shopId,
+            queryBuilder: { $0.order(by: "date", descending: false) }
+        ) { [weak self] (result: Result<[RevenueRecord], Error>) in
+            guard let self = self else { return }
+            
+            Task {
+                switch result {
+                case .success(let revenueRecords):
+                    self.revenueRecords = revenueRecords
+                case .failure(let error):
+                    self.handleError(error, action: "lắng nghe thay đổi báo cáo doanh thu")
+                }
+            }
+        }
+    }
+    
+    func removeRevenueRecordsListener(shopId: String) {
+        guard !shopId.isEmpty else {
+            showError(AppError.shop(.notFound).localizedDescription)
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
+            return
+        }
+        environment.databaseService.removeRevenueRecordsListener(userId: userId, shopId: shopId)
     }
     
     func setupMenuItemsListener(shopId: String, menuId: String?) {
         guard !shopId.isEmpty else {
             showError(AppError.shop(.notFound).localizedDescription)
+            menuItems = []
+            return
+        }
+        guard let userId = currentUser?.id else {
+            showError(AppError.auth(.userNotFound).localizedDescription)
             menuItems = []
             return
         }
@@ -695,7 +980,7 @@ class SourceModel: ObservableObject {
         }
         environment.databaseService.removeMenuItemsListener(shopId: shopId, menuId: menuId ?? activatedMenuId)
     }
-
+    
     private func removeAllListeners() async {
         let listenerKeys = [
             "user_\(userId)",
@@ -717,6 +1002,7 @@ class SourceModel: ObservableObject {
         cancellables.removeAll()
         invalidateAuthTimer()
         invalidateRemainingTimer()
+        endBackgroundTask()
         await resetState()
     }
     
@@ -738,8 +1024,8 @@ class SourceModel: ObservableObject {
     }
     
     func withProgress<T>(_ operation: (@escaping (Double) -> Void) async throws -> T) async throws -> T {
-        await MainActor.run { [weak self] in 
-            self?.isLoading = true 
+        await MainActor.run { [weak self] in
+            self?.isLoading = true
         }
         
         defer {
@@ -750,8 +1036,8 @@ class SourceModel: ObservableObject {
         }
         
         return try await operation { [weak self] value in
-            Task { @MainActor in 
-                self?.progress = value 
+            Task { @MainActor in
+                self?.progress = value
             }
         }
     }
@@ -781,7 +1067,7 @@ class SourceModel: ObservableObject {
             secondaryButton: AlertButton(title: "Hủy", role: .cancel)
         )
     }
-
+    
     // MARK: - Error Handling
     func handleError(_ error: Error, action: String? = nil, completion: (() -> Void)? = nil) {
         environment.crashlyticsService.log(action ?? "Không xác định")
@@ -798,7 +1084,7 @@ class SourceModel: ObservableObject {
             showError("Lỗi khi \(action): \(error.localizedDescription)")
         }
     }
-
+    
     // MARK: - State Management
     private func resetState() async {
         currentUser = nil
@@ -813,6 +1099,7 @@ class SourceModel: ObservableObject {
         toastMessage = nil
         isOwnerAuthenticated = false
         remainingTime = 0
+        clearSessionState()
         await removeAllListeners()
     }
     
@@ -836,6 +1123,13 @@ class SourceModel: ObservableObject {
         startRemainingTimer()
         remainingTime = authTimeoutInterval
         
+        // Lưu thời gian bắt đầu phiên
+        sessionStartTime = Date().timeIntervalSince1970
+        lastRemainingTime = authTimeoutInterval
+        
+        // Đăng ký background task
+        registerBackgroundTask()
+        
         return true
     }
     
@@ -844,6 +1138,13 @@ class SourceModel: ObservableObject {
         invalidateAuthTimer()
         invalidateRemainingTimer()
         remainingTime = 0
+        
+        // Xóa thông tin phiên
+        sessionStartTime = 0
+        lastRemainingTime = 0
+        
+        // Kết thúc background task
+        endBackgroundTask()
     }
     
     private func startAuthTimer() {
@@ -865,6 +1166,7 @@ class SourceModel: ObservableObject {
                 guard let self = self else { return }
                 if self.remainingTime > 0 {
                     self.remainingTime -= 1
+                    self.lastRemainingTime = self.remainingTime
                 }
             }
     }
@@ -877,6 +1179,136 @@ class SourceModel: ObservableObject {
     private func invalidateRemainingTimer() {
         remainingTimer?.cancel()
         remainingTimer = nil
+    }
+    
+    // MARK: - Background Session Management
+    private func registerBackgroundTask() {
+        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+            self?.endBackgroundTask()
+        }
+    }
+    
+    private func endBackgroundTask() {
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
+    }
+    
+    func resumeSession() {
+        guard let isOwnerAuthenticated = isOwnerAuthenticated, isOwnerAuthenticated else { return }
+        
+        let currentTime = Date().timeIntervalSince1970
+        let elapsedTime = currentTime - sessionStartTime
+        
+        if elapsedTime >= authTimeoutInterval {
+            // Phiên đã hết hạn
+            logoutAsOwner()
+        } else {
+            // Cập nhật thời gian còn lại
+            remainingTime = max(0, authTimeoutInterval - elapsedTime)
+            lastRemainingTime = remainingTime
+            
+            // Khởi động lại timers
+            startAuthTimer()
+            startRemainingTimer()
+            
+            // Đăng ký lại background task
+            registerBackgroundTask()
+        }
+    }
+    
+    private func setupSettingsSubscriptions() {
+        // Subscribe to language changes
+        environment.settingsService.languagePublisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] language in
+                self?.currentLanguage = language
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to theme style changes
+        environment.settingsService.themeStylePublisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] style in
+                self?.currentThemeStyle = style
+                self?.currentThemeColors = style.colors
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to theme colors changes
+        environment.settingsService.themeColorsPublisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] colors in
+                self?.currentThemeColors = colors
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Session Management
+    func saveSessionState(route: Route, shopId: String? = nil, menuId: String? = nil, orderId: String? = nil) {
+        lastActiveRoute = route.id
+        lastActiveShopId = shopId ?? ""
+        lastActiveMenuId = menuId ?? ""
+        lastActiveOrderId = orderId ?? ""
+        lastActiveTimestamp = Date().timeIntervalSince1970
+        
+        // Lưu dữ liệu phiên hiện tại
+        let sessionInfo = SessionInfo(
+            route: route,
+            shopId: shopId,
+            menuId: menuId,
+            orderId: orderId,
+            timestamp: lastActiveTimestamp,
+            currentShop: activatedShop,
+            currentMenu: activatedMenu,
+            currentOrder: orders?.first(where: { $0.id == orderId })
+        )
+        
+        if let encodedData = try? JSONEncoder().encode(sessionInfo) {
+            sessionData = encodedData
+        }
+    }
+    
+    func restoreSessionState() -> SessionInfo? {
+        guard !sessionData.isEmpty else { return nil }
+        
+        // Kiểm tra thời gian phiên có hợp lệ không (ví dụ: 24 giờ)
+        let sessionTimeout: TimeInterval = 24 * 60 * 60
+        if Date().timeIntervalSince1970 - lastActiveTimestamp > sessionTimeout {
+            clearSessionState()
+            return nil
+        }
+        
+        return try? JSONDecoder().decode(SessionInfo.self, from: sessionData)
+    }
+    
+    func clearSessionState() {
+        lastActiveRoute = ""
+        lastActiveShopId = ""
+        lastActiveMenuId = ""
+        lastActiveOrderId = ""
+        lastActiveTimestamp = 0
+        sessionData = Data()
+    }
+    
+    func restoreWorkSession(_ sessionInfo: SessionInfo) async {
+        // Khôi phục cửa hàng đang active
+        if let shopId = sessionInfo.shopId,
+           let shop = shops?.first(where: { $0.id == shopId }) {
+            await switchShop(to: shop)
+        }
+        
+        // Khôi phục menu đang active
+        if let menuId = sessionInfo.menuId,
+           let menu = menuList?.first(where: { $0.id == menuId }) {
+            await activateMenu(menu)
+        }
+        
+        // Khôi phục đơn hàng đang xem
+        if let orderId = sessionInfo.orderId {
+            // Xử lý khôi phục đơn hàng nếu cần
+        }
     }
 }
 
@@ -892,4 +1324,15 @@ struct AlertButton {
     let title: String
     var role: ButtonRole = .cancel
     var action: (() -> Void)?
+}
+
+struct SessionInfo: Codable {
+    let route: Route
+    let shopId: String?
+    let menuId: String?
+    let orderId: String?
+    let timestamp: TimeInterval
+    let currentShop: Shop?
+    let currentMenu: AppMenu?
+    let currentOrder: Order?
 }

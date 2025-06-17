@@ -8,11 +8,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     
     private let db = Firestore.firestore()
     
-    private var listeners: [String: ListenerRegistration] = [:] {
-        didSet {
-            print("Current Listener: \(listeners)")
-        }
-    }
+    private var listeners: [String: ListenerRegistration] = [:]
     
     private init() {}
     
@@ -84,6 +80,30 @@ final class DatabaseService: DatabaseServiceProtocol {
         return data
     }
     
+    func get<T: Codable>(from collection: DatabaseCollection, type: DatabaseCollection.PathType, queryBuilder: ((Query) -> Query)?) async throws -> T? {
+        let path = collection.path(for: type)
+        
+        do {
+            guard !path.contains("Invalid") else {
+                throw AppError.database(.invalidData)
+            }
+            
+            var query: Query = db.collection(path)
+            
+            if let builder = queryBuilder {
+                query = builder(query)
+            }
+            
+            let snapshot = try await query.getDocuments()
+            guard let document = snapshot.documents.first else {
+                throw AppError.database(.documentNotFound)
+            }
+            return try? document.data(as: T.self)
+        } catch {
+            return nil
+        }
+    }
+    
     func getAll<T: Codable>(from collection: DatabaseCollection, type: DatabaseCollection.PathType) async throws -> [T] {
         let path = collection.path(for: type)
         
@@ -95,26 +115,24 @@ final class DatabaseService: DatabaseServiceProtocol {
             let snapshot = try await db.collection(path).getDocuments()
             
             if snapshot.documents.isEmpty {
-                print("ℹ️ No documents found at path: \(path)")
+                throw AppError.database(.documentNotFound)
             }
             
             return snapshot.documents.compactMap { document in
                 do {
                     return try document.data(as: T.self)
                 } catch {
-                    print("⚠️ Decode error for document \(document.documentID): \(error)")
                     return nil
                 }
             }
         } catch {
-            print("🔥 Firestore fetch error from \(path): \(error)")
             throw AppError.database(.readFailed)
         }
     }
 
     
     // MARK: - Query Operations
-    func getAll<T>(from collection: DatabaseCollection, type: DatabaseCollection.PathType, queryBuilder: ((Query) -> Query)?) async throws -> [T] where T : Decodable, T : Encodable {
+    func getAll<T: Codable>(from collection: DatabaseCollection, type: DatabaseCollection.PathType, queryBuilder: ((Query) -> Query)?) async throws -> [T] {
         let path = collection.path(for: type)
         
         guard !path.contains("Invalid") else {
@@ -403,7 +421,7 @@ extension DatabaseService {
         try await delete(id: menuId, from: .menu, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    // MARK: - Ingredients Usage Operations
+    // MARK: - Ingredient Usage Operations
     func createIngredientUsage<T: Codable>(_ IngredientUsage: T, userId: String, shopId: String) async throws -> String {
         return try await create(IngredientUsage, in: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
@@ -424,7 +442,7 @@ extension DatabaseService {
         try await delete(id: ingredientsUsageId, from: .ingredientsUsage, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
-    // MARK: - Staffs Operations
+    // MARK: - Staff Operations
     func createStaff<T: Codable>(_ staff: T, userId: String, shopId: String) async throws -> String {
         return try await create(staff, in: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
@@ -443,6 +461,56 @@ extension DatabaseService {
     
     func deleteStaff(userId: String, shopId: String, staffId: String) async throws {
         try await delete(id: staffId, from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    // MARK: - Customer Operations
+    func createCustomer<T: Codable>(_ customer: T, userId: String, shopId: String) async throws -> String {
+        return try await create(customer, in: .customer, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getCustomer<T: Codable>(userId: String, shopId: String, customerId: String) async throws -> T {
+        return try await get(id: customerId, from: .customer, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getAllCustomers<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .customer, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func updateCustomer<T: Codable>(_ customer: T, userId: String, shopId: String, customerId: String) async throws {
+        let _ = try await update(customer, id: customerId, in: .customer, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func deleteCustomer(userId: String, shopId: String, staffId: String) async throws {
+        try await delete(id: staffId, from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    // MARK: - Revenue Record Operations
+    func createRevenueRecord<T: Codable>(_ revenueRecord: T, userId: String, shopId: String) async throws -> String {
+        return try await create(revenueRecord, in: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getRevenueRecord<T: Codable>(userId: String, shopId: String, revenueRecordId: String) async throws -> T {
+        return try await get(id: revenueRecordId, from: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getRevenueRecord<T: Codable>(userId: String, shopId: String, with query:((Query) -> Query)?) async throws -> T? {
+        return try await get(from: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId), queryBuilder: query)
+    }
+    
+    func getRevenueRecords<T: Codable>(userId: String, shopId: String, with query:((Query) -> Query)?) async throws -> [T] {
+        return try await getAll(from: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId), queryBuilder: query)
+    }
+    
+    func getAllRevenueRecords<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func updateRevenueRecord<T: Codable>(_ revenueRecord: T, userId: String, shopId: String, revenueRecordId: String) async throws {
+        let _ = try await update(revenueRecord, id: revenueRecordId, in: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func deleteRevenueRecord(userId: String, shopId: String, revenueRecordId: String) async throws {
+        try await delete(id: revenueRecordId, from: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
     // MARK: - Menu Items Operations
@@ -582,5 +650,33 @@ extension DatabaseService {
     
     func removeStaffsListener(userId: String, shopId: String) {
         removeListener(forKey: "staffs_\(userId)_\(shopId)")
+    }
+    
+    func listenToCustomers<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .customer,
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "customers_\(userId)_\(shopId)",
+            queryBuilder: queryBuilder,
+            completion: completion
+        )
+    }
+    
+    func removeCustomersListener(userId: String, shopId: String) {
+        removeListener(forKey: "customers_\(userId)_\(shopId)")
+    }
+    
+    func listenToRevenueRecords<T: Codable>(userId: String, shopId: String, queryBuilder: ((Query) -> Query)? = nil, completion: @escaping (Result<[T], Error>) -> Void) {
+        addCollectionListener(
+            collection: .revenueRecord,
+            type: .nestedSubcollection(userId: userId, shopId: shopId),
+            key: "revenueRecords_\(userId)_\(shopId)",
+            queryBuilder: queryBuilder,
+            completion: completion
+        )
+    }
+    
+    func removeRevenueRecordsListener(userId: String, shopId: String) {
+        removeListener(forKey: "revenueRecords_\(userId)_\(shopId)")
     }
 }

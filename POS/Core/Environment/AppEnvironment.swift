@@ -7,7 +7,7 @@ final class AppEnvironment: ObservableObject {
     let databaseService: DatabaseService
     let networkService: NetworkService
     let storageService: StorageService
-    let analyticsService: AnalyticsService
+    let revenueRecordService: AnalyticsService
     let crashlyticsService: CrashlyticsService
     let settingsService: SettingsService
     let printerService: PrinterService
@@ -19,7 +19,7 @@ final class AppEnvironment: ObservableObject {
         databaseService: DatabaseService = .shared,
         networkService: NetworkService = .shared,
         storageService: StorageService = .shared,
-        analyticsService: AnalyticsService = .shared,
+        revenueRecordService: AnalyticsService = .shared,
         crashlyticsService: CrashlyticsService = .shared,
         settingsService: SettingsService = .shared,
         printerService: PrinterService = .shared
@@ -29,7 +29,7 @@ final class AppEnvironment: ObservableObject {
         self.databaseService = databaseService
         self.networkService = networkService
         self.storageService = storageService
-        self.analyticsService = analyticsService
+        self.revenueRecordService = revenueRecordService
         self.crashlyticsService = crashlyticsService
         self.settingsService = settingsService
         self.printerService = printerService

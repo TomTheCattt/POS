@@ -1,11 +1,13 @@
 import Foundation
 import FirebaseFirestore
+import Combine
 
 @MainActor
 class StaffViewModel: ObservableObject {
     @Published var staffList: [Staff] = []
     
     private let source: SourceModel
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     init(source: SourceModel) {
@@ -20,7 +22,7 @@ class StaffViewModel: ObservableObject {
                       let staffs = staffs else { return }
                 self.staffList = staffs
             }
-            .store(in: &source.cancellables)
+            .store(in: &cancellables)
     }
     
     func createStaff(name: String, position: StaffPosition, hourlyRate: Double) async throws {

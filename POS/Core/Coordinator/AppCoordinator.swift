@@ -11,6 +11,7 @@ class AppCoordinator: ObservableObject {
     @Published var fullScreenRoute: (route: Route, config: NavigationConfig)?
     @Published var slideRoute: (route: Route, config: NavigationConfig)?
     @Published var slideDirection: NavigationStyle?
+    @Published var currentRoute: Route = .authentication
     
     // MARK: - UI States
     @Published var isLoading = false
@@ -22,6 +23,7 @@ class AppCoordinator: ObservableObject {
     
     private var routerViewModel: RouterViewModel?
     private var sourceModel: SourceModel?
+    private var toastTask: Task<Void, Never>?
     
     init(routerViewModel: RouterViewModel, sourceModel: SourceModel) {
         self.routerViewModel = routerViewModel
@@ -51,11 +53,7 @@ class AppCoordinator: ObservableObject {
         // Bind toast messages
         sourceModel.toastPublisher
             .sink { [weak self] message in
-                self?.toastMessage = message
-                if message != nil {
-                    self?.showToast = true
-                    self?.hideToastAfterDelay()
-                }
+                self?.handleToastMessage(message)
             }
             .store(in: &sourceModel.cancellables)
         
@@ -68,11 +66,40 @@ class AppCoordinator: ObservableObject {
     }
     
     // MARK: - UI Display Methods
-    private func hideToastAfterDelay() {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+    private func handleToastMessage(_ message: (type: ToastType, message: String)?) {
+        // Hủy task hiện tại nếu có
+        toastTask?.cancel()
+        
+        guard let message = message else {
             withAnimation(.spring()) {
-                self?.showToast = false
+                showToast = false
+            }
+            return
+        }
+        
+        // Tạo task mới để xử lý toast
+        toastTask = Task { @MainActor in
+            // Cập nhật message và hiển thị toast
+            toastMessage = message
+            withAnimation(.spring()) {
+                showToast = true
+            }
+            
+            // Đợi 2 giây
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            
+            // Kiểm tra xem task có bị hủy không
+            guard !Task.isCancelled else { return }
+            
+            // Ẩn toast với animation
+            withAnimation(.spring()) {
+                showToast = false
+            }
+            
+            // Xóa message sau khi ẩn
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 giây
+            if !Task.isCancelled {
+                toastMessage = nil
             }
         }
     }
@@ -81,6 +108,11 @@ class AppCoordinator: ObservableObject {
     func loadingOverlay() -> some View {
         if isLoading {
             LoadingView(message: loadingText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.2))
+                .allowsHitTesting(true)
+                .contentShape(Rectangle())
+                .onTapGesture {}
         }
     }
     
@@ -92,7 +124,10 @@ class AppCoordinator: ObservableObject {
             }
             .progressViewStyle(.circular)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.opacity(0.4))
+            .background(Color.black.opacity(0.2))
+            .allowsHitTesting(true)
+            .contentShape(Rectangle())
+            .onTapGesture {}
         }
     }
     
@@ -101,13 +136,21 @@ class AppCoordinator: ObservableObject {
         if showToast, let (type, message) = toastMessage {
             ToastView(type: type, message: message)
                 .transition(.opacity)
+                .zIndex(1000) // Đảm bảo toast luôn hiển thị trên cùng
         }
     }
     
     // MARK: - View Wrapper
     
+    func updateCurrentRoute(_ route: Route) {
+        currentRoute = route
+    }
+    
     // MARK: - Navigation Methods
     func navigateTo(_ route: Route, using style: NavigationStyle = .push, with config: NavigationConfig = .default) {
+        // Cập nhật currentRoute
+        //currentRoute = route
+        
         // Xử lý dismiss previous nếu được yêu cầu
         if config.shouldDismissPrevious {
             dismiss()
@@ -260,108 +303,74 @@ class AppCoordinator: ObservableObject {
         Group {
             if let routerViewModel {
                 switch route {
-                    // Authentication
                 case .authentication:
-                    let viewModel = routerViewModel.authVM
-                    AuthenticationView(viewModel: viewModel)
-                case .ownerAuth:
-                    let viewModel = routerViewModel.settingsVM
-                    OwnerAuthView(viewModel: viewModel)
-                case .signIn:
-                    let viewModel = routerViewModel.authVM
-                    LoginSectionView(viewModel: viewModel)
-                case .signUp:
-                    let viewModel = routerViewModel.authVM
-                    SignUpSectionView(viewModel: viewModel)
-                    // Main Features
+                    AuthenticationView(viewModel: routerViewModel.authVM)
                 case .home:
-                    let viewModel = routerViewModel.homeVM
-                    HomeView(viewModel: viewModel)
+                    HomeView(viewModel: routerViewModel.homeVM)
                 case .order:
-                    let viewModel = routerViewModel.orderVM
-                    OrderView(viewModel: viewModel)
-                case .orderMenuItemCard(let menuItem):
-                    let viewModel = routerViewModel.orderVM
-                    MenuItemCard(viewModel: viewModel, item: menuItem)
-                case .orderItem(let orderItem):
-                    let viewModel = routerViewModel.orderVM
-                    ModernOrderItemView(viewModel: viewModel, item: orderItem)
-                case .ordersHistory:
-                    let viewModel = routerViewModel.historyVM
-                    HistoryView(viewModel: viewModel)
-                case .filter:
-                    let viewModel = routerViewModel.historyVM
-                    EnhancedFilterView(viewModel: viewModel)
-                case .orderCard(let order):
-                    let viewModel = routerViewModel.historyVM
-                    EnhancedOrderCard(order: order, viewModel: viewModel)
-                case .orderDetail(let order):
-                    let viewModel = routerViewModel.historyVM
-                    EnhancedOrderDetailView(order: order, viewModel: viewModel)
-                case .analytics:
-                    let viewModel = routerViewModel.analyticsVM
-                    AnalyticsView(viewModel: viewModel)
-                case .inventory:
-                    let viewModel = routerViewModel.ingredientVM
-                    InventoryView(viewModel: viewModel)
+                    OrderView(viewModel: routerViewModel.orderVM)
+                case .orderSummary:
+                    OrderSummarySheet(viewModel: routerViewModel.orderVM)
                 case .note(let orderItem):
-                    let viewModel = routerViewModel.orderVM
-                    NoteView(viewModel: viewModel, orderItem: orderItem)
-                    
-                    // Settings
+                    NoteView(viewModel: routerViewModel.orderVM, orderItem: orderItem)
+                case .addCustomer:
+                    AddCustomerView(viewModel: routerViewModel.orderVM)
+                case .ordersHistory:
+                    HistoryView(viewModel: routerViewModel.historyVM)
+                case .orderDetail(let order):
+                    EnhancedOrderDetailView(viewModel: routerViewModel.historyVM, order: order)
+                case .revenue(let shop):
+                    RevenueRecordView(viewModel: routerViewModel.revenueRecordVM, shop: shop)
+                case .expense:
+                    ExpenseManagementView(viewModel: routerViewModel.expenseVM)
                 case .settings:
-                    let viewModel = routerViewModel.settingsVM
-                    SettingsView(viewModel: viewModel)
-                case .addShop:
-                    let viewModel = routerViewModel.shopVM
-                    AddShopSheet(viewModel: viewModel)
-                case .staff:
-                    let viewModel = routerViewModel.staffVM
-                    StaffView(viewModel: viewModel)
+                    SettingsView(viewModel: routerViewModel.settingsVM)
                 case .accountDetail:
-                    let viewModel = routerViewModel.profileVM
-                    AccountDetailView(viewModel: viewModel)
+                    AccountDetailView(viewModel: routerViewModel.profileVM)
+                case .password:
+                    PasswordView(viewModel: routerViewModel.passwordVM)
+                case .manageShops:
+                    ShopManagementView(viewModel: routerViewModel.shopVM)
+                case .menuSection(let shop):
+                    MenuSectionView(viewModel: routerViewModel.menuVM, shop: shop)
+                case .menuForm(let appMenu):
+                    MenuFormView(viewModel: routerViewModel.menuVM, menu: appMenu)
+                case .menuItemForm(let appMenu, let menuItem):
+                    MenuItemFormView(viewModel: routerViewModel.menuVM, menu: appMenu, menuItem: menuItem)
                 case .ingredientSection:
-                    let viewModel = routerViewModel.ingredientVM
-                    IngredientSectionView(viewModel: viewModel)
-                case .ingredientForm(let ingredient):
-                    let viewModel = routerViewModel.ingredientVM
-                    IngredientUsageFormView(viewModel: viewModel, item: ingredient)
-                case .menuSection:
-                    let viewModel = routerViewModel.menuVM
-                    MenuSectionView(viewModel: viewModel)
-                case .menuForm(let menu):
-                    let viewModel = routerViewModel.menuVM
-                    MenuFormView(viewModel: viewModel, menu: menu)
-                case .updateMenuForm:
-                    let viewModel = routerViewModel.menuVM
-                    UpdateMenuForm(viewModel: viewModel)
+                    IngredientSectionView(viewModel: routerViewModel.ingredientVM)
+                case .ingredientForm(let ingredientUsage):
+                    IngredientUsageFormView(viewModel: routerViewModel.ingredientVM, item: ingredientUsage)
+                case .setUpPrinter:
+                    PrinterView(viewModel: routerViewModel.printerVM)
+                case .language:
+                    LanguageView(viewModel: routerViewModel.settingsVM)
+                case .theme:
+                    ThemeView(viewModel: routerViewModel.settingsVM)
+                case .addShop(let shop):
+                    AddShopSheet(viewModel: routerViewModel.shopVM, shop: shop)
+                case .ownerAuth:
+                    OwnerAuthView(viewModel: routerViewModel.settingsVM)
+                case .staff(let shop):
+                    StaffView(viewModel: routerViewModel.staffVM, shop: shop)
+                case .orderItem(let orderItem):
+                    OrderItemView(viewModel: routerViewModel.orderVM, item: orderItem)
+                case .orderMenuItemCardIphone(let menuItem):
+                    CompactMenuItemCard(viewModel: routerViewModel.orderVM, item: menuItem)
+                case .orderMenuItemCardIpad(let menuItem):
+                    MenuItemCard(viewModel: routerViewModel.orderVM, item: menuItem)
+                case .addVoucher:
+                    AddVoucherSheet(viewModel: routerViewModel.shopVM)
+                case .shopDetail(let shop):
+                    ShopDetailView(viewModel: routerViewModel.shopVM, shop: shop)
+                case .shopRow(let shop):
+                    ShopRow(shop: shop)
+                case .menuDetail(let menu):
+                    MenuDetailView(viewModel: routerViewModel.menuVM, currentMenu: menu)
                 case .menuRow(let menu):
                     MenuRow(menu: menu)
-                case .menuDetail:
-                    let viewModel = routerViewModel.menuVM
-                    MenuDetailView(viewModel: viewModel)
-                case .menuItemForm(let menu, let menuItem):
-                    let viewModel = routerViewModel.menuVM
-                    MenuItemFormView(viewModel: viewModel, menu: menu, menuItem: menuItem)
                 case .menuItemCard(let menuItem):
-                    let viewModel = routerViewModel.menuVM
-                    EnhancedMenuItemCard(viewModel: viewModel, item: menuItem)
-                case .language:
-                    let viewModel = routerViewModel.settingsVM
-                    LanguageView(viewModel: viewModel)
-                case .theme:
-                    let viewModel = routerViewModel.settingsVM
-                    ThemeView(viewModel: viewModel)
-                case .setUpPrinter:
-                    let viewModel = routerViewModel.printerVM
-                    PrinterView(viewModel: viewModel)
-                case .password:
-                    let viewModel = routerViewModel.passwordVM
-                    PasswordView(viewModel: viewModel)
-                case .manageShops:
-                    let viewModel = routerViewModel.shopVM
-                    ShopManagementView(viewModel: viewModel)
+                    EnhancedMenuItemCard(viewModel: routerViewModel.menuVM, item: menuItem)
                 }
             } else {
                 EmptyView()
@@ -384,32 +393,32 @@ class AppCoordinator: ObservableObject {
     }
 }
 
-extension View {
-    func customAlert(_ alert: Binding<AlertItem?>) -> some View {
-        self.alert(
-            alert.wrappedValue?.title ?? "",
-            isPresented: Binding(
-                get: { alert.wrappedValue != nil },
-                set: { if !$0 { alert.wrappedValue = nil } }
-            ),
-            presenting: alert.wrappedValue
-        ) { alertData in
-            if let primary = alertData.primaryButton {
-                Button(primary.title, role: primary.role) {
-                    primary.action?()
-                    alert.wrappedValue = nil
-                }
-            }
-            if let secondary = alertData.secondaryButton {
-                Button(secondary.title, role: secondary.role) {
-                    secondary.action?()
-                    alert.wrappedValue = nil
-                }
-            }
-        } message: { alertData in
-            if let message = alertData.message {
-                Text(message)
-            }
-        }
-    }
-}
+//extension View {
+//    func customAlert(_ alert: Binding<AlertItem?>) -> some View {
+//        self.alert(
+//            alert.wrappedValue?.title ?? "",
+//            isPresented: Binding(
+//                get: { alert.wrappedValue != nil },
+//                set: { if !$0 { alert.wrappedValue = nil } }
+//            ),
+//            presenting: alert.wrappedValue
+//        ) { alertData in
+//            if let primary = alertData.primaryButton {
+//                Button(primary.title, role: primary.role) {
+//                    primary.action?()
+//                    alert.wrappedValue = nil
+//                }
+//            }
+//            if let secondary = alertData.secondaryButton {
+//                Button(secondary.title, role: secondary.role) {
+//                    secondary.action?()
+//                    alert.wrappedValue = nil
+//                }
+//            }
+//        } message: { alertData in
+//            if let message = alertData.message {
+//                Text(message)
+//            }
+//        }
+//    }
+//}

@@ -20,6 +20,7 @@ enum AppError: LocalizedError {
     case order(OrderError)
     case inventory(InventoryError)
     case ingredients(IngredientsUsageError)
+    case printer(PrinterError)
     case unknown
 }
 
@@ -55,6 +56,27 @@ enum NetworkError: LocalizedError {
             return "Yêu cầu đã bị huỷ."
         case .unknown(let error):
             return "Lỗi không xác định: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Printer Error
+enum PrinterError: LocalizedError {
+    case bluetoothNotAvailable
+    case bluetoothNotAuthorized
+    case connectionFailed
+    case printFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .bluetoothNotAvailable:
+            return "Bluetooth không khả dụng"
+        case .bluetoothNotAuthorized:
+            return "Ứng dụng chưa được cấp quyền sử dụng Bluetooth"
+        case .connectionFailed:
+            return "Không thể kết nối với máy in"
+        case .printFailed:
+            return "Không thể in tài liệu"
         }
     }
 }
@@ -298,6 +320,8 @@ extension AppError {
         case .menu(let error):
             return error.localizedDescription
         case .ingredients(let error):
+            return error.localizedDescription
+        case .printer(let error):
             return error.localizedDescription
         case .unknown:
             return AppLocalizedString.errorUnknown 

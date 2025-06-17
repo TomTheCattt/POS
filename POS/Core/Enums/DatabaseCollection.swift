@@ -1,7 +1,7 @@
 import Foundation
 
 enum DatabaseCollection: String {
-    case users, shops, orders, menu, menuItems, ingredientsUsage, staff
+    case users, shops, orders, menu, menuItems, ingredientsUsage, staff, customer, revenueRecord
     
     enum PathType {
         // users
@@ -21,7 +21,7 @@ enum DatabaseCollection: String {
         // menu, staff, ingredientsUsage
         case nestedSubcollection(userId: String, shopId: String)
         
-        // specific menu || staff || ingredientUsage
+        // specific menu || staff || ingredientUsage || customer || revenue record
         case deepNestedDocument(userId: String, shopId: String, optionId: String)
         
         // deep nested subcollection (menu's collections)
@@ -70,6 +70,18 @@ enum DatabaseCollection: String {
             return "users/\(userId)/shops/\(shopId)/staff"
         case (.staff, .deepNestedDocument(let userId, let shopId, let staffId)):
             return "users/\(userId)/shops/\(shopId)/staff/\(staffId)"
+            
+            // CUSTOMER cases
+        case (.customer, .nestedSubcollection(let userId, let shopId)):
+            return "users/\(userId)/shops/\(shopId)/customers"
+        case (.customer, .deepNestedDocument(let userId, let shopId, let customerId)):
+            return "users/\(userId)/shops/\(shopId)/customers/\(customerId)"
+            
+            // REVENUE RECORD cases
+        case (.revenueRecord, .nestedSubcollection(let userId, let shopId)):
+            return "users/\(userId)/shops/\(shopId)/revenueRecords"
+        case (.revenueRecord, .deepNestedDocument(let userId, let shopId, let revenueRecordId)):
+            return "users/\(userId)/shops/\(shopId)/revenueRecords/\(revenueRecordId)"
             
             // MENU ITEMS cases
         case (.menuItems, .deepNestedSubCollection(let userId, let shopId, let menuId)):
@@ -139,6 +151,22 @@ extension DatabaseCollection {
     
     static func getMenuItemDocument(userId: String, shopId: String, menuId: String, menuItemId: String) -> String {
         return DatabaseCollection.menu.path(for: .deepNestedSubCollectionDocument(userId: userId, shopId: shopId, optionId: menuId, menuItemId: menuItemId))
+    }
+    
+    static func getCustomersCollection(userId: String, shopId: String) -> String {
+        return DatabaseCollection.customer.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    static func getCustomerDocument(userId: String, shopId: String, customerId: String) -> String {
+        return DatabaseCollection.customer.path(for: .deepNestedDocument(userId: userId, shopId: shopId, optionId: customerId))
+    }
+    
+    static func getRevenueRecordsCollection(userId: String, shopId: String) -> String {
+        return DatabaseCollection.revenueRecord.path(for: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    static func getRevenueRecordDocument(userId: String, shopId: String, revenueRecordId: String) -> String {
+        return DatabaseCollection.revenueRecord.path(for: .deepNestedDocument(userId: userId, shopId: shopId, optionId: revenueRecordId))
     }
 }
 

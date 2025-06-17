@@ -10,7 +10,6 @@ enum AuthState {
     case authenticated
     case unauthenticated
     case emailNotVerified
-    case loading
 }
 
 final class AuthService: AuthServiceProtocol {

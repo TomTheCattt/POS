@@ -82,7 +82,7 @@ struct StaffEfficiencyReport: Codable {
     let recommendedStaffing: [Int: Int]
 }
 
-enum AnalyticsPeriod: String {
+enum revenueRecordPeriod: String {
     case day
     case week
     case month
@@ -90,7 +90,7 @@ enum AnalyticsPeriod: String {
     case year
 }
 
-//struct AnalyticsEvent: Codable {
+//struct revenueRecordEvent: Codable {
 //    let name: String
 //    let parameters: [String: Any]
 //    let timestamp: Date

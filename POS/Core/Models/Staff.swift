@@ -95,17 +95,17 @@ struct Staff: Codable, Identifiable {
     }
     
     // MARK: - Dictionary Representation
-    var dictionary: [String: Any] {
-        [
-            "name": name,
-            "position": position.rawValue,
-            "hourlyRate": hourlyRate,
-            "shopId": shopId,
-            "shifts": shifts.map { $0.dictionary },
-            "createdAt": createdAt,
-            "updatedAt": updatedAt
-        ]
-    }
+//    var dictionary: [String: Any] {
+//        [
+//            "name": name,
+//            "position": position.rawValue,
+//            "hourlyRate": hourlyRate,
+//            "shopId": shopId,
+//            "shifts": shifts.map { $0.dictionary },
+//            "createdAt": createdAt,
+//            "updatedAt": updatedAt
+//        ]
+//    }
 }
 
 // MARK: - Validation

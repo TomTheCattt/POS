@@ -76,34 +76,30 @@ protocol StorageServiceProtocol {
     func deleteImage(at url: URL) async throws
 }
 
-// MARK: - 10. Analytics Service
+// MARK: - 10. revenueRecord Service
 protocol AnalyticsServiceProtocol {
-    // Sales Analytics
+    // Sales revenueRecord
     func getDailySales(date: Date) async throws -> DailySales
     func getSalesReport(from: Date, to: Date) async throws -> SalesReport
     func getTopSellingItems(limit: Int) async throws -> [TopSellingItem]
-    func getSalesTrend(period: AnalyticsPeriod) async throws -> [SalesTrendPoint]
+    func getSalesTrend(period: revenueRecordPeriod) async throws -> [SalesTrendPoint]
     
-    // Customer Analytics
+    // Customer revenueRecord
     func getCustomerStats() async throws -> CustomerStats
     func getCustomerRetentionRate() async throws -> Double
     func getCustomerLifetimeValue() async throws -> Double
     
-    // Product Analytics
+    // Product revenueRecord
     func getProductPerformance(productId: String) async throws -> ProductPerformance
     func getProductCategoryAnalytics() async throws -> [CategoryAnalytics]
     func getLowPerformingProducts(threshold: Double) async throws -> [ProductPerformance]
-    
-    // Employee Analytics
-    func getEmployeePerformance(employeeId: String) async throws -> EmployeePerformance
-    func getStaffEfficiencyReport() async throws -> StaffEfficiencyReport
     
     // Real-time Monitoring
     var currentDayStats: AnyPublisher<DailySales, Never> { get }
     var topSellingItemsPublisher: AnyPublisher<[TopSellingItem], Never> { get }
     
     // Custom Events
-    //func logEvent(_ event: AnalyticsEvent)
+    //func logEvent(_ event: revenueRecordEvent)
     func getEventStats(eventName: String, from: Date, to: Date) async throws -> EventStats
 }
 
@@ -115,13 +111,10 @@ protocol SettingsServiceProtocol {
     var languagePublisher: AnyPublisher<AppLanguage, Never> { get }
     
     // Theme
-    var currentTheme: AppTheme { get }
-    func setTheme(_ theme: AppTheme)
-    var themePublisher: AnyPublisher<AppTheme, Never> { get }
+    var currentThemeStyle: AppThemeStyle { get }
+    func setThemeStyle(_ theme: AppThemeStyle)
+    var themeStylePublisher: AnyPublisher<AppThemeStyle, Never> { get }
     
-    // Load & Save
-    func loadSettings()
-    func saveSettings()
 }
 
 //MARK: - 14. Printer Service

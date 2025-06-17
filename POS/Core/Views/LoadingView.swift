@@ -9,18 +9,18 @@ struct LoadingView: View {
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Color.clear.opacity(0.4)
                 .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 16) {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .progressViewStyle(CircularProgressViewStyle(tint: Color(.systemGray2)))
                     .scaleEffect(1.5)
                 
                 if let message = message {
                     Text(message)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(.systemGray2))
                         .multilineTextAlignment(.center)
                 }
             }
@@ -28,7 +28,7 @@ struct LoadingView: View {
             .padding(.vertical, 20)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.black.opacity(0.7))
+                    .fill(Color.systemGray6)
             )
         }
         .transition(.opacity)
@@ -37,4 +37,5 @@ struct LoadingView: View {
 
 #Preview {
     LoadingView(message: "Đang xử lý...")
-} 
+}
+

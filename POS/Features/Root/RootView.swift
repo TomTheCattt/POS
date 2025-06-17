@@ -10,7 +10,7 @@ import Combine
 
 struct RootView: View {
     // MARK: - Properties
-    @StateObject private var appState: AppState = AppState()
+    @EnvironmentObject private var appState: AppState
     
     // MARK: - Body
     var body: some View {
@@ -71,19 +71,23 @@ struct RootView: View {
             .overlay { appState.coordinator.loadingOverlay() }
             .overlay { appState.coordinator.progressOverlay() }
             .overlay { appState.coordinator.toastOverlay() }
-            .optimizedShadow()
             .customAlert($appState.coordinator.alert)
         }
         .ignoresSafeArea(.keyboard)
-        .environmentObject(appState)
     }
 }
 
 @MainActor
 final class AppState: ObservableObject {
     let sourceModel: SourceModel
-    private let routerViewModel: RouterViewModel
     var coordinator: AppCoordinator
+    private(set) var currentRoute: Route = .order {
+        didSet {
+            print("DEBUG: [\(#fileID):\(#line)] \(#function) - currentRoute: \(String(describing: currentRoute))")
+        }
+    }
+    @Published private var themeStyle: AppThemeStyle?
+    private let routerViewModel: RouterViewModel
     private var cancellables = Set<AnyCancellable>()
     
     init() {
@@ -91,9 +95,19 @@ final class AppState: ObservableObject {
         self.routerViewModel = RouterViewModel(source: sourceModel)
         self.coordinator = AppCoordinator(routerViewModel: routerViewModel, sourceModel: sourceModel)
         
+        setupBindings()
+    }
+    
+    private func setupBindings() {
         sourceModel.objectWillChange
             .sink { [weak self] in
                 self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+            
+        sourceModel.themeStylePublisher
+            .sink { [weak self] themeStyle in
+                self?.themeStyle = themeStyle
             }
             .store(in: &cancellables)
         
@@ -102,6 +116,49 @@ final class AppState: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+        
+        coordinator.$currentRoute
+            .sink { [weak self] route in
+                self?.currentRoute = route
+            }
+            .store(in: &cancellables)
+    }
+    
+    // Computed property không cần @Published
+    var currentTabThemeColors: TabThemeColor {
+        // Ưu tiên sử dụng themeStyle nếu có
+        if let themeStyle = themeStyle {
+            switch currentRoute {
+            case .order:
+                return themeStyle.colors.order
+            case .ordersHistory:
+                return themeStyle.colors.history // Sử dụng themeStyle thay vì settingsService
+            case .expense:
+                return themeStyle.colors.expense // Sử dụng themeStyle thay vì settingsService
+            case .revenue:
+                return themeStyle.colors.revenue // Sử dụng themeStyle thay vì settingsService
+            case .settings:
+                return themeStyle.colors.settings
+            default:
+                return themeStyle.colors.global // Sử dụng themeStyle thay vì settingsService
+            }
+        }
+        
+        // Fallback về sourceModel.currentThemeColors nếu themeStyle là nil
+        switch currentRoute {
+        case .order:
+            return sourceModel.currentThemeColors.order
+        case .ordersHistory:
+            return sourceModel.currentThemeColors.history
+        case .expense:
+            return sourceModel.currentThemeColors.expense
+        case .revenue:
+            return sourceModel.currentThemeColors.revenue
+        case .settings:
+            return sourceModel.currentThemeColors.settings
+        default:
+            return sourceModel.currentThemeColors.global
+        }
     }
 }
 

@@ -6,7 +6,6 @@ struct ToastView: View {
     
     var body: some View {
         VStack {
-            Spacer()
             HStack {
                 Image(systemName: type.iconName)
                     .foregroundColor(type.iconColor)
@@ -18,11 +17,12 @@ struct ToastView: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.white)
-                    .shadow(radius: 5)
+//                    .shadow(radius: 5)
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
             .transition(.move(edge: .bottom))
+            Spacer()
         }
         .animation(.spring(), value: true)
         .zIndex(1)

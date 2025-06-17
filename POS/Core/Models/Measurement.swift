@@ -4,27 +4,27 @@ struct Measurement: Codable, Equatable, Hashable {
     let value: Double
     let unit: MeasurementUnit
     
-    init(value: Double, unit: MeasurementUnit) {
-        self.value = max(0, value) // Ensure non-negative values
-        self.unit = unit
-    }
-    
-    var dictionary: [String: Any] {
-        [
-            "value": value,
-            "unit": unit.rawValue
-        ]
-    }
-    
-    init?(dictionary: [String: Any]) {
-        guard let value = dictionary["value"] as? Double,
-              let unitString = dictionary["unit"] as? String,
-              let unit = MeasurementUnit(rawValue: unitString) else {
-            return nil
-        }
-        
-        self.init(value: value, unit: unit)
-    }
+//    init(value: Double, unit: MeasurementUnit) {
+//        self.value = max(0, value) // Ensure non-negative values
+//        self.unit = unit
+//    }
+//    
+//    var dictionary: [String: Any] {
+//        [
+//            "value": value,
+//            "unit": unit.rawValue
+//        ]
+//    }
+//    
+//    init?(dictionary: [String: Any]) {
+//        guard let value = dictionary["value"] as? Double,
+//              let unitString = dictionary["unit"] as? String,
+//              let unit = MeasurementUnit(rawValue: unitString) else {
+//            return nil
+//        }
+//        
+//        self.init(value: value, unit: unit)
+//    }
     
     // MARK: - Display
     var displayString: String {

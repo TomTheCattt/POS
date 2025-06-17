@@ -7,901 +7,188 @@
 
 import SwiftUI
 
-struct SettingsView: View {
-    @ObservedObject var viewModel: SettingsViewModel
-    @EnvironmentObject var appState: AppState
-
-    private let isIphone = UIDevice.current.userInterfaceIdiom == .phone
-
-    var body: some View {
-        Group {
-            if isIphone {
-                iphoneLayout
-            } else {
-                ipadLayout
-            }
-        }
-        .onAppear {
-            Task {
-                appState.sourceModel.setupShopsListener()
-            }
-        }
-        .onDisappear {
-            Task {
-                appState.sourceModel.removeShopsListener()
-            }
-        }
-    }
+// MARK: - Settings Models
+enum SettingsCategory: String, CaseIterable, Identifiable {
+    case account = "Tài khoản"
+    case shops = "Cửa hàng"
+    case theme = "Giao diện"
+    case printer = "Máy in"
+    case language = "Ngôn ngữ"
     
-    // MARK: - iPhone Layout
-    private var iphoneLayout: some View {
-        List {
-            // User Profile Section
-            Section {
-                userProfileCell
-            }
-            
-            // Active Shop Section
-            if let activeShop = appState.sourceModel.activatedShop {
-                Section {
-                    activeShopCell(activeShop)
-                }
-            }
-            
-            // Settings Options
-            Section {
-                ForEach(SettingsOption.allCases, id: \.self) { option in
-                    settingsOptionCell(option)
-                }
-            }
-            
-            // Owner Actions
-            if viewModel.isOwnerAuthenticated {
-                Section {
-//                    addShopButton
-//                    ownerLogoutButton
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Cài đặt")
-        .alert("Xác thực chủ sở hữu", isPresented: $viewModel.showAuthAlert) {
-            SecureField("Mật khẩu", text: $viewModel.ownerPassword)
-            Button("Hủy", role: .cancel) {
-                viewModel.ownerPassword = ""
-            }
-            Button("Xác nhận") {
-                viewModel.authenticateOwner()
-            }
-        } message: {
-            if let lockEndTimeRemaining = appState.sourceModel.lockEndTimeRemaining {
-                Text("Tài khoản đã bị khóa. Vui lòng thử lại sau \(lockEndTimeRemaining)")
-            } else {
-                Text("Nhập mật khẩu chủ sở hữu để tiếp tục. Còn \(3 - viewModel.authAttempts) lần thử")
-            }
-        }
-    }
+    var id: String { rawValue }
     
-    // MARK: - iPad Layout
-    private var ipadLayout: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // MARK: - Sidebar
-                sidebarView(width: geometry.size.width * 0.25)
-                    .background(Color(.systemGroupedBackground))
-                
-                // MARK: - Content Area
-                contentAreaView()
-                    .frame(maxWidth: .infinity)
-            }
-        }
-        .alert("Xác thực chủ sở hữu", isPresented: $viewModel.showAuthAlert) {
-            SecureField("Mật khẩu", text: $viewModel.ownerPassword)
-            Button("Hủy", role: .cancel) {
-                viewModel.ownerPassword = ""
-            }
-            Button("Xác nhận") {
-                viewModel.authenticateOwner()
-            }
-        } message: {
-            if let lockEndTimeRemaining = appState.sourceModel.lockEndTimeRemaining {
-                Text("Tài khoản đã bị khóa. Vui lòng thử lại sau \(lockEndTimeRemaining)")
-            } else {
-                Text("Nhập mật khẩu chủ sở hữu để tiếp tục. Còn \(3 - viewModel.authAttempts) lần thử")
-            }
-        }
-    }
+    var title: String { rawValue }
     
-    // MARK: - Sidebar View
-    private func sidebarView(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            // User Profile Section
-            userProfileSection
-            
-            Divider()
-            
-            // Active Shop Section
-            if let activeShop = appState.sourceModel.activatedShop {
-                activeShopSection(activeShop)
-                Divider()
-            }
-            
-            // Menu Options
-            ScrollView {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(SettingsOption.allCases, id: \.self) { option in
-                optionView(for: option)
-                Divider()
-            }
-                }
-            }
-            
-            Spacer()
-            
-            // Add Shop Button (Only for authenticated owners)
-            if viewModel.isOwnerAuthenticated {
-                addShopButton
-                ownerLogoutButton
-            }
-        }
-        .frame(width: width)
-    }
-    
-    private var userProfileSection: some View {
-        VStack(spacing: 12) {
-            // User Avatar
-            if let photoURL = appState.sourceModel.currentUser?.photoURL {
-                AsyncImage(url: photoURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                }
-                .frame(width: 60, height: 60)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.blue.opacity(0.2), lineWidth: 2))
-            } else {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 60, height: 60)
-                    .foregroundColor(.blue)
-            }
-            
-            // User Info
-            VStack(spacing: 4) {
-                Text(appState.sourceModel.currentUser?.displayName ?? "")
-                    .font(.headline)
-                if viewModel.isOwnerAuthenticated {
-                    Text(appState.sourceModel.currentUser?.email ?? "")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                if viewModel.isOwnerAuthenticated {
-                    HStack {
-                        Image(systemName: "checkmark.shield.fill")
-                            .foregroundColor(.green)
-                        Text("Chủ sở hữu")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
-            }
-        }
-    }
-        .padding()
-    }
-    
-    private func activeShopSection(_ shop: Shop) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Cửa hàng đang hoạt động")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(shop.shopName)
-                    .font(.headline)
-                }
-                
-                Spacer()
-                
-                Menu {
-                    ForEach(appState.sourceModel.shops ?? []) { shop in
-                        Button {
-                            Task {
-                                await viewModel.switchShop(to: shop)
-                            }
-                        } label: {
-                            if shop.id == appState.sourceModel.activatedShop?.id {
-                                Label(shop.shopName, systemImage: "checkmark")
-                } else {
-                                Text(shop.shopName)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "chevron.up.chevron.down")
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .padding(.horizontal)
-        }
-        .padding(.vertical)
-    }
-    
-    private var addShopButton: some View {
-        Button {
-            appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
-        } label: {
-            HStack {
-                Image(systemName: "plus.circle.fill")
-                Text("Thêm cửa hàng mới")
-            }
-            .font(.headline)
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.blue)
-            .cornerRadius(12)
-            .padding()
-            }
-        }
-    
-    private var ownerLogoutButton: some View {
-        Button {
-            appState.sourceModel.logoutAsOwner()
-        } label: {
-            VStack(spacing: 4) {
-                HStack {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                    Text("Đăng xuất chủ sở hữu")
-                }
-                Text("Thời gian còn lại: \(appState.sourceModel.remainingTimeString)")
-                    .font(.footnote)
-            }
-            .padding()
-            .background(Color.red.opacity(0.1))
-            .cornerRadius(12)
-            .padding(.horizontal)
-            .padding(.bottom)
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Option Views
-    private func optionView(for option: SettingsOption) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            optionButton(for: option)
-            
-            if viewModel.isOwnerAuthenticated {
-                if option == .account && viewModel.isAccountExpanded {
-                    subOptionsView(for: option)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity).combined(with: .move(edge: .trailing)),
-                            removal: .scale(scale: 0.95).combined(with: .opacity).combined(with: .move(edge: .trailing))
-                        ))
-                }
-                if option == .manageShops && viewModel.isManageShopExpanded {
-                subOptionsView(for: option)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity).combined(with: .move(edge: .trailing)),
-                            removal: .scale(scale: 0.95).combined(with: .opacity).combined(with: .move(edge: .trailing))
-                        ))
-                }
-            }
-        }
-    }
-    
-    private func optionButton(for option: SettingsOption) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            handleOptionTap(option)
-            }
-        } label: {
-            HStack(spacing: 12) {
-                // Icon
-                Image(systemName: option.icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(option.iconColor)
-                    .frame(width: 28, height: 28)
-                    .background(option.iconColor.opacity(0.1))
-                    .cornerRadius(8)
-                
-                // Title
-                Text(option.title)
-                    .font(.body)
-                
-                Spacer()
-                
-                // Lock Icon or Chevron
-                if (option == .manageShops || option == .account), !viewModel.isOwnerAuthenticated {
-                    Image(systemName: "lock.fill")
-                        .foregroundColor(.orange)
-                } else if option == .account {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.gray)
-                        .rotationEffect(.degrees(viewModel.isAccountExpanded ? 90 : 0))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.isAccountExpanded)
-                } else if option == .manageShops {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.gray)
-                        .rotationEffect(.degrees(viewModel.isManageShopExpanded ? 90 : 0))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.isManageShopExpanded)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(viewModel.selectedOption == option ? option.iconColor.opacity(0.1) : Color.clear)
-            )
-            .animation(.easeInOut(duration: 0.2), value: viewModel.selectedOption)
-        }
-        .foregroundColor(viewModel.selectedOption == option ? option.iconColor : .primary)
-        .contextMenu {
-            quickActionsMenu(for: option)
-        }
-    }
-    
-    private func subOptionsView(for option: SettingsOption) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(option.subOptions) { subOption in
-                Divider()
-                subOptionButton(for: subOption)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .leading).combined(with: .opacity),
-                        removal: .move(edge: .trailing).combined(with: .opacity)
-                    ))
-            }
-        }
-        .background(Color(.systemBackground))
-    }
-    
-    private func subOptionButton(for subOption: SubOption) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                viewModel.selectedSubOption = subOption
-                handleSubOptionTap(subOption)
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: subOption.icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(subOption.color)
-                    .frame(width: 24, height: 24)
-                    .background(subOption.color.opacity(0.1))
-                    .cornerRadius(6)
-                
-                Text(subOption.title)
-                    .font(.subheadline)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.gray)
-                    .opacity(viewModel.selectedSubOption?.id == subOption.id ? 1 : 0.5)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(viewModel.selectedSubOption?.id == subOption.id ? 
-                        subOption.color.opacity(0.1) : Color.clear)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Content Area
-    private func contentAreaView() -> some View {
-        ZStack {
-            if let selectedOption = viewModel.selectedOption {
-                Group {
-                contentForOption(selectedOption)
-                }
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .trailing).combined(with: .opacity)
-                    ))
-            } else {
-                placeholderView
-            }
-        }
-        .animation(.easeInOut, value: viewModel.selectedOption)
-        .padding()
-        .background(Color(.systemBackground))
-    }
-    
-    private var placeholderView: some View {
-        VStack {
-            Image(systemName: "gearshape")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            Text("Chọn một tùy chọn từ menu")
-                .font(.title2)
-                .foregroundColor(.gray)
-                .padding(.top)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    @ViewBuilder
-    private func contentForOption(_ option: SettingsOption) -> some View {
-        if let subOption = viewModel.selectedSubOption {
-            contentForSubOption(subOption)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .trailing).combined(with: .opacity)
-                ))
-        } else {
-            switch option {
-            case .account, .manageShops:
-                if viewModel.isOwnerAuthenticated {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text(option.title)
-                            .font(.title)
-                            .bold()
-                        
-                        Text("Chọn một mục từ menu bên trái để xem chi tiết")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding()
-                } else {
-                    requireOwnerAuthView
-                }
-            case .setUpPrinter:
-                printerSetupContent
-            case .language:
-                languageContent
-            case .theme:
-                themeContent
-            }
-        }
-    }
-    
-    private var requireOwnerAuthView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 60))
-                .foregroundColor(.orange)
-            
-            Text("Xác thực chủ sở hữu")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Để thực hiện thao tác này, bạn cần xác thực với mật khẩu chủ sở hữu")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            Button {
-                appState.coordinator.navigateTo(.ownerAuth, using: .present, with: .present)
-            } label: {
-                Text("Xác thực ngay")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(width: 200)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(12)
-            }
-                .padding(.top)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var printerSetupContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Cài đặt máy in")
-                .font(.title)
-                .bold()
-            
-            Text("Tính năng đang được phát triển")
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
-    }
-    
-    private var languageContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Ngôn ngữ")
-                .font(.title)
-                .bold()
-            
-            Text("Tính năng đang được phát triển")
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
-    }
-    
-    private var themeContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Giao diện")
-                .font(.title)
-                .bold()
-            
-            Text("Tính năng đang được phát triển")
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
-    }
-    
-    // MARK: - Common Components
-    private var userProfileCell: some View {
-        HStack(spacing: 12) {
-            // User Avatar
-            if let photoURL = appState.sourceModel.currentUser?.photoURL {
-                AsyncImage(url: photoURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                }
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.blue.opacity(0.2), lineWidth: 2))
-            } else {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-                    .foregroundColor(.blue)
-            }
-            
-            // User Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(appState.sourceModel.currentUser?.displayName ?? "")
-                    .font(.headline)
-                if viewModel.isOwnerAuthenticated {
-                    Text(appState.sourceModel.currentUser?.email ?? "")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                if viewModel.isOwnerAuthenticated {
-                    HStack {
-                        Image(systemName: "checkmark.shield.fill")
-                            .foregroundColor(.green)
-                        Text("Chủ sở hữu")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-                }
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            handleOptionTap(.account)
-        }
-    }
-    
-    private func activeShopCell(_ shop: Shop) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(shop.shopName)
-                    .font(.headline)
-                Text("Đang hoạt động")
-                    .font(.caption)
-                    .foregroundColor(.green)
-            }
-            
-            Spacer()
-            
-            Menu {
-                ForEach(appState.sourceModel.shops ?? []) { shop in
-                    Button {
-                        Task {
-                            await viewModel.switchShop(to: shop)
-                        }
-                    } label: {
-                        if shop.id == appState.sourceModel.activatedShop?.id {
-                            Label(shop.shopName, systemImage: "checkmark")
-                        } else {
-                            Text(shop.shopName)
-                        }
-                    }
-                }
-            } label: {
-                Image(systemName: "chevron.up.chevron.down")
-                    .foregroundColor(.blue)
-            }
-        }
-    }
-    
-    private func settingsOptionCell(_ option: SettingsOption) -> some View {
-        HStack {
-            // Icon
-            Image(systemName: option.icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(option.iconColor)
-                .frame(width: 28, height: 28)
-                .background(option.iconColor.opacity(0.1))
-                .cornerRadius(8)
-            
-            // Title
-            Text(option.title)
-                .font(.body)
-            
-            Spacer()
-            
-            // Lock Icon or Chevron
-            if (option == .manageShops || option == .account), !viewModel.isOwnerAuthenticated {
-                Image(systemName: "lock.fill")
-                    .foregroundColor(.orange)
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
-            }
-        }
-        .contentShape(Rectangle())
-        .contextMenu {
-            quickActionsMenu(for: option)
-        }
-        .onTapGesture {
-            handleOptionTap(option)
-        }
-    }
-    
-    // MARK: - Quick Actions Menu
-    @ViewBuilder
-    private func quickActionsMenu(for option: SettingsOption) -> some View {
-        switch option {
+    var icon: String {
+        switch self {
         case .account:
-            if viewModel.isOwnerAuthenticated {
-                Button {
-                    // Xem thông tin nhanh
-                } label: {
-                    Label("Xem thông tin", systemImage: "person.fill")
-                }
-                
-                Button {
-                    // Chụp ảnh mới
-                } label: {
-                    Label("Chụp ảnh mới", systemImage: "camera.fill")
-                }
-                
-                Button(role: .destructive) {
-                    Task {
-                        await appState.sourceModel.signOut()
-                    }
-                } label: {
-                    Label("Đăng xuất", systemImage: "rectangle.portrait.and.arrow.right")
-                }
-            }
-            
-        case .manageShops:
-            if viewModel.isOwnerAuthenticated {
-                Button {
-                    // Thêm cửa hàng mới
-                    appState.coordinator.navigateTo(.addShop, using: .present, with: .present)
-                } label: {
-                    Label("Thêm cửa hàng", systemImage: "plus.circle.fill")
-                }
-                
-                Button {
-                    // Xem thông tin cửa hàng
-                } label: {
-                    Label("Thông tin cửa hàng", systemImage: "info.circle.fill")
-                }
-            }
-            
-        case .setUpPrinter:
-            Button {
-                // Test in
-            } label: {
-                Label("Test in", systemImage: "printer.fill.and.paper.fill")
-            }
-            
-            Button {
-                // Xem trạng thái
-            } label: {
-                Label("Trạng thái kết nối", systemImage: "wifi")
-            }
-            
-        case .language:
-            Button {
-                // Chuyển Tiếng Việt
-            } label: {
-                Label("Tiếng Việt", systemImage: "character.book.closed.fill")
-            }
-            
-            Button {
-                // Switch to English
-            } label: {
-                Label("English", systemImage: "character.book.closed.fill")
-            }
-            
+            return "person.circle.fill"
+        case .shops:
+            return "building.2.fill"
         case .theme:
-            Button {
-                // Chế độ sáng
-            } label: {
-                Label("Chế độ sáng", systemImage: "sun.max.fill")
-            }
-            
-            Button {
-                // Chế độ tối
-            } label: {
-                Label("Chế độ tối", systemImage: "moon.fill")
-            }
+            return "paintbrush.fill"
+        case .printer:
+            return "printer.fill"
+        case .language:
+            return "globe"
         }
     }
     
-    private func handleOptionTap(_ option: SettingsOption) {
-        
-        // light haptics
-        
-        if isIphone {
-            if (option == .manageShops || option == .account) && !viewModel.isOwnerAuthenticated {
-                viewModel.showAuthAlert = true
-            } else if option == .account {
-                
-            } else {
-                navigateToOption(option)
-            }
-        } else {
-            if (option == .manageShops || option == .account) && !viewModel.isOwnerAuthenticated {
-                viewModel.selectedOption = option
-            } else if option == .account {
-                viewModel.isAccountExpanded.toggle()
-                viewModel.selectedOption = .account
-//                if !viewModel.isAccountExpanded || !viewModel.isManageShopExpanded {
-//                    viewModel.selectedSubOption = nil
-//                }
-                if viewModel.isAccountExpanded && viewModel.isManageShopExpanded {
-                    viewModel.isManageShopExpanded = false
-                }
-            } else if option == .manageShops {
-                viewModel.isManageShopExpanded.toggle()
-                viewModel.selectedOption = .manageShops
-//                if !viewModel.isAccountExpanded || !viewModel.isManageShopExpanded {
-//                    viewModel.selectedSubOption = nil
-//                }
-                if viewModel.isAccountExpanded && viewModel.isManageShopExpanded {
-                    viewModel.isAccountExpanded = false
-                }
-            } else {
-                viewModel.selectedOption = option
-                viewModel.selectedSubOption = nil
-                viewModel.isAccountExpanded = false
-                viewModel.isManageShopExpanded = false
-            }
-        }
-    }
-    
-    private func navigateToOption(_ option: SettingsOption) {
-        switch option {
+    var iconColor: Color {
+        switch self {
         case .account:
-            appState.coordinator.navigateTo(.accountDetail)
-        case .manageShops:
-            appState.coordinator.navigateTo(.manageShops)
-        case .setUpPrinter:
-            // Navigate to printer setup
-            break
-        case .language:
-            // Navigate to language settings
-            break
+            return .blue
+        case .shops:
+            return .green
         case .theme:
-            // Navigate to theme settings
-            break
+            return .purple
+        case .printer:
+            return .orange
+        case .language:
+            return .indigo
         }
     }
     
-    private func handleSubOptionTap(_ subOption: SubOption) {
-        if isIphone {
-            navigateToSubOption(subOption)
-        } else {
-            viewModel.selectedSubOption = subOption
+    var options: [SettingsOption] {
+        switch self {
+        case .account:
+            return [
+                .account(.profile),
+                .account(.security),
+                .account(.notifications),
+                .account(.privacy)
+            ]
+        case .shops:
+            return [
+                .shop(.locations),
+                .shop(.menu),
+                .shop(.inventory),
+                .shop(.staff)
+            ]
+        case .theme, .printer, .language:
+            return []
+        }
+    }
+}
+
+enum SettingsOption: Identifiable {
+    case account(AccountOption)
+    case shop(ShopOption)
+    
+    var id: String {
+        switch self {
+        case .account(let option):
+            return "account_\(option.rawValue)"
+        case .shop(let option):
+            return "shop_\(option.rawValue)"
         }
     }
     
-    private func navigateToSubOption(_ subOption: SubOption) {
-        switch subOption.id {
-        case "profile":
-            appState.coordinator.navigateTo(.accountDetail)
-        case "security":
-            appState.coordinator.navigateTo(.password)
-        case "shops":
-            appState.coordinator.navigateTo(.manageShops)
-        case "menu":
-            appState.coordinator.navigateTo(.menuSection)
-        case "inventory":
-            appState.coordinator.navigateTo(.ingredientSection)
-        case "staff":
-            appState.coordinator.navigateTo(.staff)
-        case "analytics":
-            appState.coordinator.navigateTo(.analytics)
-        default:
-            break
+    var title: String {
+        switch self {
+        case .account(let option):
+            return option.title
+        case .shop(let option):
+            return option.title
         }
     }
     
-    @ViewBuilder
-    private func contentForSubOption(_ subOption: SubOption) -> some View {
-        switch subOption.id {
-        case "profile":
-            appState.coordinator.makeView(for: .accountDetail)
-        case "security":
-            appState.coordinator.makeView(for: .password)
-        case "notification":
-            notificationSettingsView
-        case "privacy":
-            privacySettingsView
-        case "shops":
-            appState.coordinator.makeView(for: .manageShops)
-        case "menu":
-            appState.coordinator.makeView(for: .menuSection)
-        case "inventory":
-            appState.coordinator.makeView(for: .ingredientSection)
-        case "staff":
-            appState.coordinator.makeView(for: .staff)
-        case "analytics":
-            appState.coordinator.makeView(for: .analytics)
-        default:
-            Text("Đang phát triển...")
-                .foregroundColor(.secondary)
+    var icon: String {
+        switch self {
+        case .account(let option):
+            return option.icon
+        case .shop(let option):
+            return option.icon
         }
     }
     
-    private var notificationSettingsView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Cài đặt thông báo")
-                .font(.title)
-                .bold()
-            
-            Text("Tính năng đang được phát triển")
-                .foregroundColor(.secondary)
+    var iconColor: Color {
+        switch self {
+        case .account(let option):
+            return option.iconColor
+        case .shop(let option):
+            return option.iconColor
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
+    }
+}
+
+enum AccountOption: String {
+    case profile = "Thông tin cá nhân"
+    case security = "Bảo mật"
+    case notifications = "Thông báo"
+    case privacy = "Quyền riêng tư"
+    
+    var title: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .profile:
+            return "person.fill"
+        case .security:
+            return "lock.fill"
+        case .notifications:
+            return "bell.fill"
+        case .privacy:
+            return "hand.raised.fill"
+        }
     }
     
-    private var privacySettingsView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Quyền riêng tư")
-                .font(.title)
-                .bold()
-            
-            Text("Tính năng đang được phát triển")
-                .foregroundColor(.secondary)
+    var iconColor: Color {
+        switch self {
+        case .profile:
+            return .blue
+        case .security:
+            return .red
+        case .notifications:
+            return .orange
+        case .privacy:
+            return .purple
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
+    }
+}
+
+enum ShopOption: String {
+    case locations = "Quản lý cửa hàng"
+    case menu = "Thực đơn"
+    case inventory = "Nguyên liệu"
+    case staff = "Nhân viên"
+    
+    var title: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .locations:
+            return "building.2.fill"
+        case .menu:
+            return "list.bullet.clipboard.fill"
+        case .inventory:
+            return "archivebox.fill"
+        case .staff:
+            return "person.2.fill"
+        }
+    }
+    
+    var iconColor: Color {
+        switch self {
+        case .locations:
+            return .green
+        case .menu:
+            return .blue
+        case .inventory:
+            return .orange
+        case .staff:
+            return .purple
+        }
     }
 }
 
 // MARK: - Supporting Views
 struct OwnerAuthenticationSheet: View {
+    @EnvironmentObject private var appState: AppState
     @Binding var isAuthenticated: Bool
     let ownerPassword: String
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var password: String = ""
     @State private var showError: Bool = false
@@ -912,7 +199,7 @@ struct OwnerAuthenticationSheet: View {
             VStack(spacing: 20) {
                 Image(systemName: "key.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(.blue)
+                    .foregroundColor(appState.currentTabThemeColors.primaryColor)
                     .padding()
                 
                 Text("Xác thực chủ sở hữu")
@@ -943,7 +230,7 @@ struct OwnerAuthenticationSheet: View {
                         .foregroundColor(.white)
                         .frame(width: 200)
                         .padding()
-                        .background(Color.blue)
+                        .background(appState.currentTabThemeColors.gradient(for: colorScheme))
                         .cornerRadius(12)
                 }
                 .disabled(password.isEmpty)
@@ -955,8 +242,8 @@ struct OwnerAuthenticationSheet: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Hủy") {
                         dismiss()
+                    }
                 }
-            }
             }
         }
     }
@@ -984,6 +271,11 @@ struct AddShopSheet: View {
     @ObservedObject var viewModel: ShopManagementViewModel
     @EnvironmentObject private var appState: AppState
     @FocusState private var isTextFieldFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
+    
+    let shop: Shop?
+    
+    private var isEditing: Bool { shop != nil }
     
     var body: some View {
         NavigationView {
@@ -994,18 +286,14 @@ struct AddShopSheet: View {
                         Image(systemName: "building.2.fill")
                             .font(.system(size: 60))
                             .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                                appState.currentTabThemeColors.gradient(for: colorScheme)
                             )
                         
-                        Text("Thêm cửa hàng mới")
+                        Text(isEditing ? "Chỉnh sửa cửa hàng" : "Thêm cửa hàng mới")
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("Điền thông tin để tạo cửa hàng của bạn")
+                        Text(isEditing ? "Cập nhật thông tin cửa hàng" : "Điền thông tin để tạo cửa hàng của bạn")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -1017,7 +305,7 @@ struct AddShopSheet: View {
                         // Basic Info Section
                         FormSection(title: "Thông tin cơ bản", systemImage: "info.circle.fill") {
                             CustomTextField(title: "Tên cửa hàng", text: $viewModel.shopName, icon: "building.fill", placeholder: "Nhập tên cửa hàng")
-                            .focused($isTextFieldFocused)
+                                .focused($isTextFieldFocused)
                             
                             CustomTextField(
                                 title: "Địa chỉ",
@@ -1025,6 +313,46 @@ struct AddShopSheet: View {
                                 icon: "location.fill",
                                 placeholder: "Nhập địa chỉ cửa hàng"
                             )
+                        }
+                        
+                        // Business Hours Section
+                        FormSection(title: "Giờ hoạt động", systemImage: "clock.fill") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                VStack(spacing: 16) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Giờ mở cửa")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                            
+                                            DatePicker("", selection: $viewModel.openTime, displayedComponents: .hourAndMinute)
+                                                .labelsHidden()
+                                                .frame(maxWidth: .infinity)
+                                                .padding(8)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(8)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Giờ đóng cửa")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                            
+                                            DatePicker("", selection: $viewModel.closeTime, displayedComponents: .hourAndMinute)
+                                                .labelsHidden()
+                                                .frame(maxWidth: .infinity)
+                                                .padding(8)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(8)
+                                        }
+                                    }
+                                    
+                                    Text(formatBusinessHours())
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 4)
+                                }
+                            }
                         }
                         
                         // Financial Info Section
@@ -1037,14 +365,20 @@ struct AddShopSheet: View {
                                 HStack(spacing: 12) {
                                     HStack {
                                         Image(systemName: "dollarsign.circle.fill")
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(appState.currentTabThemeColors.primaryColor)
                                         TextField("0", value: $viewModel.groundRent, format: .number)
                                             .keyboardType(.decimalPad)
                                             .textFieldStyle(RoundedBorderTextFieldStyle())
                                     }
                                     .padding(12)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color.systemGray6)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(appState.currentTabThemeColors.primaryColor.opacity(0.3), lineWidth: 1)
+                                    )
                                     
                                     Picker("", selection: $viewModel.currency) {
                                         ForEach([Currency.vnd, Currency.usd], id: \.self) { currency in
@@ -1056,10 +390,17 @@ struct AddShopSheet: View {
                                         }
                                     }
                                     .pickerStyle(MenuPickerStyle())
+                                    .foregroundStyle(appState.currentTabThemeColors.primaryColor)
                                     .frame(width: 100)
                                     .padding(8)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color.systemGray6)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(appState.currentTabThemeColors.primaryColor.opacity(0.3), lineWidth: 1)
+                                    )
                                 }
                                 
                                 if viewModel.groundRent > 0 {
@@ -1067,6 +408,120 @@ struct AddShopSheet: View {
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                         .padding(.top, 4)
+                                }
+                            }
+                        }
+                        
+                        // Point Rate Section
+                        FormSection(title: "Tỷ lệ tích điểm", systemImage: "star.circle.fill") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label("Phần trăm tích điểm từ tổng hóa đơn", systemImage: "percent")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                HStack {
+                                    Image(systemName: "star.fill")
+                                        .foregroundColor(.orange)
+                                    
+                                    TextField("0", value: $viewModel.pointRate, format: .number)
+                                        .keyboardType(.decimalPad)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    
+                                    Text("%")
+                                        .font(.headline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                                
+                                if viewModel.pointRate > 0.0 {
+                                    Text("Khách hàng sẽ nhận \(String(format: "%.1f", viewModel.pointRate))% điểm từ tổng hóa đơn")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 4)
+                                }
+                            }
+                        }
+                        
+                        // Discount Vouchers Section
+                        FormSection(title: "Mã khuyến mãi", systemImage: "ticket.fill") {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Label("Danh sách voucher", systemImage: "tag.fill")
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        appState.coordinator.navigateTo(.addVoucher, using: .present, with: .present)
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "plus.circle.fill")
+                                            Text("Thêm")
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundColor(.blue)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.blue.opacity(0.1))
+                                        .cornerRadius(8)
+                                    }
+                                }
+                                
+                                if viewModel.discountVouchers.isEmpty {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "ticket")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.gray.opacity(0.5))
+                                        
+                                        Text("Chưa có voucher nào")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text("Nhấn 'Thêm' để tạo voucher đầu tiên")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 20)
+                                } else {
+                                    ForEach(Array(viewModel.discountVouchers.enumerated()), id: \.offset) { index, voucher in
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(voucher.name)
+                                                    .font(.headline)
+                                                    .foregroundColor(.primary)
+                                                
+                                                Text("Giảm \(String(format: "%.1f", voucher.value))% tổng hóa đơn")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            
+                                            Button {
+                                                viewModel.discountVouchers.remove(at: index)
+                                            } label: {
+                                                Image(systemName: "trash.circle.fill")
+                                                    .foregroundColor(.red)
+                                                    .font(.title2)
+                                            }
+                                        }
+                                        .padding(12)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [.green.opacity(0.1), .blue.opacity(0.1)],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1092,9 +547,9 @@ struct AddShopSheet: View {
                                 ProgressView()
                                     .tint(.white)
                             } else {
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: isEditing ? "checkmark.circle.fill" : "plus.circle.fill")
                                     .font(.title3)
-                                Text("Tạo cửa hàng")
+                                Text(isEditing ? "Cập nhật cửa hàng" : "Tạo cửa hàng")
                                     .font(.headline)
                             }
                         }
@@ -1109,7 +564,6 @@ struct AddShopSheet: View {
                         )
                         .foregroundColor(.white)
                         .cornerRadius(15)
-                        .shadow(color: isFormValid ? .blue.opacity(0.3) : .clear, radius: 5, x: 0, y: 2)
                     }
                     .disabled(!isFormValid || appState.sourceModel.isLoading)
                     .padding()
@@ -1133,14 +587,24 @@ struct AddShopSheet: View {
                 }
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
+    }
+    
+    // MARK: - Helper Methods
+    private func formatBusinessHours() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let openTimeStr = formatter.string(from: viewModel.openTime)
+        let closeTimeStr = formatter.string(from: viewModel.closeTime)
+        return "\(openTimeStr) - \(closeTimeStr)"
     }
     
     // MARK: - Computed Properties
     private var isFormValid: Bool {
         !viewModel.shopName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !viewModel.address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        viewModel.groundRent >= 0
+        viewModel.groundRent >= 0 &&
+        (viewModel.openTime < viewModel.closeTime)
+        //        && $viewModel.pointRate >= 0.0 && $viewModel.pointRate <= 100.0
     }
     
     private var formattedGroundRent: String {
@@ -1150,6 +614,132 @@ struct AddShopSheet: View {
         
         let formattedNumber = numberFormatter.string(from: NSNumber(value: viewModel.groundRent)) ?? "0"
         return "\(formattedNumber)\(viewModel.currency.symbol)"
+    }
+}
+
+// MARK: - Add Voucher Sheet
+struct AddVoucherSheet: View {
+    @ObservedObject private var viewModel: ShopManagementViewModel
+    @EnvironmentObject private var appState: AppState
+    @FocusState private var isNameFieldFocused: Bool
+    
+    init(viewModel: ShopManagementViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 12) {
+                    Image(systemName: "ticket.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.green, .blue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("Thêm mã khuyến mãi")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Tạo voucher giảm giá cho cửa hàng")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top)
+                
+                // Form
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Tên voucher", systemImage: "tag.fill")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField("Nhập tên voucher", text: $viewModel.voucherName)
+                            .focused($isNameFieldFocused)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(.body)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Phần trăm giảm giá", systemImage: "percent")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        HStack {
+                            TextField("0", value: $viewModel.voucherValue, format: .number)
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            Text("%")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if viewModel.voucherValue > 0 {
+                            Text("Voucher sẽ giảm \(String(format: "%.1f", viewModel.voucherValue))% tổng hóa đơn")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+                
+                // Buttons
+                VStack(spacing: 12) {
+                    Button {
+                        viewModel.addVoucher()
+                        //appState.coordinator.dismiss(style: .present)
+                    } label: {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Lưu voucher")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                colors: isVoucherValid ? [.green, .blue] : [.gray.opacity(0.3)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(!isVoucherValid)
+                    
+                    Button {
+                        appState.coordinator.dismiss(style: .present)
+                    } label: {
+                        Text("Hủy")
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+                }
+                .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                isNameFieldFocused = true
+            }
+        }
+    }
+    
+    private var isVoucherValid: Bool {
+        !viewModel.voucherName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        viewModel.voucherValue > 0 && viewModel.voucherValue <= 100
     }
 }
 
@@ -1175,123 +765,966 @@ private struct FormSection<Content: View>: View {
                 .padding(16)
                 .background(Color(.systemBackground))
                 .cornerRadius(16)
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
         }
     }
 }
 
-//private struct CustomTextField: View {
-//    let title: String
-//    let placeholder: String
-//    @Binding var text: String
-//    let systemImage: String
-//    var isMultiline: Bool = false
-//    
-//    var body: some View {
-//        VStack(alignment: .leading, spacing: 8) {
-//            Label(title, systemImage: systemImage)
-//                .font(.subheadline)
-//                .foregroundColor(.secondary)
-//            
-//            if isMultiline {
-//                TextField(placeholder, text: $text, axis: .vertical)
-//                    .textFieldStyle(PlainTextFieldStyle())
-//                    .lineLimit(2...4)
-//                    .padding(12)
-//                    .background(Color(.systemGray6))
-//                    .cornerRadius(12)
-//            } else {
-//                TextField(placeholder, text: $text)
-//                    .textFieldStyle(PlainTextFieldStyle())
-//                    .padding(12)
-//                    .background(Color(.systemGray6))
-//                    .cornerRadius(12)
-//            }
-//        }
-//    }
-//}
-
-// MARK: - Extensions
-extension SettingsOption {
-    var icon: String {
-        switch self {
-        case .account: return "person.fill"
-        case .manageShops: return "building.2.fill"
-        case .setUpPrinter: return "printer.fill"
-        case .language: return "globe"
-        case .theme: return "paintbrush.fill"
+// MARK: - Theme Preview Card
+struct ThemePreviewCard: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) var colorScheme
+    let style: AppThemeStyle
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                HStack {
+                    Text(style.displayName)
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(appState.currentTabThemeColors.primaryColor)
+                    }
+                }
+                
+                // Color Preview
+                VStack(spacing: 12) {
+                    ForEach(HomeTab.allCases, id: \.self) { tab in
+                        tabColorPreview(for: tab, with: style.colors)
+                    }
+                }
+            }
+            .padding()
+            .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         }
+        .buttonStyle(PlainButtonStyle())
     }
     
-    var iconColor: Color {
-        switch self {
-        case .account: return .blue
-        case .manageShops: return .orange
-        case .setUpPrinter: return .purple
-        case .language: return .green
-        case .theme: return .pink
+    private func tabColorPreview(for tab: HomeTab, with colors: AppThemeColors) -> some View {
+        let tabColors: TabThemeColor
+        switch tab {
+        case .order:
+            tabColors = colors.order
+        case .history:
+            tabColors = colors.history
+        case .expense:
+            tabColors = colors.expense
+        case .revenue:
+            tabColors = colors.revenue
+        case .settings:
+            tabColors = colors.settings
+        }
+        
+        return HStack(spacing: 12) {
+            Image(systemName: tab.icon)
+                .foregroundColor(tabColors.primaryColor)
+                .frame(width: 24)
+            
+            Text(tab.title)
+                .font(.subheadline)
+            
+            Spacer()
+            
+            // Color previews
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(tabColors.primaryColor)
+                    .frame(width: 24, height: 24)
+                Circle()
+                    .fill(tabColors.secondaryColor)
+                    .frame(width: 24, height: 24)
+                Circle()
+                    .fill(tabColors.accentColor)
+                    .frame(width: 24, height: 24)
+            }
+        }
+        .padding(8)
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
+    }
+}
+
+// MARK: - Main View
+struct SettingsView: View {
+    @ObservedObject var viewModel: SettingsViewModel
+    @EnvironmentObject var appState: AppState
+    @Environment(\.colorScheme) var colorScheme
+    
+    @State private var appearAnimation = false
+    @State private var selectedTabAnimation = false
+    
+    private var activatedShop: Shop? {
+        appState.sourceModel.activatedShop
+    }
+    
+    var body: some View {
+        Group {
+            if isIphone {
+                iphoneLayout
+            } else {
+                ipadLayout
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                appearAnimation = true
+            }
+            Task {
+                appState.sourceModel.setupShopsListener()
+            }
+        }
+        .onDisappear {
+            Task {
+                appState.sourceModel.removeShopsListener()
+            }
         }
     }
 }
 
-enum SettingsOption: CaseIterable {
-    case account, manageShops, setUpPrinter, language, theme
-    
-    var title: String {
-        switch self {
-        case .account: return "Tài khoản"
-        case .manageShops: return "Quản lý cửa hàng"
-        case .setUpPrinter: return "Cài đặt máy in"
-        case .language: return "Ngôn ngữ"
-        case .theme: return "Giao diện"
+// MARK: - iPhone Layout
+extension SettingsView {
+    private var iphoneLayout: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                userProfileCard
+                    .opacity(appearAnimation ? 1 : 0)
+                    .offset(y: appearAnimation ? 0 : 20)
+                
+                if let activeShop = appState.sourceModel.activatedShop {
+                    activeShopCard(activeShop)
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 20)
+                }
+                
+                // Settings Categories
+                VStack(spacing: 16) {
+                    ForEach(SettingsCategory.allCases) { category in
+                        VStack(spacing: 0) {
+                            // Main Category
+                            settingsCategoryCard(category)
+                                .opacity(appearAnimation ? 1 : 0)
+                                .offset(y: appearAnimation ? 0 : 20)
+                            
+                            // SubOptions if expanded
+                            if viewModel.isOwnerAuthenticated {
+                                if category == .account && viewModel.isAccountExpanded {
+                                    subOptionsContainer(for: category)
+                                } else if category == .shops && viewModel.isManageShopExpanded {
+                                    subOptionsContainer(for: category)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if viewModel.isOwnerAuthenticated {
+                    ownerActionsSection
+                }
+            }
+            .padding()
         }
-    }
-
-    var subOptions: [SubOption] {
-        switch self {
-        case .account:
-            return [
-                SubOption(id: "profile", title: "Thông tin cá nhân", icon: "person.fill", color: .blue),
-                SubOption(id: "security", title: "Bảo mật", icon: "lock.fill", color: .red),
-                SubOption(id: "notification", title: "Thông báo", icon: "bell.fill", color: .orange),
-                SubOption(id: "privacy", title: "Quyền riêng tư", icon: "hand.raised.fill", color: .purple)
-            ]
-        case .manageShops:
-            return [
-                SubOption(id: "shops", title: "Danh sách cửa hàng", icon: "building.2.fill", color: .orange),
-                SubOption(id: "menu", title: "Quản lý thực đơn", icon: "list.bullet.rectangle.fill", color: .green),
-                SubOption(id: "inventory", title: "Kho hàng", icon: "shippingbox.fill", color: .blue),
-                SubOption(id: "staff", title: "Nhân viên", icon: "person.2.fill", color: .purple)
-            ]
-        default:
-            return []
-        }
+        .navigationTitle("Cài đặt")
     }
     
-    var hasSubOptions: Bool {
-        return !subOptions.isEmpty
+    private func settingsCategoryCard(_ category: SettingsCategory) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                handleCategoryTap(category)
+            }
+        } label: {
+            HStack(spacing: 16) {
+                categoryIcon(category)
+                categoryInfo(category)
+                Spacer()
+                categoryIndicator(category)
+            }
+            .padding(16)
+            .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func subOptionsContainer(for category: SettingsCategory) -> some View {
+        VStack(spacing: 0) {
+            // Visual connection line
+            Rectangle()
+                .fill(category.iconColor.opacity(0.2))
+                .frame(width: 2)
+                .frame(height: 8)
+            
+            // SubOptions
+            VStack(spacing: 0) {
+                ForEach(category.options) { option in
+                    subOptionCard(option, parentCategory: category)
+                }
+            }
+            .padding(.leading, 32)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(category.iconColor.opacity(0.05))
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            removal: .scale(scale: 0.95).combined(with: .opacity)
+        ))
+    }
+    
+    private func subOptionCard(_ option: SettingsOption, parentCategory: SettingsCategory) -> some View {
+        Button {
+            navigateToSubOption(option)
+        } label: {
+            HStack(spacing: 16) {
+                // Visual connection line
+                Rectangle()
+                    .fill(parentCategory.iconColor.opacity(0.2))
+                    .frame(width: 2)
+                    .frame(height: 24)
+                
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(option.iconColor.opacity(0.1))
+                        .frame(width: 36, height: 36)
+                    
+                    Image(systemName: option.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(option.iconColor)
+                }
+                
+                // Info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(option.title)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.clear)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
-struct SubOption: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let icon: String
-    let color: Color
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+// MARK: - iPhone Layout Cards
+extension SettingsView {
+    private var userProfileCard: some View {
+        VStack(spacing: 16) {
+            userAvatar
+            userInfo
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
     }
     
-    static func == (lhs: SubOption, rhs: SubOption) -> Bool {
-        return lhs.id == rhs.id
+    private var userAvatar: some View {
+        Group {
+            if let photoURL = appState.sourceModel.currentUser?.photoURL {
+                AsyncImage(url: photoURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                }
+                .frame(width: 80, height: 80)
+                .clipShape(Circle())
+                .overlay(avatarBorder)
+            } else {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .frame(width: 80, height: 80)
+                    .foregroundStyle(avatarGradient)
+            }
+        }
+    }
+    
+    private var avatarBorder: some View {
+        Circle()
+            .stroke(appState.currentTabThemeColors.gradient(for: colorScheme), lineWidth: 3)
+    }
+    
+    private var avatarGradient: LinearGradient {
+        appState.currentTabThemeColors.gradient(for: colorScheme)
+    }
+    
+    private var userInfo: some View {
+        VStack(spacing: 8) {
+            Text(appState.sourceModel.currentUser?.displayName ?? "")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            if viewModel.isOwnerAuthenticated {
+                Text(appState.sourceModel.currentUser?.email ?? "")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                ownerBadge
+            }
+        }
+    }
+    
+    private var ownerBadge: some View {
+        HStack {
+            Image(systemName: "checkmark.shield.fill")
+                .foregroundColor(.green)
+            Text("Chủ sở hữu")
+                .font(.subheadline)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private func activeShopCard(_ shop: Shop) -> some View {
+        VStack(spacing: 16) {
+            shopHeader(shop)
+            shopStatus
+        }
+        .padding(20)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
+    }
+    
+    private func shopHeader(_ shop: Shop) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Cửa hàng đang hoạt động")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text(shop.shopName)
+                    .font(.title3)
+                    .fontWeight(.bold)
+            }
+            
+            Spacer()
+            
+            shopSwitchButton
+        }
+    }
+    
+    private var shopSwitchButton: some View {
+        Menu {
+            ForEach(appState.sourceModel.shops ?? []) { shop in
+                Button {
+                    Task {
+                        await viewModel.switchShop(to: shop)
+                    }
+                } label: {
+                    if shop.id == appState.sourceModel.activatedShop?.id {
+                        Label(shop.shopName, systemImage: "checkmark")
+                    } else {
+                        Text(shop.shopName)
+                    }
+                }
+                .tint(.primary)
+            }
+        } label: {
+            HStack {
+                Text("Đổi cửa hàng")
+                    .font(.subheadline)
+                Image(systemName: "chevron.up.chevron.down")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(appState.currentTabThemeColors.primaryColor.opacity(0.1))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var shopStatus: some View {
+        HStack {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+                Text("Đang hoạt động")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+            }
+            
+            Spacer()
+            
+            Text(formatBusinessHours())
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
     }
 }
 
-//#Preview {
-//    SettingsView(
-//        viewModel: SettingsViewModel(environment: AppEnvironment()),
-//        coordinator: AppCoordinator()
-//    )
-//}
+// MARK: - iPhone Layout Action Handlers
+extension SettingsView {
+    private func handleCategoryTap(_ category: SettingsCategory) {
+        if isIphone {
+            // Reset các trạng thái khác khi chọn category mới
+            if category != viewModel.selectedCategory {
+                viewModel.isAccountExpanded = false
+                viewModel.isManageShopExpanded = false
+                viewModel.selectedOption = nil
+            }
+            
+            // Xử lý xác thực chủ sở hữu
+            if (category == .shops || category == .account) && !viewModel.isOwnerAuthenticated {
+                appState.coordinator.navigateTo(.ownerAuth, using: .fullScreen)
+                return
+            }
+            
+            // Xử lý các category cụ thể
+            switch category {
+            case .account:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isAccountExpanded.toggle()
+                    viewModel.isManageShopExpanded = false
+                    viewModel.selectedCategory = .account
+                }
+                
+            case .shops:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isManageShopExpanded.toggle()
+                    viewModel.isAccountExpanded = false
+                    viewModel.selectedCategory = .shops
+                }
+                
+            case .theme:
+                appState.coordinator.navigateTo(.theme)
+                viewModel.selectedCategory = category
+                
+            case .printer:
+                appState.coordinator.navigateTo(.setUpPrinter)
+                viewModel.selectedCategory = category
+                
+            case .language:
+                // Các tính năng đang phát triển
+                viewModel.selectedCategory = category
+                break
+            }
+        }
+    }
+    
+    private func navigateToSubOption(_ option: SettingsOption) {
+        // Đóng các menu mở rộng trước khi điều hướng
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            viewModel.isAccountExpanded = false
+            viewModel.isManageShopExpanded = false
+        }
+        
+        // Điều hướng đến màn hình tương ứng
+        switch option {
+        case .account(let accountOption):
+            switch accountOption {
+            case .profile:
+                appState.coordinator.navigateTo(.accountDetail)
+                break
+            case .security:
+                appState.coordinator.navigateTo(.password)
+                break
+            case .notifications, .privacy:
+                // Đang phát triển
+                break
+            }
+        case .shop(let shopOption):
+            switch shopOption {
+            case .locations:
+                appState.coordinator.navigateTo(.manageShops)
+                break
+            case .menu:
+                appState.coordinator.navigateTo(.menuSection(activatedShop))
+                break
+            case .inventory:
+                appState.coordinator.navigateTo(.ingredientSection(activatedShop))
+                break
+            case .staff:
+                appState.coordinator.navigateTo(.staff(activatedShop))
+                break
+            }
+        }
+    }
+}
+
+// MARK: - iPhone Layout Action Buttons
+extension SettingsView {
+    private var addShopButton: some View {
+        Button {
+            appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
+        } label: {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("Thêm cửa hàng mới")
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(appState.currentTabThemeColors.gradient(for: colorScheme))
+            .cornerRadius(16)
+        }
+    }
+    
+    private var ownerLogoutButton: some View {
+        Button {
+            appState.sourceModel.logoutAsOwner()
+        } label: {
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Đăng xuất chủ sở hữu")
+                }
+                Text("Thời gian còn lại: \(appState.sourceModel.remainingTimeString)")
+                    .font(.footnote)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.red.opacity(0.1))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Common Components
+extension SettingsView {
+    private func formatBusinessHours() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let openTimeStr = formatter.string(from: appState.sourceModel.activatedShop?.businessHours.openTime ?? Date())
+        let closeTimeStr = formatter.string(from: appState.sourceModel.activatedShop?.businessHours.closeTime ?? Date())
+        return "\(openTimeStr) - \(closeTimeStr)"
+    }
+}
+
+// MARK: Ipad Layout
+extension SettingsView {
+    private var ipadLayout: some View {
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                // MARK: - Sidebar
+                sidebarView(width: geometry.size.width * 0.25)
+                    .background(
+                        RoundedRectangle(cornerRadius: 0)
+                            .fill(.regularMaterial)
+                            .overlay(
+                                LinearGradient(
+                                    colors: [
+                                        Color.clear,
+                                        appState.currentTabThemeColors.secondaryColor.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .ignoresSafeArea()
+                    )
+                    .frame(maxHeight: .infinity)
+                    .opacity(appearAnimation ? 1 : 0)
+                    .offset(x: appearAnimation ? 0 : -50)
+                
+                // MARK: - Content Area
+                contentAreaView()
+                    .frame(maxWidth: .infinity)
+                    .opacity(appearAnimation ? 1 : 0)
+                    .offset(x: appearAnimation ? 0 : 50)
+            }
+        }
+    }
+    
+    // MARK: Side bar for iPad
+    private func sidebarView(width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            // User Profile Section
+            userProfileSection
+            
+            ModernDivider(tabThemeColors: appState.currentTabThemeColors)
+            
+            // Active Shop Section
+            if let activeShop = appState.sourceModel.activatedShop {
+                activeShopSection(activeShop)
+                ModernDivider(tabThemeColors: appState.currentTabThemeColors)
+            }
+            
+            // Menu Options
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(SettingsCategory.allCases) { category in
+                        categoryView(for: category)
+                        ModernDivider(tabThemeColors: appState.currentTabThemeColors)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Add Shop Button (Only for authenticated owners)
+            if viewModel.isOwnerAuthenticated {
+                VStack(spacing: 8) {
+                    addShopButton
+                    ownerLogoutButton
+                }
+                .padding(.horizontal)
+            }
+        }
+        .frame(width: width)
+    }
+    
+    private var userProfileSection: some View {
+        VStack(spacing: 12) {
+            // User Avatar
+            if let photoURL = appState.sourceModel.currentUser?.photoURL {
+                AsyncImage(url: photoURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                }
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(appState.currentTabThemeColors.primaryColor.opacity(0.2), lineWidth: 2))
+            } else {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .frame(width: 60, height: 60)
+                    .foregroundStyle(appState.currentTabThemeColors.animatedGradient(for: colorScheme))
+            }
+            
+            // User Info
+            VStack(spacing: 4) {
+                Text(appState.sourceModel.currentUser?.displayName ?? "")
+                    .font(.headline)
+                if viewModel.isOwnerAuthenticated {
+                    Text(appState.sourceModel.currentUser?.email ?? "")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if viewModel.isOwnerAuthenticated {
+                    HStack {
+                        Image(systemName: "checkmark.shield.fill")
+                            .foregroundColor(.green)
+                        Text("Chủ sở hữu")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
+        }
+        .padding()
+    }
+    
+    private func activeShopSection(_ shop: Shop) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Cửa hàng đang hoạt động")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(shop.shopName)
+                        .font(.headline)
+                }
+                
+                Spacer()
+                
+                Menu {
+                    ForEach(appState.sourceModel.shops ?? []) { shop in
+                        Button {
+                            Task {
+                                await viewModel.switchShop(to: shop)
+                            }
+                        } label: {
+                            if shop.id == appState.sourceModel.activatedShop?.id {
+                                Label(shop.shopName, systemImage: "checkmark")
+                            } else {
+                                Text(shop.shopName)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "chevron.up.chevron.down")
+                        .foregroundColor(appState.currentTabThemeColors.primaryColor)
+                }
+            }
+            .padding()
+            .middleLayer(tabThemeColors: appState.currentTabThemeColors)
+            .padding(.horizontal)
+        }
+        .padding(.vertical)
+    }
+}
+
+// MARK: - Common Components
+extension SettingsView {
+    // MARK: - UI Options And Sub Options View
+    private func categoryView(for category: SettingsCategory) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            categoryButton(for: category)
+            
+            if viewModel.isOwnerAuthenticated {
+                if category == .account && viewModel.isAccountExpanded {
+                    subOptionsContainer(for: category)
+                } else if category == .shops && viewModel.isManageShopExpanded {
+                    subOptionsContainer(for: category)
+                }
+            }
+        }
+    }
+    
+    private func categoryButton(for category: SettingsCategory) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                handleCategoryTap(category)
+            }
+        } label: {
+            HStack(spacing: 16) {
+                categoryIcon(category)
+                categoryInfo(category)
+                Spacer()
+                categoryIndicator(category)
+            }
+            .padding(16)
+            .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func categoryIcon(_ category: SettingsCategory) -> some View {
+        ZStack {
+            Circle()
+                .fill(category.iconColor.opacity(0.1))
+                .frame(width: 44, height: 44)
+            
+            Image(systemName: category.icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(category.iconColor)
+        }
+    }
+    
+    private func categoryInfo(_ category: SettingsCategory) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(category.title)
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            if !category.options.isEmpty {
+                Text("\(category.options.count) tùy chọn")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func categoryIndicator(_ category: SettingsCategory) -> some View {
+        Group {
+            if (category == .shops || category == .account), !viewModel.isOwnerAuthenticated {
+                Image(systemName: "lock.fill")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 16, weight: .medium))
+            } else if category == .account {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                    .rotationEffect(.degrees(viewModel.isAccountExpanded ? 90 : 0))
+            } else if category == .shops {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                    .rotationEffect(.degrees(viewModel.isManageShopExpanded ? 90 : 0))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+    
+    // MARK: - Content Area
+    private func contentAreaView() -> some View {
+        ZStack {
+            if let selectedCategory = viewModel.selectedCategory {
+                Group {
+                    contentForCategory(selectedCategory)
+                }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+            } else {
+                placeholderView
+            }
+        }
+        .animation(.easeInOut, value: viewModel.selectedCategory)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 0)
+                .fill(.regularMaterial)
+                .overlay(
+                    LinearGradient(
+                        colors: [
+                            Color.clear,
+                            appState.currentTabThemeColors.accentColor.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .ignoresSafeArea()
+                .frame(maxHeight: .infinity)
+        )
+    }
+    
+    private var placeholderView: some View {
+        VStack {
+            Image(systemName: "gearshape")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            Text("Chọn một tùy chọn từ menu")
+                .font(.title2)
+                .foregroundColor(.gray)
+                .padding(.top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Display Content For Settings Categories
+    @ViewBuilder
+    private func contentForCategory(_ category: SettingsCategory) -> some View {
+        if let selectedOption = viewModel.selectedOption {
+            if viewModel.isOwnerAuthenticated {
+                contentForOption(selectedOption)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
+            } else {
+                requireOwnerAuthView
+            }
+        } else {
+            switch category {
+            case .account, .shops:
+                if viewModel.isOwnerAuthenticated {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(category.title)
+                            .font(.title)
+                            .bold()
+                        
+                        Text("Chọn một mục từ menu bên trái để xem chi tiết")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding()
+                } else {
+                    requireOwnerAuthView
+                }
+            case .theme:
+                appState.coordinator.makeView(for: .theme)
+            case .printer:
+                appState.coordinator.makeView(for: .setUpPrinter)
+            case .language:
+                Text("Đang phát triển")
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func contentForOption(_ option: SettingsOption) -> some View {
+        switch option {
+        case .account(let accountOption):
+            switch accountOption {
+            case .profile:
+                appState.coordinator.makeView(for: .accountDetail)
+            case .security:
+                appState.coordinator.makeView(for: .password)
+            case .notifications, .privacy:
+                Text("Đang phát triển...")
+                    .foregroundColor(.secondary)
+            }
+        case .shop(let shopOption):
+            switch shopOption {
+            case .locations:
+                appState.coordinator.makeView(for: .manageShops)
+            case .menu:
+                appState.coordinator.makeView(for: .menuSection(activatedShop))
+            case .inventory:
+                appState.coordinator.makeView(for: .ingredientSection(activatedShop))
+            case .staff:
+                appState.coordinator.makeView(for: .staff(activatedShop))
+            }
+        }
+    }
+    
+    private var requireOwnerAuthView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "lock.shield")
+                .font(.system(size: 60))
+                .foregroundColor(.orange)
+            
+            Text("Xác thực chủ sở hữu")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Để thực hiện thao tác này, bạn cần xác thực với mật khẩu chủ sở hữu")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button {
+                appState.coordinator.navigateTo(.ownerAuth, using: .present, with: .present)
+            } label: {
+                Text("Xác thực ngay")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(width: 200)
+                    .padding()
+                    .background(appState.currentTabThemeColors.gradient(for: colorScheme))
+                    .cornerRadius(12)
+            }
+            .padding(.top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - iPhone Layout Supporting Views
+extension SettingsView {
+    private var ownerActionsSection: some View {
+        VStack(spacing: 16) {
+            addShopButton
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(y: appearAnimation ? 0 : 20)
+            ownerLogoutButton
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(y: appearAnimation ? 0 : 20)
+        }
+    }
+}
+
 

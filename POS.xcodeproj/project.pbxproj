@@ -41,9 +41,22 @@
 		80BCE5CE2DAF855300BDEEF1 /* POSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = POSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		80D4CFF52E00CEB400A5E6BE /* Exceptions for "POS" folder in "POS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 80BCE5B32DAF854E00BDEEF1 /* POS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		80BCE5B62DAF854E00BDEEF1 /* POS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80D4CFF52E00CEB400A5E6BE /* Exceptions for "POS" folder in "POS" target */,
+			);
 			path = POS;
 			sourceTree = "<group>";
 		};
@@ -436,6 +449,7 @@
 				DEVELOPMENT_TEAM = GAJCLMLJ23;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = POS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -467,6 +481,7 @@
 				DEVELOPMENT_TEAM = GAJCLMLJ23;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = POS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

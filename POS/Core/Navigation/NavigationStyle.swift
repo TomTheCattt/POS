@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-enum NavigationStyle {
+enum NavigationStyle: Codable {
     case push               // Push to new screen
     case present           // Present as sheet from bottom
     case overlay           // Present as overlay with custom animation
@@ -141,29 +141,6 @@ enum BackgroundEffect {
 }
 
 // Extension for view modifiers
-extension View {
-    func applyNavigationStyle(_ style: NavigationStyle) -> some View {
-        self
-            .transition(style.transition)
-            .animation(style.animation, value: true)
-    }
-    
-    func applyBackgroundEffect(_ effect: BackgroundEffect) -> some View {
-        self
-            .background(
-                Group {
-                    if effect.opacity > 0 {
-                        Color.black.opacity(effect.opacity)
-                            .edgesIgnoringSafeArea(.all)
-                    }
-                    if effect.blurRadius > 0 {
-                        BlurView(style: .systemThinMaterial)
-                            .edgesIgnoringSafeArea(.all)
-                    }
-                }
-            )
-    }
-}
 
 // Blur view using UIKit
 struct BlurView: UIViewRepresentable {

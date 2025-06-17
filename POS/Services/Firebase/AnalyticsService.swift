@@ -5,10 +5,6 @@ import Combine
 
 final class AnalyticsService: AnalyticsServiceProtocol {
     
-    var isLoading: Bool = false
-    
-    var error: (any Error)?
-    
     // MARK: - Singleton
     static let shared = AnalyticsService()
     
@@ -16,6 +12,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     private let db = Firestore.firestore()
     private let analytics = Analytics.self
     private var cancellables = Set<AnyCancellable>()
+    private var listeners: [String: ListenerRegistration] = [:]
     
     // MARK: - Publishers
     private let currentDayStatsSubject = CurrentValueSubject<DailySales, Never>(
@@ -37,11 +34,6 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     
     var topSellingItemsPublisher: AnyPublisher<[TopSellingItem], Never> {
         topSellingItemsSubject.eraseToAnyPublisher()
-    }
-    
-    // MARK: - Initialization
-    private init() {
-        setupRealtimeListeners()
     }
     
     // MARK: - Private Methods
@@ -98,7 +90,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         currentDayStatsSubject.send(dailySales)
     }
     
-    // MARK: - Sales Analytics
+    // MARK: - Sales revenueRecord
     func getDailySales(date: Date) async throws -> DailySales {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -139,7 +131,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         }
     }
     
-    func getSalesTrend(period: AnalyticsPeriod) async throws -> [SalesTrendPoint] {
+    func getSalesTrend(period: revenueRecordPeriod) async throws -> [SalesTrendPoint] {
         let (startDate, interval) = getDateRange(for: period)
         
         let snapshot = try await db.collection("sales")
@@ -150,7 +142,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         return try processSalesTrend(from: snapshot.documents, interval: interval)
     }
     
-    // MARK: - Customer Analytics
+    // MARK: - Customer revenueRecord
     func getCustomerStats() async throws -> CustomerStats {
         let snapshot = try await db.collection("customers").getDocuments()
         return try processCustomerStats(from: snapshot.documents)
@@ -166,7 +158,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         return 0.0
     }
     
-    // MARK: - Product Analytics
+    // MARK: - Product revenueRecord
     func getProductPerformance(productId: String) async throws -> ProductPerformance {
         let doc = try await db.collection("menu_items").document(productId).getDocument()
         guard let data = doc.data() else {
@@ -216,7 +208,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         }
     }
     
-    // MARK: - Employee Analytics
+    // MARK: - Employee revenueRecord
     func getEmployeePerformance(employeeId: String) async throws -> EmployeePerformance {
         let doc = try await db.collection("employees").document(employeeId).getDocument()
         guard let data = doc.data() else {
@@ -249,23 +241,6 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     }
     
     // MARK: - Event Tracking
-//    func logEvent(_ event: AnalyticsEvent) {
-//        analytics.logEvent(event.name, parameters: event.parameters)
-//        
-//        // Also save to Firestore for our own analytics
-//        Task {
-//            do {
-//                try await db.collection("events").addDocument(data: [
-//                    "name": event.name,
-//                    "parameters": event.parameters,
-//                    "timestamp": event.timestamp
-//                ])
-//            } catch {
-//                print("Error saving event to Firestore: \(error)")
-//            }
-//        }
-//    }
-    
     func getEventStats(eventName: String, from: Date, to: Date) async throws -> EventStats {
         let snapshot = try await db.collection("events")
             .whereField("name", isEqualTo: eventName)
@@ -276,8 +251,87 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         return try processEventStats(from: snapshot.documents, eventName: eventName)
     }
     
+    // MARK: - Revenue Records Methods
+//    func getRevenueRecords(userId: String, shopId: String, from: Date, to: Date) async throws -> [RevenueRecord] {
+//        let snapshot = try await db.collection("users")
+//            .document(userId)
+//            .collection("shops")
+//            .document(shopId)
+//            .collection("revenue")
+//            .whereField("date", isGreaterThanOrEqualTo: from)
+//            .whereField("date", isLessThan: to)
+//            .order(by: "date", descending: true)
+//            .getDocuments()
+//        
+//        return try snapshot.documents.map { try RevenueRecord.from($0) }
+//    }
+//    
+//    func listenToRevenueRecords(userId: String, shopId: String, from: Date, to: Date, completion: @escaping (Result<[RevenueRecord], Error>) -> Void) -> ListenerRegistration {
+//        let listener = db.collection("users")
+//            .document(userId)
+//            .collection("shops")
+//            .document(shopId)
+//            .collection("revenue")
+//            .whereField("date", isGreaterThanOrEqualTo: from)
+//            .whereField("date", isLessThan: to)
+//            .order(by: "date", descending: true)
+//            .addSnapshotListener { snapshot, error in
+//                if let error = error {
+//                    completion(.failure(error))
+//                    return
+//                }
+//                
+//                guard let documents = snapshot?.documents else {
+//                    completion(.success([]))
+//                    return
+//                }
+//                
+//                do {
+//                    let records = try documents.map { try RevenueRecord.from($0) }
+//                    completion(.success(records))
+//                } catch {
+//                    completion(.failure(error))
+//                }
+//            }
+//        
+//        // Lưu listener để có thể remove sau này
+//        let key = "revenue_\(userId)_\(shopId)"
+//        listeners[key] = listener
+//        
+//        return listener
+//    }
+//    
+//    func createRevenueRecord(_ record: RevenueRecord, userId: String, shopId: String) async throws {
+//        try await db.collection("users")
+//            .document(userId)
+//            .collection("shops")
+//            .document(shopId)
+//            .collection("revenue")
+//            .addDocument(data: record.documentData)
+//    }
+//    
+//    func updateRevenueRecord(_ record: RevenueRecord, userId: String, shopId: String) async throws {
+//        guard let recordId = record.id else {
+//            throw AppError.database(.invalidData)
+//        }
+//        
+//        try await db.collection("users")
+//            .document(userId)
+//            .collection("shops")
+//            .document(shopId)
+//            .collection("revenue")
+//            .document(recordId)
+//            .setData(record.documentData, merge: true)
+//    }
+//    
+//    func removeRevenueRecordListener(userId: String, shopId: String) {
+//        let key = "revenue_\(userId)_\(shopId)"
+//        listeners[key]?.remove()
+//        listeners.removeValue(forKey: key)
+//    }
+    
     // MARK: - Helper Methods
-    private func getDateRange(for period: AnalyticsPeriod) -> (Date, Calendar.Component) {
+    private func getDateRange(for period: revenueRecordPeriod) -> (Date, Calendar.Component) {
         let calendar = Calendar.current
         let now = Date()
         
@@ -485,10 +539,6 @@ final class AnalyticsService: AnalyticsServiceProtocol {
             sum + (doc.data()["total"] as? Double ?? 0)
         }
     }
-    
-    func logEvent(_ name: String, params: [String : Any]?) {
-        
-    }
 }
 
 // MARK: - Supporting Types
@@ -509,7 +559,7 @@ struct SaleItem: Codable {
     let total: Double
 }
 
-struct AnalyticsMetrics {
+struct revenueRecordMetrics {
     let totalRevenue: Double
     let totalOrders: Int
     let averageOrderValue: Double
@@ -519,7 +569,7 @@ struct AnalyticsMetrics {
     let averageOrderChange: Double
 }
 
-struct AnalyticsInsight {
+struct revenueRecordInsight {
     let peakHours: String
     let peakHoursPercentage: Double
     let bestDay: String
@@ -531,10 +581,10 @@ struct AnalyticsInsight {
 }
 
 extension AnalyticsService {
-    // MARK: - Analytics View Data
+    // MARK: - revenueRecord View Data
     
     /// Lấy dữ liệu metrics cho dashboard
-    func getAnalyticsMetrics(for timeFilter: TimeFilter) async throws -> AnalyticsMetrics {
+    func getAnalyticsMetrics(for timeFilter: TimeFilter) async throws -> revenueRecordMetrics {
         let (currentPeriod, previousPeriod) = getTimeFilterDateRanges(for: timeFilter)
         
         async let currentReport = getSalesReport(from: currentPeriod.start, to: currentPeriod.end)
@@ -558,7 +608,7 @@ extension AnalyticsService {
             previous: previous.averageOrderValue
         )
         
-        return AnalyticsMetrics(
+        return revenueRecordMetrics(
             totalRevenue: current.totalRevenue,
             totalOrders: current.totalOrders,
             averageOrderValue: current.averageOrderValue,
@@ -570,7 +620,7 @@ extension AnalyticsService {
     }
     
     /// Lấy dữ liệu insights cho dashboard
-    func getAnalyticsInsights(for timeFilter: TimeFilter) async throws -> AnalyticsInsight {
+    func getAnalyticsInsights(for timeFilter: TimeFilter) async throws -> revenueRecordInsight {
         let (currentPeriod, previousPeriod) = getTimeFilterDateRanges(for: timeFilter)
         
         async let currentStats = getCustomerStats()
@@ -595,7 +645,7 @@ extension AnalyticsService {
             previous: Double(previous.returningCustomers) / Double(previous.totalCustomers)
         )
         
-        return AnalyticsInsight(
+        return revenueRecordInsight(
             peakHours: peakHour,
             peakHoursPercentage: percentage,
             bestDay: bestDay,
@@ -608,14 +658,14 @@ extension AnalyticsService {
     }
     
     /// Lấy dữ liệu revenue theo thời gian
-    func getRevenueData(for timeFilter: TimeFilter) async throws -> [RevenueData] {
-        let (period, _) = getTimeFilterDateRanges(for: timeFilter)
-        let salesTrend = try await getSalesTrend(period: convertTimeFilterToAnalyticsPeriod(timeFilter))
-        
-        return salesTrend.map { point in
-            RevenueData(date: point.date, revenue: point.value)
-        }
-    }
+//    func getRevenueData(for timeFilter: TimeFilter) async throws -> [RevenueData] {
+//        let (period, _) = getTimeFilterDateRanges(for: timeFilter)
+//        let salesTrend = try await getSalesTrend(period: convertTimeFilterToAnalyticsPeriod(timeFilter))
+//        
+//        return salesTrend.map { point in
+//            RevenueData(date: point.date, revenue: point.value)
+//        }
+//    }
     
     // MARK: - Helper Methods
     private func getTimeFilterDateRanges(for filter: TimeFilter) -> (current: (start: Date, end: Date), previous: (start: Date, end: Date)) {
@@ -661,7 +711,7 @@ extension AnalyticsService {
         return ("Thứ 6", "Doanh thu cao nhất tuần")
     }
     
-    private func convertTimeFilterToAnalyticsPeriod(_ filter: TimeFilter) -> AnalyticsPeriod {
+    private func convertTimeFilterToAnalyticsPeriod(_ filter: TimeFilter) -> revenueRecordPeriod {
         switch filter {
         case .day: return .day
         case .week: return .week

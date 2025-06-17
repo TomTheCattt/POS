@@ -45,6 +45,7 @@ struct NavigationConfig {
     // Cấu hình chung
     var isAnimated: Bool = true
     var shouldDismissPrevious: Bool = false
+    var shouldBuildPath: Bool = false
     var completion: (() -> Void)? = nil
     
     // Cấu hình cho overlay và sheet
@@ -77,6 +78,20 @@ struct NavigationConfig {
     
     // Khởi tạo mặc định
     static let `default` = NavigationConfig()
+    
+    static let replace = NavigationConfig(
+            shouldDismissPrevious: true,
+            shouldBuildPath: false,
+            completion: nil,
+            customAnimation: .easeInOut
+        )
+    
+    static let deepNavigation = NavigationConfig(
+        shouldDismissPrevious: false,
+        shouldBuildPath: true,
+        completion: nil,
+        customAnimation: .spring(response: 0.6, dampingFraction: 0.8)
+    )
     
     // Khởi tạo cho overlay
     static let overlay = NavigationConfig(
@@ -113,6 +128,7 @@ struct NavigationConfig {
     init(
         isAnimated: Bool = true,
         shouldDismissPrevious: Bool = false,
+        shouldBuildPath: Bool = false,
         completion: (() -> Void)? = nil,
         autoDismiss: Bool = false,
         autoDismissDelay: TimeInterval = 2.0,
@@ -137,6 +153,7 @@ struct NavigationConfig {
     ) {
         self.isAnimated = isAnimated
         self.shouldDismissPrevious = shouldDismissPrevious
+        self.shouldBuildPath = shouldBuildPath
         self.completion = completion
         self.autoDismiss = autoDismiss
         self.autoDismissDelay = autoDismissDelay

@@ -16,6 +16,9 @@ struct HistoryView: View {
     @State private var selectedOrder: Order?
     @State private var isSearchFocused = false
     @State private var selectedFilterIndex = 0
+    @State private var showContent = false
+    @Namespace private var animation
+    @Environment(\.colorScheme) var colorScheme
     
     private let columns = [
         GridItem(.flexible())
@@ -26,40 +29,33 @@ struct HistoryView: View {
     ]
     
     var body: some View {
-        ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [Color(.systemBackground), Color(.systemGroupedBackground)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    // Header with animated stats
-                    headerSection
-                        .padding(.top, 10)
-                    
-                    // Enhanced search section
-                    searchSection
-                    
-                    // Animated filter tabs
-                    filterTabsSection
-                    
-                    // Orders list with enhanced animations
-                    ordersListSection
-                }
-                .padding(.bottom, 20)
-                .background(Color(.systemGray6))
+        GeometryReader { _ in
+            VStack(spacing: 20) {
+                // Header with animated stats
+                headerSection
+                    .opacity(showContent ? 1 : 0)
+                    .offset(y: showContent ? 0 : -20)
+                
+                // Enhanced search section
+                searchSection
+                    .opacity(showContent ? 1 : 0)
+                    .offset(y: showContent ? 0 : 20)
+                
+                // Animated filter tabs
+                filterTabsSection
+                    .opacity(showContent ? 1 : 0)
+                    .offset(y: showContent ? 0 : 20)
+                
+                // Orders list with enhanced animations
+                ordersListSection
+                    .opacity(showContent ? 1 : 0)
+                    .offset(y: showContent ? 0 : 20)
             }
         }
-//        .navigationTitle("Lịch sử đơn hàng")
-//        .navigationBarTitleDisplayMode(.large)
-        .sheet(item: $selectedOrder) { order in
-            EnhancedOrderDetailView(order: order, viewModel: viewModel)
-        }
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
+                showContent = true
+            }
             appState.sourceModel.setupOrdersListener(shopId: appState.sourceModel.activatedShop?.id ?? "")
         }
         .onDisappear {
@@ -74,27 +70,13 @@ struct HistoryView: View {
             VStack(spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Xin chào! 👋")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                        Text("Quản lý đơn hàng của bạn")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        Text("Lịch sử đơn hàng")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(
+                                appState.currentTabThemeColors.primaryColor
+                            )
                     }
                     Spacer()
-                    
-                    // Quick action button
-                    Button {
-                        appState.coordinator.navigateTo(.filter, using: .present, with: .present)
-                    }
-                           label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                            .frame(width: 44, height: 44)
-                            .background(Color.blue.opacity(0.1))
-                            .clipShape(Circle())
-                    }
                 }
                 .padding(.horizontal, 20)
             }
@@ -113,7 +95,7 @@ struct HistoryView: View {
                 EnhancedStatCard(
                     title: "Doanh thu",
                     value: viewModel.formatPrice(viewModel.filteredOrders.reduce(0) { $0 + $1.totalAmount }),
-                    subtitle: "hôm nay",
+                    subtitle: viewModel.selectedDateRange.rawValue,
                     icon: "creditcard.fill",
                     gradient: [Color.green, Color.mint],
                     iconBackground: Color.green.opacity(0.1)
@@ -134,7 +116,6 @@ struct HistoryView: View {
                         .animation(.spring(response: 0.3), value: isSearchFocused)
                     
                     TextField("Tìm theo mã đơn, tên món...", text: $viewModel.searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
                         .onTapGesture {
                             withAnimation(.spring(response: 0.3)) {
                                 isSearchFocused = true
@@ -156,15 +137,7 @@ struct HistoryView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(isSearchFocused ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 2)
-                        )
-                )
+                .middleLayer(tabThemeColors: appState.currentTabThemeColors)
                 .animation(.spring(response: 0.3), value: isSearchFocused)
             }
             .padding(.horizontal, 20)
@@ -178,17 +151,15 @@ struct HistoryView: View {
                 ForEach(Array(filterOptions.enumerated()), id: \.offset) { index, range in
                     let isSelected = viewModel.selectedDateRange == range
                     let count = viewModel.orders.filter { range.dateInterval?.contains($0.createdAt) ?? false }.count
-                    
-                    EnhancedFilterChip(
-                        title: range.rawValue,
-                        count: count,
-                        isSelected: isSelected
-                    ) {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            viewModel.selectedDateRange = range
-                            selectedFilterIndex = index
+                    filterChip(title: range.rawValue, count: count)
+                        .foregroundStyle(isSelected ? .white : .primary)
+                        .layeredSelectionButton(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 16, isSelected: isSelected, namespace: animation, geometryID: "selected_date_range") {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                viewModel.selectedDateRange = range
+                                selectedFilterIndex = index
+                            }
                         }
-                    }
+                        .padding(.vertical, 8)
                 }
             }
             .padding(.horizontal, 20)
@@ -198,24 +169,26 @@ struct HistoryView: View {
     // MARK: - Orders List Section
     private var ordersListSection: some View {
         Group {
-            if viewModel.filteredOrders.isEmpty {
-                enhancedEmptyStateView
-            } else {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Array(viewModel.filteredOrders.enumerated()), id: \.element.id) { index, order in
-                        Button {
-                            appState.coordinator.navigateTo(.orderDetail(order), using: .present, with: .present)
-                        } label: {
-                            appState.coordinator.makeView(for: .orderCard(order))
-                                .transition(.asymmetric(
-                                    insertion: .scale.combined(with: .opacity),
-                                    removal: .scale.combined(with: .opacity)
-                                ))
+            ScrollView(showsIndicators: false) {
+                if viewModel.filteredOrders.isEmpty {
+                    enhancedEmptyStateView
+                } else {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(Array(viewModel.filteredOrders.enumerated()), id: \.element.id) { index, order in
+                            Button {
+                                appState.coordinator.navigateTo(.orderDetail(order), using: .present, with: .present)
+                            } label: {
+                                orderCard(order)
+                                    .transition(.asymmetric(
+                                        insertion: .scale.combined(with: .opacity),
+                                        removal: .scale.combined(with: .opacity)
+                                    ))
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .buttonStyle(PlainButtonStyle())
                     }
+                    .padding(20)
                 }
-                .padding(.horizontal, 20)
             }
         }
     }
@@ -225,19 +198,13 @@ struct HistoryView: View {
             // Animated icon
             ZStack {
                 Circle()
-                    .fill(LinearGradient(colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(appState.currentTabThemeColors.gradient(for: colorScheme).opacity(0.5))
                     .frame(width: 120, height: 120)
                 
                 VStack(spacing: 8) {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 40, weight: .light))
                         .foregroundStyle(LinearGradient(colors: [.gray, .secondary], startPoint: .top, endPoint: .bottom))
-                    
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 4, height: 4)
-                        .scaleEffect(1.0)
-                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: UUID())
                 }
             }
             
@@ -268,7 +235,7 @@ struct HistoryView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.blue)
+                .background(appState.currentTabThemeColors.primaryColor)
                 .foregroundColor(.white)
                 .clipShape(Capsule())
             }
@@ -276,108 +243,22 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
     }
-}
-
-// MARK: - Enhanced Supporting Views
-
-struct EnhancedStatCard: View {
-    let title: String
-    let value: String
-    let subtitle: String
-    let icon: String
-    let gradient: [Color]
-    let iconBackground: Color
     
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(iconBackground)
-                        .frame(width: 40, height: 40)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
-                }
-                Spacer()
-            }
+    private func filterChip(title: String, count: Int) -> some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.subheadline)
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
-                
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(count)")
+                .font(.caption2)
+                .fontWeight(.medium)
+                .opacity(0.8)
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
-}
-
-struct EnhancedFilterChip: View {
-    let title: String
-    let count: Int
-    let isSelected: Bool
-    let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(isSelected ? .semibold : .medium)
-                
-                Text("\(count)")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .opacity(0.8)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                Group {
-                    if isSelected {
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    } else {
-                        Color(.systemBackground)
-                    }
-                }
-            )
-            .foregroundColor(isSelected ? .white : .primary)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.black.opacity(0.05), radius: isSelected ? 8 : 4, x: 0, y: 2)
-            .scaleEffect(isSelected ? 1.05 : 1.0)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct EnhancedOrderCard: View {
-    let order: Order
-    @ObservedObject var viewModel: HistoryViewModel
-    
-    @State private var isPressed = false
-    
-    var body: some View {
+    private func orderCard(_ order: Order) -> some View {
         VStack(spacing: 16) {
             // Header with enhanced styling
             HStack {
@@ -414,9 +295,9 @@ struct EnhancedOrderCard: View {
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(Color.blue.opacity(0.1))
+                        .fill(appState.currentTabThemeColors.primaryColor.opacity(0.3))
                 )
-                .foregroundColor(.blue)
+                .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -447,11 +328,7 @@ struct EnhancedOrderCard: View {
                         .font(.title3)
                         .fontWeight(.bold)
                         .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            appState.currentTabThemeColors.gradient(for: colorScheme)
                         )
                 }
                 
@@ -480,22 +357,67 @@ struct EnhancedOrderCard: View {
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(isPressed ? 0.15 : 0.08), radius: isPressed ? 20 : 12, x: 0, y: isPressed ? 8 : 4)
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+    }
+}
+
+// MARK: - Enhanced Supporting Views
+
+struct EnhancedStatCard: View {
+    @EnvironmentObject private var appState: AppState
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+    let gradient: [Color]
+    let iconBackground: Color
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(iconBackground)
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+                Spacer()
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
+                
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(20)
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
     }
 }
 
 // MARK: - Enhanced Detail Views
 
 struct EnhancedOrderDetailView: View {
+    @ObservedObject var viewModel: HistoryViewModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) var colorScheme
+    
     let order: Order
-    let viewModel: HistoryViewModel
-    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         ScrollView {
@@ -538,9 +460,7 @@ struct EnhancedOrderDetailView: View {
                     }
                 }
                 .padding(20)
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
+                .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
                 
                 // Items section
                 VStack(alignment: .leading, spacing: 16) {
@@ -568,27 +488,12 @@ struct EnhancedOrderDetailView: View {
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                appState.currentTabThemeColors.gradient(for: colorScheme)
                             )
                     }
                 }
                 .padding(20)
-                .background(
-                    LinearGradient(
-                        colors: [Color.blue.opacity(0.05), Color.purple.opacity(0.05)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(LinearGradient(colors: [.blue.opacity(0.2), .purple.opacity(0.2)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
-                )
+                .layeredCard(tabThemeColors: appState.currentTabThemeColors)
             }
             .padding(20)
         }
@@ -598,7 +503,7 @@ struct EnhancedOrderDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Đóng") {
-                    dismiss()
+                    appState.coordinator.dismiss()
                 }
                 .fontWeight(.medium)
             }
@@ -607,15 +512,17 @@ struct EnhancedOrderDetailView: View {
 }
 
 struct DetailRow: View {
+    @EnvironmentObject private var appState: AppState
     let title: String
     let value: String
     let icon: String
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.subheadline)
-                .foregroundColor(.blue)
+                .foregroundColor(appState.currentTabThemeColors.primaryColor)
                 .frame(width: 20)
             
             Text(title)
@@ -632,8 +539,10 @@ struct DetailRow: View {
 }
 
 struct EnhancedItemRow: View {
+    @EnvironmentObject private var appState: AppState
     let item: OrderItem
     let viewModel: HistoryViewModel
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(spacing: 12) {
@@ -644,7 +553,7 @@ struct EnhancedItemRow: View {
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .frame(width: 24, height: 24)
-                    .background(Color.blue)
+                    .background(appState.currentTabThemeColors.primaryColor)
                     .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -682,59 +591,6 @@ struct EnhancedItemRow: View {
             }
         }
         .padding(16)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.03), radius: 4, x: 0, y: 1)
-    }
-}
-
-struct EnhancedFilterView: View {
-    @ObservedObject var viewModel: HistoryViewModel
-    @EnvironmentObject private var appState: AppState
-    
-    private let filterOptions = [
-        DateRange.today, .yesterday, .thisWeek, .thisMonth
-    ]
-    
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(filterOptions, id: \.self) { range in
-                    Button {
-                        viewModel.selectedDateRange = range
-                        appState.coordinator.dismiss(style: .present)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: range == viewModel.selectedDateRange ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(range == viewModel.selectedDateRange ? .blue : .secondary)
-                                .font(.title3)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(range.rawValue)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Text("Lọc theo \(range.rawValue.lowercased())")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .foregroundColor(.primary)
-                }
-            }
-            .navigationTitle("Chọn khoảng thời gian")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") {
-                        appState.coordinator.dismiss(style: .present)
-                    }
-                    .fontWeight(.medium)
-                }
-            }
-        }
+        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
     }
 }

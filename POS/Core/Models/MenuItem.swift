@@ -12,6 +12,7 @@ import SwiftUI
 struct MenuItem: Codable, Identifiable {
     // MARK: - Properties
     @DocumentID var id: String?
+    let menuId: String
     let name: String
     let price: Double
     let category: String
@@ -33,6 +34,7 @@ struct MenuItem: Codable, Identifiable {
     // MARK: - Initialization
     init(
         id: String? = nil,
+        menuId: String,
         name: String,
         price: Double,
         category: String,
@@ -43,6 +45,7 @@ struct MenuItem: Codable, Identifiable {
         updatedAt: Date = Date()
     ) {
         self.id = id
+        self.menuId = menuId
         self.name = name
         self.price = price
         self.category = category
@@ -72,13 +75,13 @@ struct MenuItem: Codable, Identifiable {
     
     private func checkAvailability(with ingredients: [String: IngredientUsage]) -> Bool {
         return recipe.allSatisfy { recipeItem in
-            guard let ingredient = ingredients[recipeItem.ingredientUsage.name] else {
+            guard let ingredient = ingredients[recipeItem.ingredientId] else {
                 return false
             }
             
             let requiredQuantity = convertToBaseUnit(
-                quantity: recipeItem.ingredientUsage.quantity,
-                unit: recipeItem.ingredientUsage.measurementPerUnit.unit
+                quantity: ingredient.quantity,
+                unit: ingredient.measurementPerUnit.unit
             )
             
             let availableQuantity = convertToBaseUnit(
@@ -143,85 +146,71 @@ struct MenuItem: Codable, Identifiable {
     }
     
     // MARK: - Dictionary Representation
-    var dictionary: [String: Any] {
-        var dict: [String: Any] = [
-            "name": name,
-            "price": price,
-            "category": category,
-            "recipe": recipe.map { $0.dictionary },
-            "isAvailable": isAvailable,
-            "createdAt": Timestamp(date: createdAt),
-            "updatedAt": Timestamp(date: updatedAt)
-        ]
-        
-        if let imageURL = imageURL {
-            dict["imageURL"] = imageURL.absoluteString
-        }
-        
-        return dict
-    }
+//    var dictionary: [String: Any] {
+//        var dict: [String: Any] = [
+//            "name": name,
+//            "price": price,
+//            "category": category,
+//            "recipe": recipe.map { $0.dictionary },
+//            "isAvailable": isAvailable,
+//            "createdAt": Timestamp(date: createdAt),
+//            "updatedAt": Timestamp(date: updatedAt)
+//        ]
+//        
+//        if let imageURL = imageURL {
+//            dict["imageURL"] = imageURL.absoluteString
+//        }
+//        
+//        return dict
+//    }
 }
 
 // MARK: - Firestore Extensions
-extension MenuItem {
-    init?(document: DocumentSnapshot) {
-        guard let data = document.data(),
-              let name = data["name"] as? String,
-              let price = data["price"] as? Double,
-              let category = data["category"] as? String,
-              let isAvailable = data["isAvailable"] as? Bool
-        else {
-            return nil
-        }
-        
-        // Handle recipe data with fallback
-        let recipe: [Recipe] = {
-            guard let recipeData = data["recipe"] as? [[String: Any]] else {
-                return []
-            }
-            return recipeData.compactMap { Recipe(dictionary: $0) }
-        }()
-        
-        // Handle image URL with validation
-        let imageURL: URL? = {
-            guard let urlString = data["imageURL"] as? String,
-                  !urlString.isEmpty else { return nil }
-            return URL(string: urlString)
-        }()
-        
-        // Handle timestamps with fallbacks
-        let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
-        let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
-        
-        self.init(
-            id: document.documentID,
-            name: name,
-            price: price,
-            category: category,
-            recipe: recipe,
-            isAvailable: isAvailable,
-            imageURL: imageURL,
-            createdAt: createdAt,
-            updatedAt: updatedAt
-        )
-    }
-    
-    // MARK: - Firestore Operations
-    func save(to collection: CollectionReference) async throws {
-        if let id = id {
-            try await collection.document(id).setData(dictionary, merge: true)
-        } else {
-            try await collection.addDocument(data: dictionary)
-        }
-    }
-    
-    func delete(from collection: CollectionReference) async throws {
-        guard let id = id else {
-            throw NSError(domain: "MenuItem", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot delete item without ID"])
-        }
-        try await collection.document(id).delete()
-    }
-}
+//extension MenuItem {
+//    init?(document: DocumentSnapshot) {
+//        guard let data = document.data(),
+//              let menuId = data["menuId"] as? String,
+//              let name = data["name"] as? String,
+//              let price = data["price"] as? Double,
+//              let category = data["category"] as? String,
+//              let isAvailable = data["isAvailable"] as? Bool
+//        else {
+//            return nil
+//        }
+//        
+//        // Handle recipe data with fallback
+//        let recipe: [Recipe] = {
+//            guard let recipeData = data["recipe"] as? [[String: Any]] else {
+//                return []
+//            }
+//            return recipeData.compactMap { Recipe(dictionary: $0) }
+//        }()
+//        
+//        // Handle image URL with validation
+//        let imageURL: URL? = {
+//            guard let urlString = data["imageURL"] as? String,
+//                  !urlString.isEmpty else { return nil }
+//            return URL(string: urlString)
+//        }()
+//        
+//        // Handle timestamps with fallbacks
+//        let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+//        let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
+//        
+//        self.init(
+//            id: document.documentID,
+//            menuId: menuId,
+//            name: name,
+//            price: price,
+//            category: category,
+//            recipe: recipe,
+//            isAvailable: isAvailable,
+//            imageURL: imageURL,
+//            createdAt: createdAt,
+//            updatedAt: updatedAt
+//        )
+//    }
+//}
 
 // MARK: - Comparable
 extension MenuItem: Comparable {

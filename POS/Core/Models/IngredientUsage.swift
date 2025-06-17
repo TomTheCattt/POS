@@ -44,66 +44,66 @@ struct IngredientUsage: Codable, Identifiable, Hashable {
         }
     }
 
-    var dictionary: [String: Any] {
-        [
-            "name": name,
-            "quantity": quantity,
-            "measurementPerUnit": measurementPerUnit.dictionary,
-            "used": used,
-            "minQuantity": minQuantity,
-            "costPrice": costPrice,
-            "createdAt": Timestamp(date: createdAt),
-            "updatedAt": Timestamp(date: updatedAt)
-        ]
-    }
-
-    init(
-        id: String? = nil,
-        name: String,
-        quantity: Double,
-        measurementPerUnit: Measurement,
-        used: Double,
-        minQuantity: Double = 1,
-        costPrice: Double,
-        createdAt: Date,
-        updatedAt: Date
-    ) {
-        self.id = id
-        self.name = name
-        self.quantity = quantity
-        self.measurementPerUnit = measurementPerUnit
-        self.used = used
-        self.minQuantity = minQuantity
-        self.costPrice = costPrice
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-
-    init?(dictionary: [String: Any]) {
-        guard let name = dictionary["name"] as? String,
-              let quantity = dictionary["quantity"] as? Double,
-              let used = dictionary["used"] as? Double,
-              let minQuantity = dictionary["minQuantity"] as? Double,
-              let costPrice = dictionary["costPrice"] as? Double,
-              let createdAt = (dictionary["createdAt"] as? Timestamp)?.dateValue(),
-              let updatedAt = (dictionary["updatedAt"] as? Timestamp)?.dateValue(),
-              let measurementDict = dictionary["measurementPerUnit"] as? [String: Any],
-              let measurement = Measurement(dictionary: measurementDict)
-        else {
-            return nil
-        }
-
-        self.init(
-            name: name,
-            quantity: quantity,
-            measurementPerUnit: measurement,
-            used: used,
-            minQuantity: minQuantity,
-            costPrice: costPrice,
-            createdAt: createdAt,
-            updatedAt: updatedAt
-        )
-    }
+//    var dictionary: [String: Any] {
+//        [
+//            "name": name,
+//            "quantity": quantity,
+//            "measurementPerUnit": measurementPerUnit.dictionary,
+//            "used": used,
+//            "minQuantity": minQuantity,
+//            "costPrice": costPrice,
+//            "createdAt": Timestamp(date: createdAt),
+//            "updatedAt": Timestamp(date: updatedAt)
+//        ]
+//    }
+//
+//    init(
+//        id: String? = nil,
+//        name: String,
+//        quantity: Double,
+//        measurementPerUnit: Measurement,
+//        used: Double,
+//        minQuantity: Double = 1,
+//        costPrice: Double,
+//        createdAt: Date,
+//        updatedAt: Date
+//    ) {
+//        self.id = id
+//        self.name = name
+//        self.quantity = quantity
+//        self.measurementPerUnit = measurementPerUnit
+//        self.used = used
+//        self.minQuantity = minQuantity
+//        self.costPrice = costPrice
+//        self.createdAt = createdAt
+//        self.updatedAt = updatedAt
+//    }
+//
+//    init?(dictionary: [String: Any]) {
+//        guard let name = dictionary["name"] as? String,
+//              let quantity = dictionary["quantity"] as? Double,
+//              let used = dictionary["used"] as? Double,
+//              let minQuantity = dictionary["minQuantity"] as? Double,
+//              let costPrice = dictionary["costPrice"] as? Double,
+//              let createdAt = (dictionary["createdAt"] as? Timestamp)?.dateValue(),
+//              let updatedAt = (dictionary["updatedAt"] as? Timestamp)?.dateValue(),
+//              let measurementDict = dictionary["measurementPerUnit"] as? [String: Any],
+//              let measurement = Measurement(dictionary: measurementDict)
+//        else {
+//            return nil
+//        }
+//
+//        self.init(
+//            name: name,
+//            quantity: quantity,
+//            measurementPerUnit: measurement,
+//            used: used,
+//            minQuantity: minQuantity,
+//            costPrice: costPrice,
+//            createdAt: createdAt,
+//            updatedAt: updatedAt
+//        )
+//    }
 }
 
 // MARK: - Stock Status Enum
