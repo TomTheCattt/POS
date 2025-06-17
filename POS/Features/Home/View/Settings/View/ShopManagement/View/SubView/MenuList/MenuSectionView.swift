@@ -42,171 +42,211 @@ struct MenuSectionView: View {
     var body: some View {
         Group {
             if let shops = appState.sourceModel.shops, shops.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "building.2.crop.circle")
-                        .font(.system(size: 60))
-                        .foregroundStyle(gradient)
-                    
-                    Text("Chưa có cửa hàng nào")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Bạn cần tạo cửa hàng trước khi quản lý thực đơn")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                    
-                    Button {
-                        appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
-                    } label: {
-                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(gradient)
-                            .foregroundColor(.white)
-                            .cornerRadius(15)
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.top, 10)
-                }
-                .padding()
+                emptyStateView
             } else {
-                VStack(spacing: 16) {
-                    // Enhanced Header
-                    headerSection
-                        .opacity(animateHeader ? 1 : 0)
-                        .offset(y: animateHeader ? 0 : -20)
-                    
-                    if viewModel.menuList.isEmpty {
-                        VStack(spacing: 20) {
-                            Image(systemName: "menucard.fill")
-                                .font(.system(size: 60))
-                                .foregroundStyle(gradient)
-                            
-                            Text("Chưa có thực đơn nào")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            
-                            Text("Hãy tạo thực đơn đầu tiên cho cửa hàng của bạn")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
-                            
-                            Button {
-                                selectedItem = nil
-                                appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
-                            } label: {
-                                Label("Tạo thực đơn mới", systemImage: "plus.circle.fill")
-                                    .font(.headline)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(gradient)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(15)
-                            }
-                            .padding(.horizontal, 40)
-                            .padding(.top, 10)
-                        }
-                        .padding()
-                        .frame(maxHeight: .infinity)
-                    } else {
-                        // Search Bar
-                        if showingSearchBar {
-                            EnhancedSearchBar(
-                                text: $searchText,
-                                placeholder: "Tìm kiếm thực đơn..."
-                            )
-                            .transition(.asymmetric(
-                                insertion: .scale.combined(with: .opacity),
-                                removal: .scale.combined(with: .opacity)
-                            ))
-                            .padding()
-                        }
-                        
-                        // Menu Grid
-                        ScrollView {
-                            VStack(spacing: 16) {
-                                ForEach(viewModel.menuList) { menu in
-                                    Button {
-                                        appState.coordinator.navigateTo(.menuDetail(menu))
-                                    } label: {
-                                        appState.coordinator.makeView(for: .menuRow(menu))
-                                    }
-                                }
-                            }
-                            .padding()
-                        }
-                        
-                        // Bottom Toolbar
-                        bottomToolbar
-                            .background(
-                                Rectangle()
-                                    .fill(.ultraThinMaterial)
-                                    .edgesIgnoringSafeArea(.bottom)
-                            )
-                    }
-                }
-                .navigationTitle("Quản lý thực đơn")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                    showingSearchBar.toggle()
-                                }
-                            }) {
-                                Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
-                                    .font(.title2)
-                                    .foregroundStyle(.primary)
-                            }
-                            
-                            Button {
-                                selectedItem = nil
-                                appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(gradient)
-                            }
-                        }
-                    }
-                }
-                .onAppear {
-                    withAnimation(.easeOut(duration: 0.8)) {
-                        animateHeader = true
-                    }
-                    Task {
-                        appState.sourceModel.setupMenuListListener(shopId: shop?.id ?? "")
-                    }
-                }
-                .onDisappear {
-                    Task {
-                        appState.sourceModel.removeMenuListListener(shopId: shop?.id ?? "")
-                    }
-                }
+                mainContentView
             }
         }
         .background(softGradient)
     }
     
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack(spacing: isIphone ? 20 : 32) {
+            Spacer()
+            
+            Image(systemName: "building.2.crop.circle")
+                .font(.system(size: isIphone ? 60 : 80))
+                .foregroundStyle(gradient)
+            
+            VStack(spacing: isIphone ? 12 : 16) {
+                Text("Chưa có cửa hàng nào")
+                    .font(.system(size: isIphone ? 20 : 28, weight: .semibold))
+                
+                Text("Bạn cần tạo cửa hàng trước khi quản lý thực đơn")
+                    .font(.system(size: isIphone ? 16 : 18))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, isIphone ? 40 : 60)
+            }
+            
+            Button {
+                appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: isIphone ? 18 : 20))
+                    Text("Tạo cửa hàng mới")
+                        .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: isIphone ? .infinity : 300)
+                .padding(.vertical, isIphone ? 16 : 20)
+                .background(gradient)
+                .cornerRadius(16)
+            }
+            .padding(.horizontal, isIphone ? 40 : 60)
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    // MARK: - Main Content View
+    private var mainContentView: some View {
+        VStack(spacing: isIphone ? 16 : 24) {
+            // Enhanced Header
+            headerSection
+                .opacity(animateHeader ? 1 : 0)
+                .offset(y: animateHeader ? 0 : -20)
+            
+            if viewModel.menuList.isEmpty {
+                emptyMenuStateView
+            } else {
+                // Search Bar
+                if showingSearchBar {
+                    EnhancedSearchBar(
+                        text: $searchText,
+                        placeholder: "Tìm kiếm thực đơn..."
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+                
+                // Menu Grid
+                ScrollView(showsIndicators: false){
+                    LazyVStack(spacing: isIphone ? 16 : 20) {
+                        ForEach(viewModel.menuList) { menu in
+                            Button {
+                                appState.coordinator.navigateTo(.menuDetail(menu))
+                            } label: {
+                                appState.coordinator.makeView(for: .menuRow(menu))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, isIphone ? 16 : 24)
+                    .padding(.bottom, 20)
+                }
+                
+                // Bottom Toolbar
+                bottomToolbar
+                    .background(
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .edgesIgnoringSafeArea(.bottom)
+                    )
+            }
+        }
+        .navigationTitle("Quản lý thực đơn")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            showingSearchBar.toggle()
+                        }
+                    }) {
+                        Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                            .font(.system(size: isIphone ? 18 : 20))
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    Button {
+                        selectedItem = nil
+                        appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: isIphone ? 18 : 20))
+                            .foregroundStyle(gradient)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.8)) {
+                animateHeader = true
+            }
+            Task {
+                appState.sourceModel.setupMenuListListener(shopId: shop?.id ?? "")
+            }
+        }
+        .onDisappear {
+            Task {
+                appState.sourceModel.removeMenuListListener(shopId: shop?.id ?? "")
+            }
+        }
+    }
+    
+    // MARK: - Empty Menu State View
+    private var emptyMenuStateView: some View {
+        VStack(spacing: isIphone ? 20 : 32) {
+            Spacer()
+            
+            Image(systemName: "menucard.fill")
+                .font(.system(size: isIphone ? 60 : 80))
+                .foregroundStyle(gradient)
+            
+            VStack(spacing: isIphone ? 12 : 16) {
+                Text("Chưa có thực đơn nào")
+                    .font(.system(size: isIphone ? 20 : 28, weight: .semibold))
+                
+                Text("Hãy tạo thực đơn đầu tiên cho cửa hàng của bạn")
+                    .font(.system(size: isIphone ? 16 : 18))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, isIphone ? 40 : 60)
+            }
+            
+            Button {
+                selectedItem = nil
+                appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: isIphone ? 18 : 20))
+                    Text("Tạo thực đơn mới")
+                        .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: isIphone ? .infinity : 300)
+                .padding(.vertical, isIphone ? 16 : 20)
+                .background(gradient)
+                .cornerRadius(16)
+            }
+            .padding(.horizontal, isIphone ? 40 : 60)
+            
+            Spacer()
+        }
+        .padding()
+        .frame(maxHeight: .infinity)
+    }
+    
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: isIphone ? 16 : 20) {
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
+                VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
+                    HStack(spacing: 12) {
                         Image(systemName: "fork.knife.circle.fill")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 20 : 24))
                             .foregroundStyle(
                                 appState.currentTabThemeColors.gradient(for: colorScheme)
                             )
                         
-                        Text("\(viewModel.filteredMenuItems.count) món ăn")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(viewModel.filteredMenuItems.count) món ăn")
+                                .font(.system(size: isIphone ? 16 : 18, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            if !searchText.isEmpty {
+                                Text("Kết quả tìm kiếm cho \"\(searchText)\"")
+                                    .font(.system(size: isIphone ? 14 : 16))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 
@@ -220,19 +260,19 @@ struct MenuSectionView: View {
                         appState.currentTabThemeColors.softGradient(for: colorScheme)
                     )
                     .frame(height: 2)
-                    .frame(maxWidth: 100)
+                    .frame(maxWidth: isIphone ? 100 : 150)
                 
                 Spacer()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
         .layeredCard(tabThemeColors: appState.currentTabThemeColors)
         .padding(.horizontal)
     }
     
     private var bottomToolbar: some View {
-        HStack {
+        HStack(spacing: isIphone ? 16 : 20) {
             Menu {
                 Button(action: { selectedAction = .import }) {
                     Label("Nhập từ Excel/CSV", systemImage: "square.and.arrow.down")
@@ -249,19 +289,18 @@ struct MenuSectionView: View {
                         .foregroundColor(.primary)
                 }
             } label: {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "ellipsis.circle.fill")
-                        .font(.title3)
+                        .font(.system(size: isIphone ? 16 : 18))
                     Text("Thao tác")
-                        .font(.headline)
+                        .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
                 }
                 .foregroundStyle(appState.currentTabThemeColors.softGradient(for: colorScheme))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, isIphone ? 16 : 20)
+                .padding(.vertical, isIphone ? 8 : 12)
                 .background(
                     Capsule()
                         .fill(.ultraThinMaterial)
-                        //.shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
                 )
             }
             
@@ -271,22 +310,21 @@ struct MenuSectionView: View {
                 selectedItem = nil
                 appState.coordinator.navigateTo(.menuForm(nil), using: .present, with: .present)
             }) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.title3)
+                        .font(.system(size: isIphone ? 16 : 18))
                     Text("Thêm thực đơn mới")
-                        .font(.headline)
+                        .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, isIphone ? 16 : 20)
+                .padding(.vertical, isIphone ? 8 : 12)
                 .background(appState.currentTabThemeColors.gradient(for: colorScheme))
                 .clipShape(Capsule())
-                //.shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 2)
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.horizontal, isIphone ? 16 : 24)
+        .padding(.vertical, isIphone ? 12 : 16)
     }
 }
 
@@ -308,8 +346,8 @@ struct MenuFormView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
+            ScrollView(showsIndicators: false){
+                VStack(spacing: isIphone ? 24 : 32) {
                     // Header với icon
                     headerSection
                     
@@ -321,7 +359,7 @@ struct MenuFormView: View {
                     
                     Spacer(minLength: 20)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, isIphone ? 20 : 24)
                 .padding(.top, 10)
             }
             .background(
@@ -349,18 +387,17 @@ struct MenuFormView: View {
     
     // MARK: - Header Section
     private var headerSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: isIphone ? 12 : 16) {
             Image(systemName: menu == nil ? "plus.circle.fill" : "pencil.circle.fill")
-                .font(.system(size: 50))
+                .font(.system(size: isIphone ? 50 : 60))
                 .foregroundStyle(appState.currentTabThemeColors.gradient(for: colorScheme))
             
             Text(menu == nil ? "Tạo thực đơn mới" : "Chỉnh sửa thực đơn")
-                .font(.title2)
-                .fontWeight(.semibold)
+                .font(.system(size: isIphone ? 20 : 24, weight: .semibold))
                 .foregroundColor(.primary)
             
             Text("Điền thông tin để " + (menu == nil ? "tạo" : "cập nhật") + " thực đơn của bạn")
-                .font(.subheadline)
+                .font(.system(size: isIphone ? 16 : 18))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -369,11 +406,11 @@ struct MenuFormView: View {
     
     // MARK: - Form Section
     private var formSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: isIphone ? 20 : 24) {
             // Menu name input
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                 Label("Tên thực đơn", systemImage: "doc.text")
-                    .font(.headline)
+                    .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
                     .foregroundColor(.primary)
                 
                 TextField("Nhập tên thực đơn...", text: $menuName)
@@ -382,13 +419,13 @@ struct MenuFormView: View {
             }
             
             // Description input
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                 Label("Mô tả", systemImage: "text.alignleft")
-                    .font(.headline)
+                    .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
                     .foregroundColor(.primary)
                 
                 TextField("Mô tả chi tiết về thực đơn (tùy chọn)", text: $description, axis: .vertical)
-                    .textFieldStyle(CustomTextFieldStyle(minHeight: 80))
+                    .textFieldStyle(CustomTextFieldStyle(minHeight: isIphone ? 80 : 100))
                     .lineLimit(3...6)
                     .autocorrectionDisabled()
             }
@@ -411,16 +448,15 @@ struct MenuFormView: View {
                         .tint(.white)
                 } else {
                     Image(systemName: menu == nil ? "plus.circle.fill" : "checkmark.circle.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
                 }
                 
                 Text(menu == nil ? "Tạo Thực Đơn" : "Lưu Thay Đổi")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(height: isIphone ? 56 : 64)
             .background(
                 LinearGradient(
                     colors: isFormValid ? [.blue, .purple] : [.gray.opacity(0.5), .gray.opacity(0.3)],
@@ -429,12 +465,6 @@ struct MenuFormView: View {
                 )
             )
             .cornerRadius(16)
-//            .shadow(
-//                color: isFormValid ? .blue.opacity(0.3) : .clear,
-//                radius: 8,
-//                x: 0,
-//                y: 4
-//            )
             .scaleEffect(isFormValid ? 1.0 : 0.98)
             .animation(.easeInOut(duration: 0.2), value: isFormValid)
         }
@@ -499,33 +529,27 @@ struct MenuRow: View {
     }
     
     var body: some View {
-            HStack(spacing: 16) {
-                // Icon section với gradient background
-                iconSection
-                
-                // Content section
-                contentSection
-                
-                Spacer()
-                
-                // Active status
-                if menu.isActive {
-                    activeStatusBadge
-                }
-                
-                // Arrow indicator
-                arrowIndicator
+        HStack(spacing: isIphone ? 16 : 20) {
+            // Icon section với gradient background
+            iconSection
+            
+            // Content section
+            contentSection
+            
+            Spacer()
+            
+            // Active status
+            if menu.isActive {
+                activeStatusBadge
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .layeredCard(tabThemeColors: appState.currentTabThemeColors)
-            .cornerRadius(16)
-//            .shadow(
-//                color: menu.isActive ? .blue.opacity(0.1) : .black.opacity(0.05),
-//                radius: 8,
-//                x: 0,
-//                y: 2
-//        )
+            
+            // Arrow indicator
+            arrowIndicator
+        }
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(16)
     }
     
     // MARK: - Icon Section
@@ -541,21 +565,20 @@ struct MenuRow: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 50, height: 50)
+                .frame(width: isIphone ? 50 : 60, height: isIphone ? 50 : 60)
             
             Image(systemName: "menucard.fill")
-                .font(.system(size: 22, weight: .medium))
+                .font(.system(size: isIphone ? 22 : 26, weight: .medium))
                 .foregroundColor(.white)
         }
-        //.shadow(color: menu.isActive ? .blue.opacity(0.3) : .gray.opacity(0.3), radius: 4, x: 0, y: 2)
     }
     
     // MARK: - Content Section
     private var contentSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: isIphone ? 6 : 8) {
             // Menu name
             Text(menu.menuName)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: isIphone ? 17 : 20, weight: .semibold))
                 .foregroundColor(.primary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -563,13 +586,13 @@ struct MenuRow: View {
             // Description
             if let description = menu.description, !description.isEmpty {
                 Text(description)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: isIphone ? 14 : 16, weight: .regular))
                     .foregroundColor(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             } else {
                 Text("Chưa có mô tả")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: isIphone ? 14 : 16, weight: .regular))
                     .foregroundStyle(.tertiary)
                     .italic()
             }
@@ -581,16 +604,16 @@ struct MenuRow: View {
     
     // MARK: - Metadata Section
     private var metadataSection: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: isIphone ? 8 : 12) {
             // Created date
             Label(formatDate(menu.createdAt), systemImage: "calendar")
-                .font(.caption)
+                .font(.system(size: isIphone ? 12 : 14))
                 .foregroundColor(.secondary)
             
             // Updated indicator: chỉ hiển thị nếu lệch nhau từ 5 giây trở lên
             if abs(menu.updatedAt.timeIntervalSince(menu.createdAt)) >= 5 {
                 Label("Đã cập nhật", systemImage: "pencil")
-                    .font(.caption)
+                    .font(.system(size: isIphone ? 12 : 14))
                     .foregroundColor(.orange)
             }
             
@@ -601,7 +624,7 @@ struct MenuRow: View {
     // MARK: - Arrow Indicator
     private var arrowIndicator: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: isIphone ? 14 : 16, weight: .semibold))
             .foregroundStyle(appState.currentTabThemeColors.primaryColor)
     }
     
@@ -612,8 +635,7 @@ struct MenuRow: View {
                 .frame(width: 8, height: 8)
             
             Text("Đang hoạt động")
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(.system(size: isIphone ? 12 : 14, weight: .medium))
                 .foregroundColor(.green)
         }
         .padding(.horizontal, 10)
@@ -655,7 +677,7 @@ struct MenuDetailView: View {
     }
     
     private let columns = [
-        GridItem(.adaptive(minimum: 180), spacing: 20)
+        GridItem(.adaptive(minimum: isIphone ? 180 : 220), spacing: isIphone ? 20 : 24)
     ]
     
     var filteredItems: [MenuItem] {
@@ -673,12 +695,8 @@ struct MenuDetailView: View {
     }
     
     var body: some View {
-//        VStack {
-//            Text("")
-//        }
         GeometryReader { geometry in
             ZStack {
-                
                 VStack(spacing: 0) {
                     // Enhanced Header
                     enhancedHeaderSection
@@ -688,17 +706,17 @@ struct MenuDetailView: View {
                     // Menu Status Section
                     menuStatusSection
                         .padding(.horizontal)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, isIphone ? 12 : 16)
                     
                     // Search & Filter Section
                     searchAndFilterSection
                         .layeredCard(tabThemeColors: appState.currentTabThemeColors)
                         .padding(.horizontal)
-                        .padding(.bottom, 16)
+                        .padding(.bottom, isIphone ? 16 : 20)
                     
                     // Menu Items Grid
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 24) {
+                    ScrollView(showsIndicators: false){
+                        LazyVGrid(columns: columns, spacing: isIphone ? 24 : 32) {
                             ForEach(Array(filteredItems.enumerated()), id: \.element.id) { _, menuItem in
                                 Button {
                                     if !viewModel.isSelectionMode {
@@ -712,7 +730,7 @@ struct MenuDetailView: View {
                                     }
                                 } label: {
                                     appState.coordinator.makeView(for: .menuItemCard(menuItem))
-                                        .padding(16)
+                                        .padding(isIphone ? 16 : 20)
                                         .layeredCard(tabThemeColors: appState.currentTabThemeColors)
                                 }
                                 .buttonStyle(PlainButtonStyle())
@@ -737,7 +755,7 @@ struct MenuDetailView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, isIphone ? 16 : 24)
                         .padding(.bottom, 20)
                     }
                 }
@@ -781,7 +799,7 @@ struct MenuDetailView: View {
                         }
                     }) {
                         Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 18 : 20))
                             .foregroundStyle(.primary)
                     }
                     
@@ -795,7 +813,7 @@ struct MenuDetailView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 18 : 20))
                     }
                     
                     Button {
@@ -804,10 +822,9 @@ struct MenuDetailView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.title2)
+                                .font(.system(size: isIphone ? 18 : 20))
                             Text("Thêm")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                                .font(.system(size: isIphone ? 14 : 16, weight: .semibold))
                         }
                         .foregroundStyle(appState.currentTabThemeColors.textColor(for: colorScheme))
                     }
@@ -826,13 +843,13 @@ struct MenuDetailView: View {
     }
     
     private var menuStatusSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isIphone ? 16 : 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Trạng thái thực đơn")
-                        .font(.headline)
+                        .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
                     Text("Chọn thực đơn này để sử dụng trong cửa hàng")
-                        .font(.subheadline)
+                        .font(.system(size: isIphone ? 14 : 16))
                         .foregroundColor(.secondary)
                 }
                 
@@ -850,10 +867,9 @@ struct MenuDetailView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: currentMenu.isActive ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
+                            .font(.system(size: isIphone ? 16 : 18))
                         Text(currentMenu.isActive ? "Đang sử dụng" : "Chọn sử dụng")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -870,12 +886,12 @@ struct MenuDetailView: View {
     }
     
     private var enhancedHeaderSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: isIphone ? 16 : 20) {
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
+                VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
+                    HStack(spacing: 12) {
                         Image(systemName: "fork.knife.circle.fill")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 20 : 24))
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [.orange, .red],
@@ -884,19 +900,25 @@ struct MenuDetailView: View {
                                 )
                             )
                         
-                        Text("\(filteredItems.count) món")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(filteredItems.count) món")
+                                .font(.system(size: isIphone ? 16 : 18, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            if !searchText.isEmpty {
+                                Text("Kết quả tìm kiếm cho \"\(searchText)\"")
+                                    .font(.system(size: isIphone ? 14 : 16))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         
                         Spacer()
                         
                         HStack(spacing: 4) {
                             Image(systemName: "pencil.circle.fill")
-                                .font(.title2)
+                                .font(.system(size: isIphone ? 18 : 20))
                             Text("Chỉnh sửa")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                         }
                         .foregroundStyle(.primary)
                         .padding(4)
@@ -907,9 +929,10 @@ struct MenuDetailView: View {
                     
                     if let description = currentMenu.description {
                         Text(description)
-                            .font(.subheadline)
+                            .font(.system(size: isIphone ? 14 : 16))
                             .foregroundColor(.secondary)
                             .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                     }
                 }
             }
@@ -917,15 +940,15 @@ struct MenuDetailView: View {
             // Decorative divider
             ModernDivider(tabThemeColors: appState.currentTabThemeColors)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
         .layeredCard(tabThemeColors: appState.currentTabThemeColors)
         .padding(.horizontal)
-        .padding(.bottom, 16)
+        .padding(.bottom, isIphone ? 16 : 20)
     }
     
     private var searchAndFilterSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isIphone ? 16 : 20) {
             // Animated search bar
             if showingSearchBar {
                 EnhancedSearchBar(text: $searchText, placeholder: "Tìm kiếm món ăn...")
@@ -937,16 +960,15 @@ struct MenuDetailView: View {
             
             // Category filters
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: isIphone ? 12 : 16) {
                     ForEach(viewModel.categories, id: \.self) { category in
                         enhancedCategoryButton(category)
                     }
                 }
-//                .layeredCard(tabThemeColors: appState.currentTabThemeColors)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, isIphone ? 20 : 24)
             }
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, isIphone ? 16 : 20)
     }
     
     private func enhancedCategoryButton(_ category: String) -> some View {
@@ -957,13 +979,13 @@ struct MenuDetailView: View {
             
             HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                 
                 Text(title)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: isIphone ? 14 : 16, weight: .medium))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, isIphone ? 12 : 16)
+            .padding(.vertical, isIphone ? 8 : 12)
             .layeredSelectionButton(tabThemeColors: appState.currentTabThemeColors, isSelected: isSelected, namespace: animation, geometryID: "MenuSectionSelector") {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                     selectedCategory = isSelected ? nil : category
@@ -997,12 +1019,12 @@ struct EnhancedSearchBar: View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: isIphone ? 16 : 18, weight: .medium))
             
             TextField(placeholder, text: $text)
                 .focused($isFocused)
                 .textFieldStyle(CustomTextFieldStyle())
-                .font(.subheadline)
+                .font(.system(size: isIphone ? 14 : 16))
                 .keyboardType(.default)
             
             if !text.isEmpty {
@@ -1013,12 +1035,12 @@ struct EnhancedSearchBar: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
-                        .font(.system(size: 16))
+                        .font(.system(size: isIphone ? 16 : 18))
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, isIphone ? 16 : 20)
+        .padding(.vertical, isIphone ? 12 : 16)
         .background(
             ZStack {
                 // Nền xám nhạt
@@ -1052,15 +1074,15 @@ struct EnhancedMenuItemCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: isIphone ? 12 : 16) {
             ZStack(alignment: .topTrailing) {
                 // Image placeholder with gradient
                 RoundedRectangle(cornerRadius: 12)
                     .fill(appState.currentTabThemeColors.softGradient(for: colorScheme))
-                    .frame(height: 120)
+                    .frame(height: isIphone ? 120 : 140)
                     .overlay(
                         Image(systemName: "fork.knife")
-                            .font(.title)
+                            .font(.system(size: isIphone ? 24 : 28))
                             .foregroundColor(.white)
                     )
                 
@@ -1068,39 +1090,35 @@ struct EnhancedMenuItemCard: View {
                     ZStack {
                         Circle()
                             .fill(Color.white)
-                            .frame(width: 24, height: 24)
+                            .frame(width: isIphone ? 24 : 28, height: isIphone ? 24 : 28)
                         
                         Image(systemName: viewModel.selectedItems.contains(where: {$0 == item}) ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 22))
+                            .font(.system(size: isIphone ? 22 : 26))
                             .foregroundColor(viewModel.selectedItems.contains(where: {$0 == item}) ? .blue : .gray)
                     }
                     .padding(8)
                 }
             }
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                 Text(item.name)
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: isIphone ? 18 : 20, weight: .semibold))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
-                
                 HStack {
                     Image(systemName: "tag.fill")
-                        .font(.caption)
+                        .font(.system(size: isIphone ? 12 : 14))
                         .foregroundColor(.secondary)
                     Text(item.category)
-                        .font(.caption)
+                        .font(.system(size: isIphone ? 12 : 14))
                         .foregroundColor(.secondary)
                 }
-                
                 
                 HStack {
                     Spacer()
                     Text("\(item.price, specifier: "%.0f")đ")
-                        .font(.subheadline)
-                        .fontWeight(.bold)
+                        .font(.system(size: isIphone ? 16 : 18, weight: .bold))
                         .foregroundStyle(appState.currentTabThemeColors.textGradient(for: colorScheme))
                 }
             }
@@ -1108,469 +1126,6 @@ struct EnhancedMenuItemCard: View {
         }
     }
 }
-
-//struct MenuItemForm: View {
-//    @ObservedObject private var viewModel: MenuViewModel
-//    @EnvironmentObject private var appState: AppState
-//    @Environment(\.colorScheme) private var colorScheme
-//    
-//    private let menu: AppMenu
-//    private let item: MenuItem?
-//    
-//    init(viewModel: MenuViewModel, menu: AppMenu, item: MenuItem?) {
-//        self.viewModel = viewModel
-//        self.menu = menu
-//        self.item = item
-//        
-//        // Initialize state variables with existing item data
-//        _name = State(initialValue: item?.name ?? "")
-//        _price = State(initialValue: item?.price ?? 0.0)
-//        _category = State(initialValue: item?.category ?? "")
-//        _imageURL = State(initialValue: item?.imageURL?.absoluteString ?? "")
-//        _isAvailable = State(initialValue: item?.isAvailable ?? true)
-//        _recipes = State(initialValue: item?.recipe ?? [])
-//    }
-//    
-//    // MARK: - State Variables
-//    @State private var name = ""
-//    @State private var price: Double = 0.0
-//    @State private var category = ""
-//    @State private var imageURL = ""
-//    @State private var isAvailable = true
-//    @State private var recipes: [Recipe] = []
-//    
-//    @State private var showingDeleteAlert = false
-//    @State private var showingImagePicker = false
-//    @State private var showingRecipeForm = false
-//    @State private var isLoading = false
-//    @State private var showingCategoryPicker = false
-//    
-//    // Pre-defined categories
-//    private let categories = [
-//        "Món chính", "Khai vị", "Tráng miệng", "Đồ uống",
-//        "Món nướng", "Món chiên", "Món luộc", "Salad", "Soup"
-//    ]
-//    
-//    var body: some View {
-//        NavigationView {
-//            ScrollView {
-//                VStack(spacing: 32) {
-//                    // Header Image Section
-//                    headerImageSection
-//                    
-//                    // Basic Information Section
-//                    basicInfoSection
-//                    
-//                    // Pricing Section
-//                    pricingSection
-//                    
-//                    // Category Section
-//                    categorySection
-//                    
-//                    // Availability Section
-//                    availabilitySection
-//                    
-//                    // Recipe Section
-//                    recipeSection
-//                    
-//                    // Action Button
-//                    actionButton
-//                    
-//                    Spacer(minLength: 20)
-//                }
-//                .padding(.horizontal, 20)
-//                .padding(.top, 20)
-//            }
-//            .navigationTitle(item == nil ? "Thêm món mới" : "Chỉnh sửa món")
-//            .navigationBarTitleDisplayMode(.large)
-//            .toolbar {
-//                ToolbarItem(placement: .navigationBarLeading) {
-//                    Button("Hủy") {
-//                        appState.coordinator.dismiss()
-//                    }
-//                    .foregroundColor(.secondary)
-//                }
-//                
-//                if item != nil {
-//                    ToolbarItem(placement: .navigationBarTrailing) {
-//                        Button(action: {
-//                            showingDeleteAlert = true
-//                        }) {
-//                            Image(systemName: "trash")
-//                                .foregroundColor(.red)
-//                        }
-//                    }
-//                }
-//            }
-//            .alert("Xóa món ăn", isPresented: $showingDeleteAlert) {
-//                Button("Hủy", role: .cancel) {}
-//                Button("Xóa", role: .destructive) {
-//                    Task {
-//                        await deleteMenuItem()
-//                    }
-//                }
-//            } message: {
-//                Text("Bạn có chắc chắn muốn xóa món ăn này?")
-//            }
-//            .sheet(isPresented: $showingRecipeForm) {
-//                RecipeFormView(recipes: $recipes)
-//            }
-//        }
-//        .disabled(isLoading)
-//        .overlay(
-//            Group {
-//                if isLoading {
-//                    Color.black.opacity(0.3)
-//                        .ignoresSafeArea()
-//                    
-//                    ProgressView("Đang xử lý...")
-//                        .padding()
-//                        .background(Color(.systemBackground))
-//                        .cornerRadius(12)
-//                        .shadow(radius: 5)
-//                }
-//            }
-//        )
-//    }
-//    
-//    // MARK: - Header Image Section
-//    private var headerImageSection: some View {
-//        VStack(spacing: 16) {
-//            Text("Hình ảnh món ăn")
-//                .font(.headline)
-//                .foregroundColor(.primary)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//            
-//            Button(action: { showingImagePicker = true }) {
-//                ZStack {
-//                    RoundedRectangle(cornerRadius: 16)
-//                        .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemGray6))
-//                        .frame(height: 200)
-//                    
-//                    if !imageURL.isEmpty {
-//                        AsyncImage(url: URL(string: imageURL)) { image in
-//                            image
-//                                .resizable()
-//                                .aspectRatio(contentMode: .fill)
-//                        } placeholder: {
-//                            ProgressView()
-//                        }
-//                        .frame(height: 200)
-//                        .clipShape(RoundedRectangle(cornerRadius: 16))
-//                    } else {
-//                        VStack(spacing: 12) {
-//                            Image(systemName: "photo.badge.plus")
-//                                .font(.system(size: 32))
-//                                .foregroundColor(.secondary)
-//                            
-//                            Text("Chọn hình ảnh")
-//                                .font(.subheadline)
-//                                .foregroundColor(.secondary)
-//                        }
-//                    }
-//                }
-//            }
-//            .buttonStyle(PlainButtonStyle())
-//            
-//            // Image URL Input
-//            VStack(alignment: .leading, spacing: 8) {
-//                Text("URL hình ảnh")
-//                    .font(.subheadline)
-//                    .foregroundColor(.secondary)
-//                
-//                TextField("https://example.com/image.jpg", text: $imageURL)
-//                    .textFieldStyle(RoundedBorderTextFieldStyle())
-//                    .keyboardType(.URL)
-//                    .autocapitalization(.none)
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Basic Information Section
-//    private var basicInfoSection: some View {
-//        VStack(spacing: 20) {
-//            Text("Thông tin cơ bản")
-//                .font(.headline)
-//                .foregroundColor(.primary)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//            
-//            VStack(alignment: .leading, spacing: 8) {
-//                Text("Tên món ăn")
-//                    .font(.subheadline)
-//                    .foregroundColor(.secondary)
-//                
-//                TextField("Nhập tên món ăn", text: $name)
-//                    .textFieldStyle(CustomTextFieldStyle())
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Pricing Section
-//    private var pricingSection: some View {
-//        VStack(spacing: 20) {
-//            Text("Giá cả")
-//                .font(.headline)
-//                .foregroundColor(.primary)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//            
-//            VStack(alignment: .leading, spacing: 8) {
-//                Text("Giá (VNĐ)")
-//                    .font(.subheadline)
-//                    .foregroundColor(.secondary)
-//                
-//                HStack {
-//                    TextField("0", value: $price, format: .number)
-//                        .textFieldStyle(CustomTextFieldStyle())
-//                        .keyboardType(.decimalPad)
-//                    
-//                    Text("VNĐ")
-//                        .font(.subheadline)
-//                        .foregroundColor(.secondary)
-//                        .padding(.trailing, 8)
-//                }
-//                
-//                if price > 0 {
-//                    Text("Giá hiển thị: \(String(format: "%.0f VNĐ", price))")
-//                        .font(.caption)
-//                        .foregroundColor(.green)
-//                        .padding(.top, 4)
-//                }
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Category Section
-//    private var categorySection: some View {
-//        VStack(spacing: 20) {
-//            Text("Danh mục")
-//                .font(.headline)
-//                .foregroundColor(.primary)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//            
-//            VStack(alignment: .leading, spacing: 12) {
-//                Text("Chọn danh mục")
-//                    .font(.subheadline)
-//                    .foregroundColor(.secondary)
-//                
-//                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-//                    ForEach(categories, id: \.self) { cat in
-//                        Button(action: {
-//                            category = cat
-//                        }) {
-//                            Text(cat)
-//                                .font(.caption)
-//                                .padding(.horizontal, 12)
-//                                .padding(.vertical, 8)
-//                                .background(
-//                                    RoundedRectangle(cornerRadius: 8)
-//                                        .fill(category == cat ? Color.blue : Color(.systemGray5))
-//                                )
-//                                .foregroundColor(category == cat ? .white : .primary)
-//                        }
-//                        .buttonStyle(PlainButtonStyle())
-//                    }
-//                }
-//                
-//                Text("Hoặc nhập danh mục tùy chỉnh")
-//                    .font(.caption)
-//                    .foregroundColor(.secondary)
-//                    .padding(.top, 8)
-//                
-//                TextField("Nhập danh mục", text: $category)
-//                    .textFieldStyle(CustomTextFieldStyle())
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Availability Section
-//    private var availabilitySection: some View {
-//        VStack(spacing: 20) {
-//            Text("Trạng thái")
-//                .font(.headline)
-//                .foregroundColor(.primary)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//            
-//            HStack {
-//                VStack(alignment: .leading, spacing: 4) {
-//                    Text("Trạng thái phục vụ")
-//                        .font(.subheadline)
-//                        .foregroundColor(.primary)
-//                    
-//                    Text(isAvailable ? "Đang phục vụ" : "Tạm ngưng")
-//                        .font(.caption)
-//                        .foregroundColor(isAvailable ? .green : .red)
-//                }
-//                
-//                Spacer()
-//                
-//                Toggle("", isOn: $isAvailable)
-//                    .scaleEffect(1.2)
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Recipe Section
-//    private var recipeSection: some View {
-//        VStack(spacing: 20) {
-//            HStack {
-//                Text("Công thức")
-//                    .font(.headline)
-//                    .foregroundColor(.primary)
-//                
-//                Spacer()
-//                
-//                Button(action: {
-//                    showingRecipeForm = true
-//                }) {
-//                    HStack(spacing: 6) {
-//                        Image(systemName: "plus.circle.fill")
-//                        Text("Thêm")
-//                    }
-//                    .font(.subheadline)
-//                    .foregroundColor(.blue)
-//                }
-//            }
-//            
-//            if recipes.isEmpty {
-//                VStack(spacing: 12) {
-//                    Image(systemName: "doc.text.below.ecg")
-//                        .font(.system(size: 32))
-//                        .foregroundColor(.secondary)
-//                    
-//                    Text("Chưa có công thức")
-//                        .font(.subheadline)
-//                        .foregroundColor(.secondary)
-//                    
-//                    Text("Thêm công thức để quản lý nguyên liệu")
-//                        .font(.caption)
-//                        .foregroundColor(.secondary)
-//                        .multilineTextAlignment(.center)
-//                }
-//                .padding(.vertical, 20)
-//            } else {
-//                LazyVStack(spacing: 12) {
-//                    ForEach(Array(recipes.enumerated()), id: \.offset) { index, recipe in
-//                        RecipeItemRow(recipe: recipe) {
-//                            recipes.remove(at: index)
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        .padding()
-//        .background(
-//            RoundedRectangle(cornerRadius: 16)
-//                .fill(Color(.systemBackground))
-//                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-//        )
-//    }
-//    
-//    // MARK: - Action Button
-//    private var actionButton: some View {
-//        Button(action: {
-//            Task {
-//                await saveMenuItem()
-//            }
-//        }) {
-//            HStack {
-//                if isLoading {
-//                    ProgressView()
-//                        .scaleEffect(0.8)
-//                        .tint(.white)
-//                } else {
-//                    Image(systemName: item == nil ? "plus.circle.fill" : "checkmark.circle.fill")
-//                        .font(.system(size: 18))
-//                }
-//                
-//                Text(item == nil ? "Thêm món ăn" : "Cập nhật món ăn")
-//                    .font(.headline)
-//            }
-//            .foregroundColor(.white)
-//            .frame(maxWidth: .infinity)
-//            .padding()
-//            .background(
-//                RoundedRectangle(cornerRadius: 16)
-//                    .fill(isFormValid ? Color.blue : Color.gray)
-//            )
-//        }
-//        .disabled(!isFormValid || isLoading)
-//        .buttonStyle(PlainButtonStyle())
-//    }
-//    
-//    // MARK: - Computed Properties
-//    private var isFormValid: Bool {
-//        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-//        price > 0 &&
-//        !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-//    }
-//    
-//    // MARK: - Methods
-//    private func saveMenuItem() async {
-//        isLoading = true
-//        defer { isLoading = false }
-//        
-//        let menuItem = MenuItem(
-//            id: item?.id,
-//            menuId: menu.id ?? "",
-//            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-//            price: price,
-//            category: category.trimmingCharacters(in: .whitespacesAndNewlines),
-//            recipe: recipes,
-//            isAvailable: isAvailable,
-//            imageURL: imageURL.isEmpty ? nil : URL(string: imageURL),
-//            createdAt: item?.createdAt ?? Date(),
-//            updatedAt: Date()
-//        )
-//        
-//        if item == nil {
-//            await viewModel.createMenuItem(menuItem, in: menu, imageData: nil)
-//            appState.sourceModel.showSuccess("Đã thêm món ăn thành công!")
-//        } else {
-//            await viewModel.updateMenuItem(menuItem, in: menu, imageData: nil)
-//            appState.sourceModel.showSuccess("Đã cập nhật món ăn thành công!")
-//        }
-//        
-//        appState.coordinator.dismiss()
-//    }
-//    
-//    private func deleteMenuItem() async {
-//        if let item = item {
-//            await viewModel.deleteMenuItem(item, in: menu)
-//            appState.sourceModel.showSuccess("Đã xóa món ăn thành công!")
-//            appState.coordinator.dismiss()
-//        }
-//    }
-//}
 
 // MARK: - Recipe Item Row
 struct RecipeItemRow: View {
@@ -1581,11 +1136,10 @@ struct RecipeItemRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(recipe.ingredientName ?? "Nguyên liệu")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                 
                 Text("Số lượng: \(recipe.requiredAmount.displayString)")
-                    .font(.caption)
+                    .font(.system(size: isIphone ? 12 : 14))
                     .foregroundColor(.secondary)
             }
             
@@ -1594,49 +1148,13 @@ struct RecipeItemRow: View {
             Button(action: onDelete) {
                 Image(systemName: "minus.circle.fill")
                     .foregroundColor(.red)
-                    .font(.system(size: 20))
+                    .font(.system(size: isIphone ? 20 : 24))
             }
         }
-        .padding()
+        .padding(isIphone ? 12 : 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemGray6))
         )
     }
 }
-
-// MARK: - Recipe Form View (Placeholder)
-//struct RecipeFormView: View {
-//    @Binding var recipes: [Recipe]
-//    @Environment(\.dismiss) private var dismiss
-//    
-//    var body: some View {
-//        NavigationView {
-//            VStack {
-//                Text("Recipe Form")
-//                    .font(.title)
-//                
-//                Text("This would be a detailed recipe form")
-//                    .foregroundColor(.secondary)
-//                
-//                Spacer()
-//            }
-//            .navigationTitle("Thêm công thức")
-//            .navigationBarTitleDisplayMode(.inline)
-//            .toolbar {
-//                ToolbarItem(placement: .navigationBarLeading) {
-//                    Button("Hủy") {
-//                        dismiss()
-//                    }
-//                }
-//                
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    Button("Lưu") {
-//                        // Save logic here
-//                        dismiss()
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}

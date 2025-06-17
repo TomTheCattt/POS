@@ -420,7 +420,7 @@ struct EnhancedOrderDetailView: View {
     let order: Order
     
     var body: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 // Header card
                 VStack(spacing: 16) {

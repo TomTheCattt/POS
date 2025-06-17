@@ -512,7 +512,7 @@ final class OrderViewModel: ObservableObject {
         } catch {
             // Nếu lỗi là do chưa kết nối máy in, hiển thị thông báo
             if let printerError = error as? AppError,
-               case .printer(let printerError) = printerError {
+               case .printer(let _) = printerError {
                 source.showInfo("Máy in chưa được kết nối nên không thể in hóa đơn")
             } else {
                 // Các lỗi khác sẽ được xử lý bởi source.handleError

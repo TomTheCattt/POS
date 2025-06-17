@@ -65,7 +65,8 @@ struct PasswordView: View {
             }
             .padding(.vertical)
         }
-        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
+        .padding(.horizontal)
+        .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
         .scrollDismissesKeyboard(.immediately)
         .ignoresSafeArea(.keyboard)
         .onTapGesture {

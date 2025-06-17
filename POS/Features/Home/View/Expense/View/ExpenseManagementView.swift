@@ -67,7 +67,7 @@ struct ExpenseManagementView: View {
             .offset(y: showContent ? 0 : 20)
             
             // Main content
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     if viewModel.isOwner {
                         RecurringExpensesSection(
@@ -705,7 +705,7 @@ struct AddExpenseSheet: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     // Header với icon lớn
                     VStack(spacing: 12) {

@@ -121,6 +121,7 @@ struct OwnerAuthView: View {
                 .opacity(showContent ? 1 : 0)
                 .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.5), value: showContent)
             }
+            .frame(maxHeight: .infinity)
             .padding(24)
             .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
             .padding(.horizontal)
@@ -157,7 +158,7 @@ struct OwnerAuthView: View {
         Group {
             if let lockEndTimeRemaining = appState.sourceModel.lockEndTimeRemaining {
                 // Locked State View
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
                         // Lock Status Card
                         VStack(spacing: 20) {
@@ -261,7 +262,7 @@ struct OwnerAuthView: View {
                 }
             } else {
                 // Normal Login View
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
                         // Login Card
                         VStack(spacing: 20) {

@@ -4,6 +4,9 @@
     "" : {
 
     },
+    "-" : {
+
+    },
     "-%.0f%%" : {
 
     },
@@ -83,13 +86,13 @@
     "%lld giao dịch" : {
 
     },
-    "%lld giờ" : {
-
-    },
     "%lld món" : {
 
     },
     "%lld món ăn" : {
+
+    },
+    "%lld ngày/tuần" : {
 
     },
     "%lld nguyên liệu" : {
@@ -99,6 +102,9 @@
 
     },
     "%lld sản phẩm" : {
+
+    },
+    "%lld tiếng" : {
 
     },
     "%lld tùy chọn" : {
@@ -114,10 +120,16 @@
         }
       }
     },
+    "%lld/7" : {
+
+    },
     "%lld%%" : {
 
     },
     "%lld₫" : {
+
+    },
+    "%lldh" : {
 
     },
     "•" : {
@@ -199,19 +211,16 @@
     "Bạn đang được cấp quyền chủ cửa hàng" : {
 
     },
-    "Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay" : {
+    "Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay để bắt đầu" : {
 
     },
     "Barista POS" : {
 
     },
-    "Bắt đầu" : {
-
-    },
     "Biểu đồ doanh thu" : {
 
     },
-    "Ca làm việc gần đây" : {
+    "Ca %lld" : {
 
     },
     "Cài đặt" : {
@@ -250,6 +259,9 @@
 
     },
     "Cập nhật hàng loạt" : {
+
+    },
+    "Cập nhật lần cuối" : {
 
     },
     "Cập nhật sản phẩm" : {
@@ -305,6 +317,9 @@
     "Chỉnh sửa thực đơn" : {
 
     },
+    "Chọn ca làm việc:" : {
+
+    },
     "Chọn file" : {
 
     },
@@ -342,9 +357,6 @@
 
     },
     "Chưa chọn file" : {
-
-    },
-    "Chưa có ca làm việc nào" : {
 
     },
     "Chưa có cửa hàng nào" : {
@@ -1391,7 +1403,7 @@
     "Kết nối máy in" : {
 
     },
-    "Kết thúc" : {
+    "Kết quả tìm kiếm cho \"%@\"" : {
 
     },
     "Khách hàng sẽ nhận %@%% điểm từ tổng hóa đơn" : {
@@ -1412,10 +1424,16 @@
     "Kiểu cập nhật" : {
 
     },
+    "Lịch làm việc tuần" : {
+
+    },
     "Lịch sử đơn hàng" : {
 
     },
     "Lịch sử thay đổi" : {
+
+    },
+    "Loại ca làm việc" : {
 
     },
     "Loại dịch vụ" : {
@@ -1474,6 +1492,12 @@
           }
         }
       }
+    },
+    "Lương tháng" : {
+
+    },
+    "Lương tháng dự tính:" : {
+
     },
     "Lương theo giờ" : {
 
@@ -1670,6 +1694,12 @@
       }
     },
     "Ngắt kết nối" : {
+
+    },
+    "Ngày làm việc" : {
+
+    },
+    "Ngày tạo" : {
 
     },
     "Ngày tạo tài khoản" : {
@@ -2139,6 +2169,9 @@
     "Tạo cửa hàng mới" : {
 
     },
+    "Tạo ngày %@" : {
+
+    },
     "Tạo Thực Đơn" : {
 
     },
@@ -2247,6 +2280,9 @@
     "Thông tin chi tiết" : {
 
     },
+    "Thông tin hệ thống" : {
+
+    },
     "Thông tin khách hàng" : {
 
     },
@@ -2281,6 +2317,12 @@
 
     },
     "Tổng cộng" : {
+
+    },
+    "Tổng giờ làm việc:" : {
+
+    },
+    "Tổng giờ/tuần" : {
 
     },
     "Tổng lương tháng: %@" : {

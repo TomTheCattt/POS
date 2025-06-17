@@ -376,6 +376,7 @@ class AppCoordinator: ObservableObject {
                 EmptyView()
             }
         }
+        .dismissKeyboardOnTap()
         .ignoresSafeArea(.keyboard)
     }
     

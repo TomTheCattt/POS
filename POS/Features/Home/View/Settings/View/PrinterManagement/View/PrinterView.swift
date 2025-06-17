@@ -45,7 +45,7 @@ struct PrinterView: View {
     }
     
     private var mainContent: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 // Bluetooth Status
                 BluetoothStatusView(viewModel: viewModel)

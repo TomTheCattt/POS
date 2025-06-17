@@ -66,7 +66,7 @@ struct AccountDetailView: View {
             }
             .padding(.vertical)
         }
-        .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
+        .padding(.horizontal)
         .sheet(isPresented: $isShowingImagePicker) {
             ImagePicker(image: $selectedImage)
                 .ignoresSafeArea()
@@ -78,6 +78,7 @@ struct AccountDetailView: View {
                     }
                 }
         }
+        .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
         .onAppear {
             appState.sourceModel.setupCurrentUserListener()
         }

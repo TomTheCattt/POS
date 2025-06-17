@@ -28,13 +28,14 @@ struct AuthenticationView: View {
                 }
             }
             .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     
     // MARK: - iPhone Layout
     private func iPhoneLayout(geometry: GeometryProxy) -> some View {
         ScrollViewReader { proxy in
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     // Logo Section
                     logoSection
@@ -82,7 +83,7 @@ struct AuthenticationView: View {
             
             // Right side - Authentication
             ScrollViewReader { proxy in
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
                         ZStack {
                             if viewModel.showSignInSection {
@@ -222,11 +223,7 @@ struct AuthenticationView: View {
             .font(.system(size: 14))
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.systemBackground))
-//                .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
-        )
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
     }
     
     // MARK: - Sign Up Section

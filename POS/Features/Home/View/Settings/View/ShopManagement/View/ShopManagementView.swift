@@ -25,116 +25,144 @@ struct ShopManagementView: View {
     var body: some View {
         Group {
             if let shops = appState.sourceModel.shops, shops.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "building.2.crop.circle")
-                        .font(.system(size: 60))
-                        .foregroundStyle(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
-                    
-                    Text("Chưa có cửa hàng nào")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                emptyStateView
+            } else {
+                mainContentView
+            }
+        }
+    }
+    
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            
+            Image(systemName: "building.2.crop.circle")
+                .font(.system(size: isIphone ? 60 : 80))
+                .foregroundStyle(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
+            
+            VStack(spacing: 12) {
+                Text("Chưa có cửa hàng nào")
+                    .font(.system(size: isIphone ? 20 : 28, weight: .semibold))
+                
+                Text("Bạn hiện chưa có cửa hàng nào, tạo cửa hàng ngay để bắt đầu")
+                    .font(.system(size: isIphone ? 16 : 18))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, isIphone ? 40 : 60)
+            }
+            
+            Button {
+                appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: isIphone ? 18 : 20))
+                    Text("Tạo cửa hàng mới")
+                        .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: isIphone ? .infinity : 300)
+                .padding(.vertical, isIphone ? 16 : 20)
+                .background(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
+                .cornerRadius(16)
+            }
+            .padding(.horizontal, isIphone ? 40 : 60)
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    // MARK: - Main Content View
+    private var mainContentView: some View {
+        VStack(spacing: 0) {
+            // Enhanced Header
+            headerSection
+                .opacity(animateHeader ? 1 : 0)
+                .offset(y: animateHeader ? 0 : -20)
+            
+            // Search Bar
+            if showingSearchBar {
+                EnhancedSearchBar(
+                    text: $searchText,
+                    placeholder: "Tìm kiếm cửa hàng..."
+                )
+                .transition(.asymmetric(
+                    insertion: .scale.combined(with: .opacity),
+                    removal: .scale.combined(with: .opacity)
+                ))
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            
+            // Shops List
+            ScrollView(showsIndicators: false){
+                LazyVStack(spacing: isIphone ? 16 : 20) {
+                    ForEach(filteredShops) { shop in
+                        Button {
+                            appState.coordinator.navigateTo(.shopDetail(shop))
+                        } label: {
+                            appState.coordinator.makeView(for: .shopRow(shop))
+                        }
+                    }
+                }
+                .padding(.horizontal, isIphone ? 16 : 24)
+                .padding(.bottom, 20)
+            }
+        }
+        .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
+        .navigationTitle("Quản lý cửa hàng")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            showingSearchBar.toggle()
+                        }
+                    }) {
+                        Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                            .font(.system(size: isIphone ? 18 : 20))
+                            .foregroundStyle(.primary)
+                    }
                     
                     Button {
                         appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
                     } label: {
-                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
-                            .foregroundColor(.white)
-                            .cornerRadius(15)
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.top, 10)
-                }
-                .padding()
-            } else {
-                VStack(spacing: 0) {
-                    // Enhanced Header
-                    headerSection
-                        .opacity(animateHeader ? 1 : 0)
-                        .offset(y: animateHeader ? 0 : -20)
-                    
-                    // Search Bar
-                    if showingSearchBar {
-                        EnhancedSearchBar(
-                            text: $searchText,
-                            placeholder: "Tìm kiếm cửa hàng..."
-                        )
-                        .transition(.asymmetric(
-                            insertion: .scale.combined(with: .opacity),
-                            removal: .scale.combined(with: .opacity)
-                        ))
-                        .padding()
-                    }
-                    
-                    // Shops List
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(filteredShops) { shop in
-                                Button {
-                                    appState.coordinator.navigateTo(.shopDetail(shop))
-                                } label: {
-                                    appState.coordinator.makeView(for: .shopRow(shop))
-                                }
-                            }
-                        }
-                        .padding()
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: isIphone ? 18 : 20))
+                            .foregroundStyle(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
                     }
                 }
-                .navigationTitle("Quản lý cửa hàng")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                    showingSearchBar.toggle()
-                                }
-                            }) {
-                                Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
-                                    .font(.title2)
-                                    .foregroundStyle(.primary)
-                            }
-                            
-                            Button {
-                                appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme))
-                            }
-                        }
-                    }
-                }
-                .onAppear {
-                    withAnimation(.easeOut(duration: 0.8)) {
-                        animateHeader = true
-                    }
-                }
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.8)) {
+                animateHeader = true
             }
         }
     }
     
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: isIphone ? 16 : 20) {
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
+                VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
+                    HStack(spacing: 12) {
                         Image(systemName: "building.2.fill")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 20 : 24))
                             .foregroundStyle(appState.sourceModel.currentThemeColors.settings.radialGradient(for: colorScheme))
                         
-                        Text("\(filteredShops.count) cửa hàng")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(filteredShops.count) cửa hàng")
+                                .font(.system(size: isIphone ? 16 : 18, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            if !searchText.isEmpty {
+                                Text("Kết quả tìm kiếm cho \"\(searchText)\"")
+                                    .font(.system(size: isIphone ? 14 : 16))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 
@@ -146,16 +174,16 @@ struct ShopManagementView: View {
                 Rectangle()
                     .fill(appState.sourceModel.currentThemeColors.settings.radialGradient(for: colorScheme).opacity(0.6))
                     .frame(height: 2)
-                    .frame(maxWidth: 100)
+                    .frame(maxWidth: isIphone ? 100 : 150)
                 
                 Spacer()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
         .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         .padding(.horizontal)
-        .padding(.bottom, 16)
+        .padding(.bottom, isIphone ? 16 : 20)
     }
 }
 
@@ -167,8 +195,8 @@ struct ShopRow: View {
     let shop: Shop
     
     var body: some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 16) {
+        VStack(spacing: isIphone ? 20 : 24) {
+            HStack(spacing: isIphone ? 16 : 20) {
                 // Shop icon
                 ZStack {
                     Circle()
@@ -186,25 +214,17 @@ struct ShopRow: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 56, height: 56)
-                        //.shadow(
-//                            color: (shop.isActive ?
-//                                   appState.sourceModel.currentThemeColors.settings.primaryColor :
-//                                    Color.gray).opacity(0.3),
-//                            radius: isHovered ? 8 : 6,
-//                            x: 0,
-//                            y: isHovered ? 4 : 3
-//                        )
+                        .frame(width: isIphone ? 56 : 64, height: isIphone ? 56 : 64)
                     
                     Image(systemName: "building.2.fill")
-                        .font(.system(size: 24, weight: .medium))
+                        .font(.system(size: isIphone ? 24 : 28, weight: .medium))
                         .foregroundColor(.white)
                 }
                 
                 // Shop info
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                     Text(shop.shopName)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: isIphone ? 18 : 22, weight: .bold))
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [.primary, .primary.opacity(0.8)],
@@ -212,61 +232,94 @@ struct ShopRow: View {
                                 endPoint: .trailing
                             )
                         )
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                     
-                    HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                         // Ground Rent
-                        Label {
-                            Text(shop.formattedGroundRent)
-                                .font(.system(size: 14, weight: .medium))
-                        } icon: {
+                        HStack(spacing: 8) {
                             Image(systemName: "banknote.fill")
-                                .font(.system(size: 12))
+                                .font(.system(size: isIphone ? 12 : 14))
+                                .foregroundColor(.secondary)
+                            
+                            Text(shop.formattedGroundRent)
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
+                                .foregroundColor(.secondary)
                         }
-                        .foregroundColor(.secondary)
                         
                         // Created Date
-                        Label {
-                            Text(formatDate(shop.createdAt))
-                                .font(.system(size: 14, weight: .medium))
-                        } icon: {
+                        HStack(spacing: 8) {
                             Image(systemName: "calendar")
-                                .font(.system(size: 12))
+                                .font(.system(size: isIphone ? 12 : 14))
+                                .foregroundColor(.secondary)
+                            
+                            Text("Tạo ngày \(formatDate(shop.createdAt))")
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
+                                .foregroundColor(.secondary)
                         }
-                        .foregroundColor(.secondary)
+                        
+                        // Business Hours
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock")
+                                .font(.system(size: isIphone ? 12 : 14))
+                                .foregroundColor(.secondary)
+                            
+                            Text(shop.businessHours.businessHoursFormat)
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
                 Spacer()
                 
-                // Status Badge
-                if shop.isActive {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                        
-                        Text("Đang hoạt động")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.green)
+                VStack(alignment: .trailing, spacing: isIphone ? 8 : 12) {
+                    // Status Badge
+                    if shop.isActive {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 8, height: 8)
+                            
+                            Text("Đang hoạt động")
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.green.opacity(0.1))
+                        )
+                    } else {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.gray)
+                                .frame(width: 8, height: 8)
+                            
+                            Text("Tạm ngưng")
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.gray.opacity(0.1))
+                        )
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(Color.green.opacity(0.1))
-                    )
+                    
+                    // Arrow indicator
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: isIphone ? 14 : 16, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .opacity(isHovered ? 1 : 0.6)
+                        .offset(x: isHovered ? 4 : 0)
                 }
-                
-                // Arrow indicator
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .opacity(isHovered ? 1 : 0.6)
-                    .offset(x: isHovered ? 4 : 0)
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
+        .padding(.horizontal, isIphone ? 24 : 28)
+        .padding(.vertical, isIphone ? 20 : 24)
         .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         .scaleEffect(isHovered ? 1.02 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
@@ -286,6 +339,7 @@ struct ShopRow: View {
 struct ShopDetailView: View {
     @ObservedObject private var viewModel: ShopManagementViewModel
     @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) private var colorScheme
     
     private let shop: Shop
     
@@ -305,8 +359,8 @@ struct ShopDetailView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
+        ScrollView(showsIndicators: false){
+            VStack(spacing: isIphone ? 24 : 32) {
                 // Enhanced Header
                 headerSection
                     .opacity(animateHeader ? 1 : 0)
@@ -316,7 +370,7 @@ struct ShopDetailView: View {
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible())
-                ], spacing: 16) {
+                ], spacing: isIphone ? 16 : 20) {
                     ForEach(statistics) { stat in
                         StatisticCard(item: stat)
                     }
@@ -356,10 +410,11 @@ struct ShopDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .font(.title2)
+                        .font(.system(size: isIphone ? 18 : 20))
                 }
             }
         }
+        .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) {
                 animateHeader = true
@@ -368,12 +423,12 @@ struct ShopDetailView: View {
     }
     
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: isIphone ? 16 : 20) {
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
+                VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
+                    HStack(spacing: 12) {
                         Image(systemName: "building.2.fill")
-                            .font(.title2)
+                            .font(.system(size: isIphone ? 20 : 24))
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [.orange, .red],
@@ -382,15 +437,16 @@ struct ShopDetailView: View {
                                 )
                             )
                         
-                        Text(shop.isActive ? "Đang hoạt động" : "Tạm ngưng")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(shop.isActive ? .green : .secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(shop.isActive ? "Đang hoạt động" : "Tạm ngưng")
+                                .font(.system(size: isIphone ? 16 : 18, weight: .medium))
+                                .foregroundColor(shop.isActive ? .green : .secondary)
+                            
+                            Text("Được tạo ngày \(formatDate(shop.createdAt))")
+                                .font(.system(size: isIphone ? 14 : 16))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                    
-                    Text("Được tạo ngày \(formatDate(shop.createdAt))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
@@ -403,10 +459,9 @@ struct ShopDetailView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: shop.isActive ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
+                            .font(.system(size: isIphone ? 16 : 18))
                         Text(shop.isActive ? "Đang hoạt động" : "Kích hoạt")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -420,32 +475,19 @@ struct ShopDetailView: View {
             
             // Decorative divider
             HStack {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.orange.opacity(0.6), .red.opacity(0.6)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 2)
-                    .frame(maxWidth: 100)
+                ModernDivider(tabThemeColors: appState.currentTabThemeColors)
                 
                 Spacer()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                //.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        )
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
         .padding(.horizontal)
     }
     
     private var shopInfoSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: isIphone ? 20 : 24) {
             InfoCard(title: "Thông tin cơ bản", items: [
                 InfoItem(icon: "building.2", title: "Tên cửa hàng", value: shop.shopName),
                 InfoItem(icon: "location", title: "Địa chỉ", value: shop.address),
@@ -460,8 +502,9 @@ struct ShopDetailView: View {
     }
     
     private var actionButtonsSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isIphone ? 16 : 20) {
             Button {
+                print("tapped")
                 appState.coordinator.navigateTo(.menuSection(shop))
             } label: {
                 ActionButton(
@@ -518,7 +561,7 @@ private struct StatisticCard: View {
     @State private var isHovered = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: isIphone ? 16 : 20) {
             // Icon với gradient background
             ZStack {
                 Circle()
@@ -532,10 +575,10 @@ private struct StatisticCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 50, height: 50)
+                    .frame(width: isIphone ? 50 : 60, height: isIphone ? 50 : 60)
                 
                 Image(systemName: item.icon)
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: isIphone ? 24 : 28, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [item.color, item.color.opacity(0.8)],
@@ -545,9 +588,9 @@ private struct StatisticCard: View {
                     )
             }
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
                 Text(item.value)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: isIphone ? 28 : 32, weight: .bold))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [item.color, item.color.opacity(0.8)],
@@ -557,11 +600,13 @@ private struct StatisticCard: View {
                     )
                 
                 Text(item.title)
-                    .font(.subheadline)
+                    .font(.system(size: isIphone ? 14 : 16))
                     .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
         }
-        .padding(20)
+        .padding(isIphone ? 20 : 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         .scaleEffect(isHovered ? 1.02 : 1.0)
@@ -587,7 +632,7 @@ private struct InfoCard: View {
     @State private var isHovered = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: isIphone ? 20 : 24) {
             // Header
             HStack(spacing: 12) {
                 Circle()
@@ -601,17 +646,17 @@ private struct InfoCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 40, height: 40)
+                    .frame(width: isIphone ? 40 : 48, height: isIphone ? 40 : 48)
                     .overlay(
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 20, weight: .medium))
+                            .font(.system(size: isIphone ? 20 : 24, weight: .medium))
                             .foregroundStyle(
                                 appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme)
                             )
                     )
                 
                 Text(title)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: isIphone ? 18 : 22, weight: .bold))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [
@@ -625,9 +670,9 @@ private struct InfoCard: View {
             }
             
             // Content
-            VStack(spacing: 16) {
+            VStack(spacing: isIphone ? 16 : 20) {
                 ForEach(items, id: \.title) { item in
-                    HStack(spacing: 16) {
+                    HStack(spacing: isIphone ? 16 : 20) {
                         // Icon
                         ZStack {
                             Circle()
@@ -641,10 +686,10 @@ private struct InfoCard: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 32, height: 32)
+                                .frame(width: isIphone ? 32 : 40, height: isIphone ? 32 : 40)
                             
                             Image(systemName: item.icon)
-                                .font(.system(size: 14))
+                                .font(.system(size: isIphone ? 14 : 16))
                                 .foregroundStyle(
                                     appState.sourceModel.currentThemeColors.settings.gradient(for: colorScheme)
                                 )
@@ -652,13 +697,17 @@ private struct InfoCard: View {
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.title)
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.system(size: isIphone ? 14 : 16, weight: .medium))
                                 .foregroundColor(.secondary)
                             
                             Text(item.value)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
                                 .foregroundColor(.primary)
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
                         }
+                        
+                        Spacer()
                     }
                     
                     if item != items.last {
@@ -678,7 +727,7 @@ private struct InfoCard: View {
                 }
             }
         }
-        .padding(24)
+        .padding(isIphone ? 24 : 28)
         .backgroundLayer(tabThemeColors: appState.currentTabThemeColors)
         .scaleEffect(isHovered ? 1.01 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
@@ -699,7 +748,7 @@ private struct ActionButton: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: isIphone ? 16 : 20) {
             // Icon với gradient background
             ZStack {
                 Circle()
@@ -713,10 +762,10 @@ private struct ActionButton: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 36, height: 36)
+                    .frame(width: isIphone ? 36 : 44, height: isIphone ? 36 : 44)
                 
                 Image(systemName: "\(icon).fill")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: isIphone ? 16 : 20, weight: .semibold))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [color, color.opacity(0.8)],
@@ -727,19 +776,21 @@ private struct ActionButton: View {
             }
             
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: isIphone ? 16 : 18, weight: .semibold))
                 .foregroundColor(color)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
             
             Spacer()
             
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: isIphone ? 14 : 16, weight: .semibold))
                 .foregroundStyle(color.opacity(0.8))
                 .opacity(isHovered ? 1 : 0.6)
                 .offset(x: isHovered ? 4 : 0)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, isIphone ? 20 : 24)
+        .padding(.vertical, isIphone ? 16 : 20)
         .middleLayer(tabThemeColors: appState.currentTabThemeColors)
         .scaleEffect(isPressed ? 0.98 : (isHovered ? 1.02 : 1.0))
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)

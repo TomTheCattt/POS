@@ -11,18 +11,23 @@ import Charts
 struct RevenueRecordView: View {
     
     @EnvironmentObject private var appState: AppState
-    @ObservedObject var viewModel: RevenueRecordViewModel
+    @ObservedObject private var viewModel: RevenueRecordViewModel
     
     @State private var selectedTimeFilter: TimeFilter = .week
     @State private var selectedDataPoint: RevenueRecord?
     @State private var showContent: Bool = false
     @State private var animationProgress: Double = 0.0
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.colorScheme) private var colorScheme
     
-    let shop: Shop?
+    private let shop: Shop?
+    
+    init(viewModel: RevenueRecordViewModel, shop: Shop?) {
+        self.viewModel = viewModel
+        self.shop = shop
+    }
     
     var body: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 // Header with Time Filter
                 headerSection
@@ -48,7 +53,7 @@ struct RevenueRecordView: View {
             .padding(.bottom, 30)
         }
         .navigationTitle("Phân tích doanh thu")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
                 showContent = true

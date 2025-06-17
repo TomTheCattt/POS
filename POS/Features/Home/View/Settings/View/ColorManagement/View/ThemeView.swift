@@ -25,7 +25,7 @@ struct ThemeView: View {
                     .padding(.horizontal)
             }
             
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     ForEach(AppThemeStyle.allCases, id: \.self) { style in
                         ThemePreviewCard(

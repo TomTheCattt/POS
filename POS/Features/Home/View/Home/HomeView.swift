@@ -65,7 +65,6 @@ enum HomeTab: CaseIterable {
     }
 }
 
-
 struct HomeView: View {
     @ObservedObject private var viewModel: HomeViewModel
     @EnvironmentObject private var appState: AppState
@@ -273,14 +272,22 @@ extension HomeView {
     }
 
     private var menuItemsScrollView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 12) {
-                ForEach(HomeTab.allCases, id: \.self) { tab in
-                    menuItemButton(for: tab)
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
+                    ForEach(HomeTab.allCases, id: \.self) { tab in
+                        menuItemButton(for: tab)
+                            .id(tab)
+                    }
+                }
+                .padding(.vertical)
+                .padding(.horizontal, 16)
+            }
+            .onChange(of: viewModel.selectedTab) { newTab in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    proxy.scrollTo(newTab, anchor: .center)
                 }
             }
-            .padding(.vertical)
-            .padding(.horizontal, 16)
         }
     }
 
@@ -631,12 +638,12 @@ extension HomeView {
             HStack(spacing: 12) {
                 Image(systemName: tab.icon)
                     .font(.system(size: 20))
-                    .foregroundColor(isSelected ? .white : viewModel.selectedTab.themeColors.primaryColor)
+                    .foregroundColor(isSelected ? .white : tab.themeColors.primaryColor)
                     .frame(width: 28)
                 
                 Text(tab.title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isSelected ? .white : viewModel.selectedTab.themeColors.primaryColor)
+                    .foregroundColor(isSelected ? .white : tab.themeColors.primaryColor)
                 
                 Spacer()
             }

@@ -62,7 +62,7 @@ struct CustomerSearchSection: View {
             
             // Search results
             if !viewModel.customerSearchKey.isEmpty && !viewModel.searchedCustomers.isEmpty {
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(viewModel.searchedCustomers) { customer in
                             CustomerRow(customer: customer) {
@@ -150,7 +150,7 @@ struct AddCustomerView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     // Header Icon
                     VStack(spacing: 16) {

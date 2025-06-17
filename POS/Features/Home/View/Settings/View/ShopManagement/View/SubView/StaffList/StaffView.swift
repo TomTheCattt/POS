@@ -1,96 +1,34 @@
 import SwiftUI
 
 struct StaffView: View {
-    @ObservedObject var viewModel: StaffViewModel
-    @EnvironmentObject var appState: AppState
+    @ObservedObject private var viewModel: StaffViewModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) private var colorScheme
     
-    @State private var showingAddStaffSheet = false
-    @State private var selectedStaff: Staff?
-    @State private var showingSearchBar = false
-    @State private var searchText = ""
-    @State private var selectedPosition: StaffPosition?
-    @State private var showingDeleteAlert = false
-    @State private var animateHeader = false
+    private var shop: Shop?
     
-    var shop: Shop?
-    
-    private let isIpad = UIDevice.current.userInterfaceIdiom == .pad
-    
-    var filteredStaff: [Staff] {
-        var result = viewModel.staffList
-        
-        if !searchText.isEmpty {
-            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
-        
-        if let position = selectedPosition {
-            result = result.filter { $0.position == position }
-        }
-        
-        return result
-    }
-    
-    var totalMonthlyPayroll: Double {
-        filteredStaff.reduce(0) { $0 + $1.monthlyEarnings }
+    init(viewModel: StaffViewModel, shop: Shop?) {
+        self.viewModel = viewModel
+        self.shop = shop
     }
     
     var body: some View {
         Group {
             if let shops = appState.sourceModel.shops, shops.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "building.2.crop.circle")
-                        .font(.system(size: 60))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    Text("Chưa có cửa hàng nào")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Bạn cần tạo cửa hàng trước khi quản lý nhân viên")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                    
-                    Button {
-                        appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
-                    } label: {
-                        Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .foregroundColor(.white)
-                            .cornerRadius(15)
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.top, 10)
-                }
-                .padding()
+                noShopView
             } else {
                 content
             }
         }
+        .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
         .navigationTitle("Quản lý nhân viên")
-        .sheet(isPresented: $showingAddStaffSheet) {
-            AddStaffSheet(viewModel: viewModel, staff: selectedStaff)
+        .sheet(isPresented: $viewModel.showingAddStaffSheet) {
+            AddStaffSheet(viewModel: viewModel, staff: viewModel.selectedStaff, shop: shop)
         }
-        .alert("Xóa nhân viên", isPresented: $showingDeleteAlert) {
+        .alert("Xóa nhân viên", isPresented: $viewModel.showingDeleteAlert) {
             Button("Hủy", role: .cancel) {}
             Button("Xóa", role: .destructive) {
-                if let staff = selectedStaff {
+                if let staff = viewModel.selectedStaff {
                     Task {
                         try await viewModel.deleteStaff(staff)
                     }
@@ -100,27 +38,62 @@ struct StaffView: View {
             Text("Bạn có chắc chắn muốn xóa nhân viên này?")
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) {
-                animateHeader = true
-            }
-            appState.sourceModel.setupStaffsListener(shopId: shop?.id ?? "")
+            viewModel.startHeaderAnimation()
+            viewModel.setupStaffsListener(shopId: shop?.id ?? "")
         }
         .onDisappear {
-            appState.sourceModel.removeStaffsListener(shopId: shop?.id ?? "")
+            viewModel.removeStaffsListener(shopId: shop?.id ?? "")
         }
     }
     
+    // MARK: - No Shop View
+    private var noShopView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "building.2.crop.circle")
+                .font(.system(size: 60))
+                .foregroundStyle(appState.currentTabThemeColors.textGradient(for: colorScheme))
+            
+            Text("Chưa có cửa hàng nào")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Bạn cần tạo cửa hàng trước khi quản lý nhân viên")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            VStack {
+                Label("Tạo cửa hàng mới", systemImage: "plus.circle.fill")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.white)
+                    .cornerRadius(15)
+                    .layeredButton(tabThemeColors: appState.currentTabThemeColors) {
+                        appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
+                    }
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 10)
+        }
+        .padding()
+    }
+    
+    // MARK: - Main Content
     private var content: some View {
         Group {
-            if isIpad {
+            if isIphone {
+                staffList
+            } else {
                 HStack(spacing: 0) {
                     // Sidebar with staff list
                     staffList
                         .frame(width: 320)
-                        .background(Color(.systemGroupedBackground))
+                        //.background(Color(.systemGroupedBackground))
                     
                     // Detail view
-                    if let staff = selectedStaff {
+                    if let staff = viewModel.selectedStaff {
                         staffDetail(staff)
                             .frame(maxWidth: .infinity)
                     } else {
@@ -128,21 +101,20 @@ struct StaffView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-            } else {
-                staffList
             }
         }
     }
     
+    // MARK: - Staff List
     private var staffList: some View {
         VStack(spacing: 0) {
             // Header with stats
             headerSection
-                .opacity(animateHeader ? 1 : 0)
-                .offset(y: animateHeader ? 0 : -20)
+                .opacity(viewModel.animateHeader ? 1 : 0)
+                .offset(y: viewModel.animateHeader ? 0 : -20)
             
             // Search and filter
-            if showingSearchBar {
+            if viewModel.showingSearchBar {
                 searchAndFilterSection
                     .transition(.asymmetric(
                         insertion: .scale.combined(with: .opacity),
@@ -150,22 +122,14 @@ struct StaffView: View {
                     ))
             }
             
-            if filteredStaff.isEmpty {
+            if viewModel.filteredStaff.isEmpty {
                 emptyStateView
             } else {
-                ScrollView {
+                ScrollView(showsIndicators: false){
                     LazyVStack(spacing: 12) {
-                        ForEach(filteredStaff) { staff in
-                            StaffCard(staff: staff) {
-                                selectedStaff = staff
-                                if !isIpad {
-                                    showingAddStaffSheet = true
-                                }
-                            } onDelete: {
-                                selectedStaff = staff
-                                showingDeleteAlert = true
-                            }
-                            .padding(.horizontal)
+                        ForEach(viewModel.filteredStaff) { staff in
+                            staffCard(staff: staff)
+                                .padding(.horizontal)
                         }
                     }
                     .padding(.vertical)
@@ -173,7 +137,7 @@ struct StaffView: View {
             }
             
             // Add staff button for iPhone
-            if !isIpad {
+            if isIphone && !viewModel.filteredStaff.isEmpty {
                 addStaffButton
                     .padding()
             }
@@ -182,16 +146,14 @@ struct StaffView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
                     Button {
-                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                            showingSearchBar.toggle()
-                        }
+                        viewModel.toggleSearchBar()
                     } label: {
-                        Image(systemName: showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
+                        Image(systemName: viewModel.showingSearchBar ? "xmark.circle.fill" : "magnifyingglass")
                             .font(.title2)
                             .foregroundStyle(.primary)
                     }
                     
-                    if isIpad {
+                    if !isIphone {
                         addButton
                     }
                 }
@@ -199,29 +161,24 @@ struct StaffView: View {
         }
     }
     
+    // MARK: - Header Section
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isIphone ? 12 : 16) {
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: isIphone ? 6 : 8) {
                     HStack {
                         Image(systemName: "person.2.fill")
-                            .font(.title2)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .font(isIphone ? .title3 : .title2)
+                            .foregroundStyle(appState.currentTabThemeColors.gradient(for: colorScheme))
                         
-                        Text("\(filteredStaff.count) nhân viên")
-                            .font(.subheadline)
+                        Text("\(viewModel.filteredStaff.count) nhân viên")
+                            .font(isIphone ? .caption : .subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
                     
-                    Text("Tổng lương tháng: \(formatCurrency(totalMonthlyPayroll))")
-                        .font(.headline)
+                    Text("Tổng lương tháng: \(viewModel.formattedTotalMonthlyPayroll)")
+                        .font(isIphone ? .subheadline : .headline)
                         .foregroundColor(.primary)
                 }
                 
@@ -230,61 +187,49 @@ struct StaffView: View {
             
             // Decorative divider
             HStack {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 2)
-                    .frame(maxWidth: 100)
+                ModernDivider(tabThemeColors: appState.currentTabThemeColors)
                 
                 Spacer()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                //.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        )
-        .padding()
+        .padding(.horizontal, isIphone ? 16 : 20)
+        .padding(.vertical, isIphone ? 12 : 16)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .padding(isIphone ? 12 : 16)
     }
     
+    // MARK: - Search and Filter Section
     private var searchAndFilterSection: some View {
         VStack(spacing: 12) {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                TextField("Tìm kiếm nhân viên...", text: $searchText)
+                TextField("Tìm kiếm nhân viên...", text: $viewModel.searchText)
                     .textFieldStyle(CustomTextFieldStyle())
                 
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
+                if !viewModel.searchText.isEmpty {
+                    Button(action: { viewModel.clearSearch() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
                     }
                 }
             }
             .padding()
-            .background(Color(.systemBackground))
+            .middleLayer(tabThemeColors: appState.currentTabThemeColors)
             .cornerRadius(12)
             .padding(.horizontal)
             
             // Position filter
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    filterButton(title: "Tất cả", isSelected: selectedPosition == nil) {
-                        selectedPosition = nil
+                    filterButton(title: "Tất cả", isSelected: viewModel.selectedPosition == nil) {
+                        viewModel.selectPosition(nil)
                     }
                     
                     ForEach(StaffPosition.allCases, id: \.self) { position in
-                        filterButton(title: position.displayName, isSelected: selectedPosition == position) {
-                            selectedPosition = position
+                        filterButton(title: position.displayName, isSelected: viewModel.selectedPosition == position) {
+                            viewModel.selectPosition(position)
                         }
                     }
                 }
@@ -294,6 +239,7 @@ struct StaffView: View {
         .padding(.vertical, 8)
     }
     
+    // MARK: - Filter Button
     private func filterButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
@@ -301,19 +247,21 @@ struct StaffView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.blue : Color(.systemGray6))
+                .background(isSelected ? appState.currentTabThemeColors.primaryColor : Color.systemGray6)
                 .foregroundColor(isSelected ? .white : .primary)
                 .cornerRadius(20)
         }
     }
     
+    // MARK: - Empty State View
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 60))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.blue.opacity(0.8), .purple.opacity(0.8)],
+                        colors: [appState.currentTabThemeColors.primaryColor.opacity(0.8),
+                                 appState.currentTabThemeColors.secondaryColor.opacity(0.8)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -336,10 +284,10 @@ struct StaffView: View {
         .frame(maxHeight: .infinity)
     }
     
+    // MARK: - Add Staff Button
     private var addStaffButton: some View {
         Button {
-            selectedStaff = nil
-            showingAddStaffSheet = true
+            viewModel.showAddStaffSheet()
         } label: {
             HStack {
                 Image(systemName: "plus.circle.fill")
@@ -349,35 +297,24 @@ struct StaffView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(
-                LinearGradient(
-                    colors: [.blue, .purple],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            .background(appState.currentTabThemeColors.gradient(for: colorScheme))
             .foregroundColor(.white)
             .cornerRadius(15)
         }
     }
     
+    // MARK: - Add Button
     private var addButton: some View {
         Button {
-            selectedStaff = nil
-            showingAddStaffSheet = true
+            viewModel.showAddStaffSheet()
         } label: {
             Image(systemName: "plus.circle.fill")
                 .font(.title2)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .foregroundStyle(appState.currentTabThemeColors.gradient(for: colorScheme))
         }
     }
     
+    // MARK: - Placeholder View
     private var placeholderView: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.fill.questionmark")
@@ -389,161 +326,75 @@ struct StaffView: View {
         }
     }
     
-    private func staffDetail(_ staff: Staff) -> some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(staff.name)
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
-                        Label(staff.position.displayName, systemImage: "person.badge.clock")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Menu {
-                        Button {
-                            showingAddStaffSheet = true
-                        } label: {
-                            Label("Chỉnh sửa", systemImage: "pencil")
-                        }
-                        
-                        Button(role: .destructive) {
-                            showingDeleteAlert = true
-                        } label: {
-                            Label("Xóa", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(15)
-                //.shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-                
-                // Stats
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 16) {
-                    statCard(
-                        title: "Lương theo giờ",
-                        value: formatCurrency(staff.hourlyRate),
-                        icon: "dollarsign.circle.fill",
-                        color: .blue
-                    )
-                    
-                    statCard(
-                        title: "Lương tháng này",
-                        value: staff.formattedMonthlyEarnings,
-                        icon: "chart.bar.fill",
-                        color: .green
-                    )
-                }
-                
-                // Shifts
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Ca làm việc gần đây")
-                        .font(.headline)
-                    
-                    if staff.shifts.isEmpty {
-                        Text("Chưa có ca làm việc nào")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(staff.shifts) { shift in
-                            ShiftCard(shift: shift)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(15)
-                //.shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-            }
-            .padding()
-        }
-        .background(Color(.systemGroupedBackground))
-    }
-    
+    // MARK: - Stat Card
     private func statCard(title: String, value: String, icon: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: isIphone ? 8 : 12) {
             Label(title, systemImage: icon)
-                .font(.subheadline)
+                .font(isIphone ? .subheadline : .body)
                 .foregroundColor(color)
             
             Text(value)
-                .font(.title2)
+                .font(isIphone ? .title3 : .title2)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(15)
-        //.shadow(color: color.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding(isIphone ? 12 : 16)
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(isIphone ? 10 : 12)
     }
     
-    private func formatCurrency(_ value: Double) -> String {
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.groupingSeparator = "."
-        
-        let formattedNumber = numberFormatter.string(from: NSNumber(value: value)) ?? "0"
-        return "\(formattedNumber)đ"
-    }
-}
-
-struct StaffCard: View {
-    let staff: Staff
-    let onTap: () -> Void
-    let onDelete: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
+    // MARK: - Staff Card
+    private func staffCard(staff: Staff) -> some View {
+        Button(action: {
+            viewModel.selectStaff(staff)
+            if isIphone {
+                viewModel.showAddStaffSheet(for: staff)
+            }
+        }) {
+            HStack(spacing: isIphone ? 12 : 16) {
                 // Avatar
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.blue.opacity(0.8), .purple.opacity(0.8)],
+                            colors: [appState.currentTabThemeColors.primaryColor.opacity(0.8),
+                                     appState.currentTabThemeColors.secondaryColor.opacity(0.8)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 50, height: 50)
+                    .frame(width: isIphone ? 45 : 50, height: isIphone ? 45 : 50)
                     .overlay(
                         Text(staff.name.prefix(1).uppercased())
-                            .font(.title2)
+                            .font(isIphone ? .title3 : .title2)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                     )
                 
                 // Info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: isIphone ? 3 : 4) {
                     Text(staff.name)
-                        .font(.headline)
+                        .font(isIphone ? .headline : .title3)
+                        .fontWeight(.semibold)
                     
-                    HStack {
+                    HStack(spacing: isIphone ? 6 : 8) {
                         Text(staff.position.displayName)
-                            .font(.subheadline)
+                            .font(isIphone ? .caption : .subheadline)
                             .foregroundColor(.secondary)
                         
                         Text("•")
+                            .font(isIphone ? .caption : .subheadline)
                             .foregroundColor(.secondary)
                         
-                        Text(staff.formattedMonthlyEarnings)
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
+                        Text("\(staff.workSchedule.keys.count) ngày/tuần")
+                            .font(isIphone ? .caption : .subheadline)
+                            .foregroundColor(.orange)
                     }
+                    
+                    Text(staff.formattedEstimatedMonthlySalary)
+                        .font(isIphone ? .subheadline : .body)
+                        .foregroundColor(appState.currentTabThemeColors.textColor(for: colorScheme))
+                        .fontWeight(.medium)
                 }
                 
                 Spacer()
@@ -551,77 +402,267 @@ struct StaffCard: View {
                 // Action button
                 Menu {
                     Button {
-                        onTap()
+                        viewModel.showAddStaffSheet(for: staff)
                     } label: {
                         Label("Chỉnh sửa", systemImage: "pencil")
                     }
                     
                     Button(role: .destructive) {
-                        onDelete()
+                        viewModel.showDeleteAlert(for: staff)
                     } label: {
                         Label("Xóa", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.title3)
+                        .font(isIphone ? .title3 : .title2)
                         .foregroundColor(.gray)
-                        .frame(width: 44, height: 44)
+                        .frame(width: isIphone ? 40 : 44, height: isIphone ? 40 : 44)
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(15)
-            //.shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+            .padding(isIphone ? 12 : 16)
+            .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+            .cornerRadius(isIphone ? 12 : 15)
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-struct ShiftCard: View {
-    let shift: WorkShift
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(shift.type.displayName, systemImage: "clock.fill")
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
+    // MARK: - Staff Detail
+    private func staffDetail(_ staff: Staff) -> some View {
+        ScrollView(showsIndicators: false){
+            VStack(spacing: isIphone ? 20 : 24) {
+                // Header
+                headerDetailSection(staff: staff)
                 
-                Spacer()
+                // Stats
+                statsSection(staff: staff)
                 
-                Text("\(Int(shift.hoursWorked)) giờ")
-                    .font(.subheadline)
+                // Work Schedule Summary
+                workScheduleSummary(staff: staff)
+                
+                // Weekly Schedule
+                weeklyScheduleView(staff: staff)
+                
+                // Metadata
+                metadataSection(staff: staff)
+            }
+            .padding()
+        }
+//        .background(Color(.systemGroupedBackground))
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+    }
+    
+    // MARK: - Header Detail Section
+    private func headerDetailSection(staff: Staff) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: isIphone ? 6 : 8) {
+                Text(staff.name)
+                    .font(isIphone ? .title2 : .title)
+                    .fontWeight(.bold)
+                
+                Label(staff.position.displayName, systemImage: "person.badge.clock")
+                    .font(isIphone ? .subheadline : .headline)
                     .foregroundColor(.secondary)
             }
             
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Bắt đầu")
-                        .font(.caption)
+            Spacer()
+            
+            Menu {
+                Button {
+                    viewModel.showAddStaffSheet(for: staff)
+                } label: {
+                    Label("Chỉnh sửa", systemImage: "pencil")
+                }
+                
+                Button(role: .destructive) {
+                    viewModel.showDeleteAlert(for: staff)
+                } label: {
+                    Label("Xóa", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle.fill")
+                    .font(isIphone ? .title3 : .title2)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(isIphone ? 16 : 20)
+//        .background(Color(.systemBackground))
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(isIphone ? 12 : 15)
+    }
+    
+    // MARK: - Stats Section
+    private func statsSection(staff: Staff) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ], spacing: isIphone ? 12 : 16) {
+            statCard(
+                title: "Lương theo giờ",
+                value: viewModel.formatCurrency(staff.hourlyRate),
+                icon: "dollarsign.circle.fill",
+                color: .blue
+            )
+            
+            statCard(
+                title: "Lương tháng dự tính",
+                value: staff.formattedEstimatedMonthlySalary,
+                icon: "chart.bar.fill",
+                color: .green
+            )
+        }
+    }
+    
+    // MARK: - Work Schedule Summary
+    private func workScheduleSummary(staff: Staff) -> some View {
+        HStack(spacing: isIphone ? 16 : 20) {
+            VStack(alignment: .leading, spacing: isIphone ? 4 : 6) {
+                Text("Tổng giờ/tuần")
+                    .font(isIphone ? .caption : .subheadline)
+                    .foregroundColor(.secondary)
+                Text(staff.formattedWeeklyHours)
+                    .font(isIphone ? .headline : .title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .center, spacing: isIphone ? 4 : 6) {
+                Text("Ngày làm việc")
+                    .font(isIphone ? .caption : .subheadline)
+                    .foregroundColor(.secondary)
+                Text("\(staff.workSchedule.keys.count)/7")
+                    .font(isIphone ? .headline : .title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: isIphone ? 4 : 6) {
+                Text("Lương tháng")
+                    .font(isIphone ? .caption : .subheadline)
+                    .foregroundColor(.secondary)
+                Text(staff.formattedEstimatedMonthlySalary)
+                    .font(isIphone ? .headline : .title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding(isIphone ? 16 : 20)
+//        .background(Color(.systemBackground))
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(isIphone ? 12 : 15)
+    }
+    
+    // MARK: - Weekly Schedule View
+    private func weeklyScheduleView(staff: Staff) -> some View {
+        VStack(alignment: .leading, spacing: isIphone ? 12 : 16) {
+            Text("Lịch làm việc tuần")
+                .font(isIphone ? .headline : .title2)
+                .fontWeight(.semibold)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: isIphone ? 6 : 8) {
+                ForEach(DayOfWeek.allCases, id: \.self) { day in
+                    dayScheduleCard(staff: staff, day: day)
+                }
+            }
+        }
+        .padding(isIphone ? 16 : 20)
+//        .background(Color(.systemBackground))
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(isIphone ? 12 : 15)
+    }
+    
+    // MARK: - Day Schedule Card
+    private func dayScheduleCard(staff: Staff, day: DayOfWeek) -> some View {
+        let isWorkingDay = staff.isWorkingDay(day)
+        let shifts = staff.getShiftsForDay(day)
+        let totalHours = shifts.reduce(0) { $0 + $1.hoursWorked }
+        
+        return VStack(spacing: isIphone ? 3 : 4) {
+            Text(day.shortName)
+                .font(isIphone ? .caption2 : .caption)
+                .foregroundColor(.secondary)
+                .fontWeight(.medium)
+            
+            if isWorkingDay {
+                Text("\(Int(totalHours))h")
+                    .font(isIphone ? .subheadline : .body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                if let firstShift = shifts.first {
+                    Text(firstShift.type.displayName)
+                        .font(isIphone ? .caption2 : .caption)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                }
+            } else {
+                Text("-")
+                    .font(isIphone ? .subheadline : .body)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(height: isIphone ? 50 : 60)
+        .frame(maxWidth: .infinity)
+        .background(isWorkingDay ? Color.blue.opacity(0.1) : Color.systemGray6)
+        .cornerRadius(isIphone ? 6 : 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: isIphone ? 6 : 8)
+                .stroke(isWorkingDay ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Metadata Section
+    private func metadataSection(staff: Staff) -> some View {
+        VStack(alignment: .leading, spacing: isIphone ? 12 : 16) {
+            Text("Thông tin hệ thống")
+                .font(isIphone ? .headline : .title2)
+                .fontWeight(.semibold)
+            
+            HStack(spacing: isIphone ? 16 : 20) {
+                VStack(alignment: .leading, spacing: isIphone ? 4 : 6) {
+                    Text("Ngày tạo")
+                        .font(isIphone ? .caption : .subheadline)
                         .foregroundColor(.secondary)
-                    Text(formatDate(shift.startTime))
-                        .font(.subheadline)
+                    Text(formatDate(staff.createdAt))
+                        .font(isIphone ? .subheadline : .body)
+                        .foregroundColor(.primary)
                 }
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Kết thúc")
-                        .font(.caption)
+                VStack(alignment: .trailing, spacing: isIphone ? 4 : 6) {
+                    Text("Cập nhật lần cuối")
+                        .font(isIphone ? .caption : .subheadline)
                         .foregroundColor(.secondary)
-                    Text(formatDate(shift.endTime))
-                        .font(.subheadline)
+                    Text(formatDate(staff.updatedAt, includeTime: true))
+                        .font(isIphone ? .subheadline : .body)
+                        .foregroundColor(.primary)
                 }
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .padding(isIphone ? 16 : 20)
+//        .background(Color(.systemBackground))
+        .layeredCard(tabThemeColors: appState.currentTabThemeColors)
+        .cornerRadius(isIphone ? 12 : 15)
     }
     
+    // MARK: - Helper Methods
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    private func formatDate(_ date: Date, includeTime: Bool = false) -> String {
+        let formatter = DateFormatter()
+        if includeTime {
+            formatter.dateFormat = "dd/MM/yyyy HH:mm"
+        } else {
+            formatter.dateFormat = "dd/MM/yyyy"
+        }
         return formatter.string(from: date)
     }
 }

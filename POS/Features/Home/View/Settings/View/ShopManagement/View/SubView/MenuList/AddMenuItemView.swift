@@ -31,7 +31,7 @@ struct MenuItemFormView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollView(showsIndicators: false){
                 VStack(spacing: 24) {
                     // Header với icon
                     headerSection
@@ -372,7 +372,7 @@ struct RecipeFormView: View {
     }
     
     private var recipeList: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false){
             VStack(spacing: 12) {
                 ForEach(ingredients, id: \.ingredientUsage.id) { ingredient in
                     RecipeRow(recipe: ingredient) { recipe in

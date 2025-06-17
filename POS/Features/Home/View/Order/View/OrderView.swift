@@ -62,7 +62,7 @@ private extension OrderView {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 
                 // Menu Items Grid
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     if viewModel.menuItems.isEmpty {
                         EmptyStateView(
                             icon: "tray.fill",
@@ -320,7 +320,7 @@ private extension OrderView {
     }
     
     func menuItemsGrid() -> some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             if viewModel.menuItems.isEmpty {
                 // Trường hợp không có món nào trong menu
                 EmptyStateView(
@@ -904,7 +904,7 @@ struct OrderSummarySheet: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     customerSearchBar
                     
@@ -1066,7 +1066,7 @@ struct OrderSummarySheet: View {
             
             // Search results
             if !viewModel.customerSearchKey.isEmpty && !viewModel.searchedCustomers.isEmpty {
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(viewModel.searchedCustomers) { customer in
                             CustomerRow(customer: customer) {

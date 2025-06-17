@@ -279,7 +279,7 @@ struct AddShopSheet: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollView(showsIndicators: false){
                 VStack(spacing: 24) {
                     // Header Section
                     VStack(spacing: 16) {
@@ -854,6 +854,7 @@ struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @EnvironmentObject var appState: AppState
     @Environment(\.colorScheme) var colorScheme
+    @Namespace private var animation
     
     @State private var appearAnimation = false
     @State private var selectedTabAnimation = false
@@ -867,7 +868,7 @@ struct SettingsView: View {
             if isIphone {
                 iphoneLayout
             } else {
-                ipadLayout
+                iPadLayout
             }
         }
         .onAppear {
@@ -884,18 +885,19 @@ struct SettingsView: View {
             }
         }
     }
+    
 }
 
 // MARK: - iPhone Layout
 extension SettingsView {
     private var iphoneLayout: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false){
             VStack(spacing: 24) {
                 userProfileCard
                     .opacity(appearAnimation ? 1 : 0)
                     .offset(y: appearAnimation ? 0 : 20)
                 
-                if let activeShop = appState.sourceModel.activatedShop {
+                if let activeShop = activatedShop {
                     activeShopCard(activeShop)
                         .opacity(appearAnimation ? 1 : 0)
                         .offset(y: appearAnimation ? 0 : 20)
@@ -929,102 +931,10 @@ extension SettingsView {
             .padding()
         }
         .navigationTitle("Cài đặt")
+        
     }
     
-    private func settingsCategoryCard(_ category: SettingsCategory) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                handleCategoryTap(category)
-            }
-        } label: {
-            HStack(spacing: 16) {
-                categoryIcon(category)
-                categoryInfo(category)
-                Spacer()
-                categoryIndicator(category)
-            }
-            .padding(16)
-            .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func subOptionsContainer(for category: SettingsCategory) -> some View {
-        VStack(spacing: 0) {
-            // Visual connection line
-            Rectangle()
-                .fill(category.iconColor.opacity(0.2))
-                .frame(width: 2)
-                .frame(height: 8)
-            
-            // SubOptions
-            VStack(spacing: 0) {
-                ForEach(category.options) { option in
-                    subOptionCard(option, parentCategory: category)
-                }
-            }
-            .padding(.leading, 32)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(category.iconColor.opacity(0.05))
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.95).combined(with: .opacity),
-            removal: .scale(scale: 0.95).combined(with: .opacity)
-        ))
-    }
-    
-    private func subOptionCard(_ option: SettingsOption, parentCategory: SettingsCategory) -> some View {
-        Button {
-            navigateToSubOption(option)
-        } label: {
-            HStack(spacing: 16) {
-                // Visual connection line
-                Rectangle()
-                    .fill(parentCategory.iconColor.opacity(0.2))
-                    .frame(width: 2)
-                    .frame(height: 24)
-                
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(option.iconColor.opacity(0.1))
-                        .frame(width: 36, height: 36)
-                    
-                    Image(systemName: option.icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(option.iconColor)
-                }
-                
-                // Info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(option.title)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.gray)
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.clear)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// MARK: - iPhone Layout Cards
-extension SettingsView {
+    // MARK: - iPhone Layout Cards
     private var userProfileCard: some View {
         VStack(spacing: 16) {
             userAvatar
@@ -1171,140 +1081,39 @@ extension SettingsView {
                 .foregroundColor(.secondary)
         }
     }
-}
-
-// MARK: - iPhone Layout Action Handlers
-extension SettingsView {
-    private func handleCategoryTap(_ category: SettingsCategory) {
-        if isIphone {
-            // Reset các trạng thái khác khi chọn category mới
-            if category != viewModel.selectedCategory {
-                viewModel.isAccountExpanded = false
-                viewModel.isManageShopExpanded = false
-                viewModel.selectedOption = nil
-            }
-            
-            // Xử lý xác thực chủ sở hữu
-            if (category == .shops || category == .account) && !viewModel.isOwnerAuthenticated {
-                appState.coordinator.navigateTo(.ownerAuth, using: .fullScreen)
-                return
-            }
-            
-            // Xử lý các category cụ thể
-            switch category {
-            case .account:
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    viewModel.isAccountExpanded.toggle()
-                    viewModel.isManageShopExpanded = false
-                    viewModel.selectedCategory = .account
-                }
-                
-            case .shops:
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    viewModel.isManageShopExpanded.toggle()
-                    viewModel.isAccountExpanded = false
-                    viewModel.selectedCategory = .shops
-                }
-                
-            case .theme:
-                appState.coordinator.navigateTo(.theme)
-                viewModel.selectedCategory = category
-                
-            case .printer:
-                appState.coordinator.navigateTo(.setUpPrinter)
-                viewModel.selectedCategory = category
-                
-            case .language:
-                // Các tính năng đang phát triển
-                viewModel.selectedCategory = category
-                break
-            }
-        }
-    }
     
-    private func navigateToSubOption(_ option: SettingsOption) {
-        // Đóng các menu mở rộng trước khi điều hướng
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            viewModel.isAccountExpanded = false
-            viewModel.isManageShopExpanded = false
-        }
-        
-        // Điều hướng đến màn hình tương ứng
-        switch option {
-        case .account(let accountOption):
-            switch accountOption {
-            case .profile:
-                appState.coordinator.navigateTo(.accountDetail)
-                break
-            case .security:
-                appState.coordinator.navigateTo(.password)
-                break
-            case .notifications, .privacy:
-                // Đang phát triển
-                break
-            }
-        case .shop(let shopOption):
-            switch shopOption {
-            case .locations:
-                appState.coordinator.navigateTo(.manageShops)
-                break
-            case .menu:
-                appState.coordinator.navigateTo(.menuSection(activatedShop))
-                break
-            case .inventory:
-                appState.coordinator.navigateTo(.ingredientSection(activatedShop))
-                break
-            case .staff:
-                appState.coordinator.navigateTo(.staff(activatedShop))
-                break
-            }
-        }
-    }
-}
-
-// MARK: - iPhone Layout Action Buttons
-extension SettingsView {
-    private var addShopButton: some View {
+    // MARK: - Settings Category Cards
+    private func settingsCategoryCard(_ category: SettingsCategory) -> some View {
         Button {
-            appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
-        } label: {
-            HStack {
-                Image(systemName: "plus.circle.fill")
-                Text("Thêm cửa hàng mới")
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                handleCategoryTap(category)
             }
-            .font(.headline)
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(appState.currentTabThemeColors.gradient(for: colorScheme))
-            .cornerRadius(16)
-        }
-    }
-    
-    private var ownerLogoutButton: some View {
-        Button {
-            appState.sourceModel.logoutAsOwner()
         } label: {
-            VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                    Text("Đăng xuất chủ sở hữu")
-                }
-                Text("Thời gian còn lại: \(appState.sourceModel.remainingTimeString)")
-                    .font(.footnote)
+            HStack(spacing: 16) {
+                categoryIcon(category)
+                categoryInfo(category)
+                Spacer()
+                categoryIndicator(category)
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.red.opacity(0.1))
-            )
+            .padding(16)
+            .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-// MARK: - Common Components
-extension SettingsView {
+    
+    // MARK: - Owner Actions Section
+    private var ownerActionsSection: some View {
+        VStack(spacing: 16) {
+            addShopButton
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(y: appearAnimation ? 0 : 20)
+            ownerLogoutButton
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(y: appearAnimation ? 0 : 20)
+        }
+    }
+    
+    // MARK: - Helper Methods
     private func formatBusinessHours() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -1314,9 +1123,9 @@ extension SettingsView {
     }
 }
 
-// MARK: Ipad Layout
+// MARK: - iPad Layout
 extension SettingsView {
-    private var ipadLayout: some View {
+    private var iPadLayout: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 // MARK: - Sidebar
@@ -1341,10 +1150,10 @@ extension SettingsView {
                     .offset(x: appearAnimation ? 0 : -50)
                 
                 // MARK: - Content Area
-                contentAreaView()
-                    .frame(maxWidth: .infinity)
-                    .opacity(appearAnimation ? 1 : 0)
-                    .offset(x: appearAnimation ? 0 : 50)
+                settingsContentView
+                .frame(maxWidth: .infinity)
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(x: appearAnimation ? 0 : 50)
             }
         }
     }
@@ -1358,20 +1167,20 @@ extension SettingsView {
             ModernDivider(tabThemeColors: appState.currentTabThemeColors)
             
             // Active Shop Section
-            if let activeShop = appState.sourceModel.activatedShop {
+            if let activeShop = activatedShop {
                 activeShopSection(activeShop)
                 ModernDivider(tabThemeColors: appState.currentTabThemeColors)
             }
             
             // Menu Options
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+            ScrollView(showsIndicators: false){
+                VStack(alignment: .leading, spacing: 16) {
                     ForEach(SettingsCategory.allCases) { category in
                         categoryView(for: category)
-                        ModernDivider(tabThemeColors: appState.currentTabThemeColors)
                     }
                 }
             }
+            .padding(.horizontal)
             
             Spacer()
             
@@ -1477,10 +1286,7 @@ extension SettingsView {
         }
         .padding(.vertical)
     }
-}
-
-// MARK: - Common Components
-extension SettingsView {
+    
     // MARK: - UI Options And Sub Options View
     private func categoryView(for category: SettingsCategory) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1497,75 +1303,197 @@ extension SettingsView {
     }
     
     private func categoryButton(for category: SettingsCategory) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                handleCategoryTap(category)
-            }
-        } label: {
+        VStack {
             HStack(spacing: 16) {
                 categoryIcon(category)
                 categoryInfo(category)
                 Spacer()
                 categoryIndicator(category)
             }
-            .padding(16)
-            .layeredCard(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 20)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func categoryIcon(_ category: SettingsCategory) -> some View {
-        ZStack {
-            Circle()
-                .fill(category.iconColor.opacity(0.1))
-                .frame(width: 44, height: 44)
-            
-            Image(systemName: category.icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(category.iconColor)
-        }
-    }
-    
-    private func categoryInfo(_ category: SettingsCategory) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(category.title)
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            if !category.options.isEmpty {
-                Text("\(category.options.count) tùy chọn")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            .padding()
+            .layeredSelectionButton(tabThemeColors: appState.currentTabThemeColors, cornerRadius: 12, isCapsule: false, isSelected: viewModel.selectedCategory == category, namespace: animation, geometryID: "selected_settings_category") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    handleCategoryTap(category)
+                }
             }
         }
     }
     
-    private func categoryIndicator(_ category: SettingsCategory) -> some View {
-        Group {
-            if (category == .shops || category == .account), !viewModel.isOwnerAuthenticated {
-                Image(systemName: "lock.fill")
-                    .foregroundColor(.orange)
-                    .font(.system(size: 16, weight: .medium))
-            } else if category == .account {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
-                    .rotationEffect(.degrees(viewModel.isAccountExpanded ? 90 : 0))
-            } else if category == .shops {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
-                    .rotationEffect(.degrees(viewModel.isManageShopExpanded ? 90 : 0))
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
+}
+
+// MARK: - Handle navigation and display
+extension SettingsView {
+    private func handleCategoryTap(_ category: SettingsCategory) {
+        if isIphone {
+            // Reset các trạng thái khác khi chọn category mới
+            if category != viewModel.selectedCategory {
+                viewModel.isAccountExpanded = false
+                viewModel.isManageShopExpanded = false
+                viewModel.selectedOption = nil
+            }
+            
+            // Xử lý xác thực chủ sở hữu
+            if (category == .shops || category == .account) && !viewModel.isOwnerAuthenticated {
+                appState.coordinator.navigateTo(.ownerAuth, using: .fullScreen)
+                return
+            }
+            
+            // Xử lý các category cụ thể
+            switch category {
+            case .account:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isAccountExpanded.toggle()
+                    viewModel.isManageShopExpanded = false
+                    viewModel.selectedCategory = .account
+                }
+                
+            case .shops:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isManageShopExpanded.toggle()
+                    viewModel.isAccountExpanded = false
+                    viewModel.selectedCategory = .shops
+                }
+                
+            case .theme:
+                appState.coordinator.navigateTo(.theme)
+                viewModel.selectedCategory = category
+                
+            case .printer:
+                appState.coordinator.navigateTo(.setUpPrinter)
+                viewModel.selectedCategory = category
+                
+            case .language:
+                // Các tính năng đang phát triển
+                viewModel.selectedCategory = category
+                break
+            }
+        } else {
+            // iPad logic
+            if (category == .shops || category == .account) && !viewModel.isOwnerAuthenticated {
+                appState.coordinator.navigateTo(.ownerAuth, using: .present, with: .present)
+                return
+            }
+            
+            switch category {
+            case .account:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isAccountExpanded.toggle()
+                    viewModel.isManageShopExpanded = false
+                    viewModel.selectedCategory = .account
+                }
+                
+            case .shops:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isManageShopExpanded.toggle()
+                    viewModel.isAccountExpanded = false
+                    viewModel.selectedCategory = .shops
+                }
+                
+            case .theme:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.selectedOption = nil
+                    viewModel.isAccountExpanded = false
+                    viewModel.isManageShopExpanded = false
+                }
+                viewModel.selectedCategory = category
+                
+            case .printer:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.selectedOption = nil
+                    viewModel.isAccountExpanded = false
+                    viewModel.isManageShopExpanded = false
+                }
+                viewModel.selectedCategory = category
+                
+            case .language:
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.selectedOption = nil
+                    viewModel.isAccountExpanded = false
+                    viewModel.isManageShopExpanded = false
+                }
+                viewModel.selectedCategory = category
+                break
             }
         }
     }
     
-    // MARK: - Content Area
-    private func contentAreaView() -> some View {
+    private func navigateToSubOption(_ option: SettingsOption) {
+        // Đóng các menu mở rộng trước khi điều hướng
+//        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+//            viewModel.isAccountExpanded = false
+//            viewModel.isManageShopExpanded = false
+//        }
+        
+        // Điều hướng đến màn hình tương ứng
+        switch option {
+        case .account(let accountOption):
+            if viewModel.isManageShopExpanded {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isManageShopExpanded = false
+                }
+            }
+            switch accountOption {
+            case .profile:
+                if isIphone {
+                    appState.coordinator.navigateTo(.accountDetail)
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            case .security:
+                if isIphone {
+                    appState.coordinator.navigateTo(.password)
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            case .notifications, .privacy:
+                // Đang phát triển
+                break
+            }
+        case .shop(let shopOption):
+            if viewModel.isManageShopExpanded {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    viewModel.isAccountExpanded = false
+                }
+            }
+            switch shopOption {
+            case .locations:
+                if isIphone {
+                    appState.coordinator.navigateTo(.manageShops)
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            case .menu:
+                if isIphone {
+                    appState.coordinator.navigateTo(.menuSection(activatedShop))
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            case .inventory:
+                if isIphone {
+                    appState.coordinator.navigateTo(.ingredientSection(activatedShop))
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            case .staff:
+                if isIphone {
+                    appState.coordinator.navigateTo(.staff(activatedShop))
+                } else {
+                    viewModel.selectedOption = option
+                }
+                break
+            }
+        }
+    }
+}
+
+// MARK: - Settings Content View For iPad
+extension SettingsView {
+    private var settingsContentView: some View {
         ZStack {
             if let selectedCategory = viewModel.selectedCategory {
                 Group {
@@ -1579,24 +1507,8 @@ extension SettingsView {
                 placeholderView
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeInOut, value: viewModel.selectedCategory)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 0)
-                .fill(.regularMaterial)
-                .overlay(
-                    LinearGradient(
-                        colors: [
-                            Color.clear,
-                            appState.currentTabThemeColors.accentColor.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .ignoresSafeArea()
-                .frame(maxHeight: .infinity)
-        )
     }
     
     private var placeholderView: some View {
@@ -1713,18 +1625,174 @@ extension SettingsView {
     }
 }
 
-// MARK: - iPhone Layout Supporting Views
+// MARK: - Common Components Extension
 extension SettingsView {
-    private var ownerActionsSection: some View {
-        VStack(spacing: 16) {
-            addShopButton
-                .opacity(appearAnimation ? 1 : 0)
-                .offset(y: appearAnimation ? 0 : 20)
-            ownerLogoutButton
-                .opacity(appearAnimation ? 1 : 0)
-                .offset(y: appearAnimation ? 0 : 20)
+    // MARK: - Owner Authenticated Section
+    private var addShopButton: some View {
+        Button {
+            appState.coordinator.navigateTo(.addShop(nil), using: .present, with: .present)
+        } label: {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("Thêm cửa hàng mới")
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(appState.currentTabThemeColors.gradient(for: colorScheme))
+            .cornerRadius(16)
         }
     }
+    
+    private var ownerLogoutButton: some View {
+        Button {
+            appState.sourceModel.logoutAsOwner()
+        } label: {
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Đăng xuất chủ sở hữu")
+                }
+                Text("Thời gian còn lại: \(appState.sourceModel.remainingTimeString)")
+                    .font(.footnote)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.red.opacity(0.1))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    // MARK: - Settings Category Components
+    
+    private func categoryIcon(_ category: SettingsCategory) -> some View {
+        ZStack {
+            Circle()
+                .fill(category.iconColor.opacity(0.1))
+                .frame(width: 44, height: 44)
+            
+            Image(systemName: category.icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(category.iconColor)
+        }
+    }
+    
+    private func categoryInfo(_ category: SettingsCategory) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(category.title)
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            if !category.options.isEmpty {
+                Text("\(category.options.count) tùy chọn")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func categoryIndicator(_ category: SettingsCategory) -> some View {
+        Group {
+            if (category == .shops || category == .account), !viewModel.isOwnerAuthenticated {
+                Image(systemName: "lock.fill")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 16, weight: .medium))
+            } else if category == .account {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                    .rotationEffect(.degrees(viewModel.isAccountExpanded ? 90 : 0))
+            } else if category == .shops {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                    .rotationEffect(.degrees(viewModel.isManageShopExpanded ? 90 : 0))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+    
+    // MARK: - Sub-Options Container
+    
+    private func subOptionsContainer(for category: SettingsCategory) -> some View {
+        VStack(spacing: 0) {
+            // Visual connection line
+            Rectangle()
+                .fill(category.iconColor.opacity(0.2))
+                .frame(width: 2)
+                .frame(height: 8)
+            
+            // SubOptions
+            VStack(spacing: 0) {
+                ForEach(category.options) { option in
+                    subOptionCard(option, parentCategory: category)
+                }
+            }
+            .padding(.leading, 32)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(category.iconColor.opacity(0.05))
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            removal: .scale(scale: 0.95).combined(with: .opacity)
+        ))
+    }
+    
+    private func subOptionCard(_ option: SettingsOption, parentCategory: SettingsCategory) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                navigateToSubOption(option)
+            }
+        } label: {
+            HStack(spacing: 16) {
+                // Visual connection line
+                Rectangle()
+                    .fill(parentCategory.iconColor.opacity(0.2))
+                    .frame(width: 2)
+                    .frame(height: 24)
+                
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(option.iconColor.opacity(0.1))
+                        .frame(width: 36, height: 36)
+                    
+                    Image(systemName: option.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(option.iconColor)
+                }
+                
+                // Info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(option.title)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.clear)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
 }
-
-
