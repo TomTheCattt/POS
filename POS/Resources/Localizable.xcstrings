@@ -135,13 +135,13 @@
     "•" : {
 
     },
+    "≈ %@" : {
+
+    },
     "≈ %@/giờ" : {
 
     },
     "≈ %@/tháng" : {
-
-    },
-    "₫" : {
 
     },
     "0" : {
@@ -264,13 +264,16 @@
     "Cập nhật lần cuối" : {
 
     },
-    "Cập nhật sản phẩm" : {
+    "Cập nhật nguyên liệu" : {
 
     },
     "Cập nhật thông tin" : {
 
     },
     "Cập nhật thông tin cửa hàng" : {
+
+    },
+    "Cập nhật thông tin nguyên liệu" : {
 
     },
     "Cập nhật thông tin nhân viên" : {
@@ -534,13 +537,13 @@
     "Điền thông tin để tạo cửa hàng của bạn" : {
 
     },
+    "Điền thông tin để thêm nguyên liệu mới" : {
+
+    },
     "Điền thông tin để thêm nhân viên mới" : {
 
     },
     "Định kỳ" : {
-
-    },
-    "Định lượng cho 1 đơn vị" : {
 
     },
     "Discount:" : {
@@ -579,9 +582,6 @@
 
     },
     "Đơn vị" : {
-
-    },
-    "Đơn vị đo" : {
 
     },
     "Đóng" : {
@@ -1260,16 +1260,13 @@
     "Ghi chú nhanh" : {
 
     },
-    "Giá nhập:" : {
-
-    },
     "Giá trị" : {
 
     },
     "Giá trị tuyệt đối" : {
 
     },
-    "Giá trị:" : {
+    "Giá vốn" : {
 
     },
     "Giảm %@%% tổng hóa đơn" : {
@@ -1502,9 +1499,6 @@
     "Lương theo giờ" : {
 
     },
-    "Lưu" : {
-
-    },
     "Lưu khách hàng" : {
 
     },
@@ -1724,6 +1718,9 @@
 
     },
     "Nhập số điện thoại" : {
+
+    },
+    "Nhập tên nguyên liệu" : {
 
     },
     "Nhập tên nhân viên" : {
@@ -2102,13 +2099,7 @@
     "Số lượng tối thiểu" : {
 
     },
-    "Số lượng tối thiểu:" : {
-
-    },
     "Số lượng tối thiểu: %lld" : {
-
-    },
-    "Số lượng:" : {
 
     },
     "Số lượng: %@" : {
@@ -2190,10 +2181,10 @@
     "Tên A-Z" : {
 
     },
-    "Tên nhân viên" : {
+    "Tên nguyên liệu" : {
 
     },
-    "Tên sản phẩm" : {
+    "Tên nhân viên" : {
 
     },
     "Tên thực đơn" : {
@@ -2238,6 +2229,9 @@
     "Thêm nguyên liệu" : {
 
     },
+    "Thêm nguyên liệu mới" : {
+
+    },
     "Thêm nhân viên" : {
 
     },
@@ -2274,9 +2268,6 @@
     "Thông tin" : {
 
     },
-    "Thông tin bổ sung" : {
-
-    },
     "Thông tin chi tiết" : {
 
     },
@@ -2284,9 +2275,6 @@
 
     },
     "Thông tin khách hàng" : {
-
-    },
-    "Thông tin sản phẩm" : {
 
     },
     "Thông tin tài khoản" : {
@@ -2404,6 +2392,9 @@
       }
     },
     "Vị trí" : {
+
+    },
+    "VNĐ" : {
 
     },
     "VNĐ/giờ" : {

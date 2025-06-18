@@ -227,10 +227,11 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     
     func getStaffEfficiencyReport() async throws -> StaffEfficiencyReport {
         let snapshot = try await db.collection("staff_efficiency").getDocuments()
-        guard let doc = snapshot.documents.first,
-              let data = doc.data() as? [String: Any] else {
+        guard let doc = snapshot.documents.first else {
             throw AppError.database(.documentNotFound)
         }
+        
+        let data = doc.data()
         
         return StaffEfficiencyReport(
             averageOrderProcessingTime: data["averageOrderProcessingTime"] as? TimeInterval ?? 0,

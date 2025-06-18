@@ -82,3 +82,39 @@ struct ShakeTextField: View {
     }
 }
 
+struct FormTextField: View {
+    
+    private let icon: String
+    private let title: String
+    private let placeholder: String
+    @Binding private var text: String
+    private let keyboardType: UIKeyboardType
+    private let textContentType: UITextContentType?
+    private let field: AppTextField
+    private let focusField: FocusState<AppTextField?>.Binding
+    
+    init(icon: String, title: String, placeholder: String, text: Binding<String>, keyboardType: UIKeyboardType = .default, textContentType: UITextContentType? = nil, field: AppTextField, focusField: FocusState<AppTextField?>.Binding) {
+        self.icon = icon
+        self.title = title
+        self.placeholder = placeholder
+        self._text = text
+        self.keyboardType = keyboardType
+        self.textContentType = textContentType
+        self.field = field
+        self.focusField = focusField
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+            
+            TextField(placeholder, text: $text)
+                .focused(focusField, equals: field)
+                .keyboardType(keyboardType)
+                .textContentType(textContentType)
+                .autocorrectionDisabled()
+        }
+    }
+}
+

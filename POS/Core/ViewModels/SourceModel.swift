@@ -1306,9 +1306,9 @@ class SourceModel: ObservableObject {
         }
         
         // Khôi phục đơn hàng đang xem
-        if let orderId = sessionInfo.orderId {
-            // Xử lý khôi phục đơn hàng nếu cần
-        }
+//        if let orderId = sessionInfo.orderId {
+//            // Xử lý khôi phục đơn hàng nếu cần
+//        }
     }
 }
 

@@ -24,13 +24,13 @@ final class StorageService: StorageServiceProtocol {
             
             return try await withCheckedThrowingContinuation { continuation in
                 let uploadTask = imageRef.putData(imageData, metadata: metadata) { metadata, error in
-                    if let error = error {
+                    if let _ = error {
                         continuation.resume(throwing: StorageError.uploadFailed)
                         return
                     }
                     
                     imageRef.downloadURL { url, error in
-                        if let error = error {
+                        if let _ = error {
                             continuation.resume(throwing: StorageError.downloadFailed)
                             return
                         }
@@ -63,7 +63,7 @@ final class StorageService: StorageServiceProtocol {
         
         return try await withCheckedThrowingContinuation { continuation in
             imageRef.delete { error in
-                if let error = error {
+                if let _ = error {
                     continuation.resume(throwing: StorageError.permissionDenied)
                     return
                 }

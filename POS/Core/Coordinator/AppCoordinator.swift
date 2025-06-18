@@ -337,8 +337,8 @@ class AppCoordinator: ObservableObject {
                     MenuFormView(viewModel: routerViewModel.menuVM, menu: appMenu)
                 case .menuItemForm(let appMenu, let menuItem):
                     MenuItemFormView(viewModel: routerViewModel.menuVM, menu: appMenu, menuItem: menuItem)
-                case .ingredientSection:
-                    IngredientSectionView(viewModel: routerViewModel.ingredientVM)
+                case .ingredientSection(let shop):
+                    IngredientSectionView(viewModel: routerViewModel.ingredientVM, shop: shop)
                 case .ingredientForm(let ingredientUsage):
                     IngredientUsageFormView(viewModel: routerViewModel.ingredientVM, item: ingredientUsage)
                 case .setUpPrinter:
@@ -377,7 +377,7 @@ class AppCoordinator: ObservableObject {
             }
         }
         .dismissKeyboardOnTap()
-        .ignoresSafeArea(.keyboard)
+//        .ignoresSafeArea(.keyboard)
     }
     
     // MARK: - Reset

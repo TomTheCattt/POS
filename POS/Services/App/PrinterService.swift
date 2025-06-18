@@ -36,7 +36,7 @@ final class PrinterService: NSObject, PrinterServiceProtocol {
     // MARK: - Public Methods
     func printReceipt(for order: Order) async throws {
         guard let printerPeripheral = printerPeripheral,
-              let printerCharacteristic = printerCharacteristic,
+              let _ = printerCharacteristic,
               printerPeripheral.state == .connected else {
             throw AppError.printer(.printFailed)
         }
@@ -47,7 +47,7 @@ final class PrinterService: NSObject, PrinterServiceProtocol {
     
     func printDailyReport() async throws {
         guard let printerPeripheral = printerPeripheral,
-              let printerCharacteristic = printerCharacteristic,
+              let _ = printerCharacteristic,
               printerPeripheral.state == .connected else {
             throw AppError.printer(.printFailed)
         }

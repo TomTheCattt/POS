@@ -12,12 +12,6 @@ import Combine
 // MARK: - View Extensions
 
 extension View {
-    func pressEvents(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) -> some View {
-        modifier(PressEventModifier(onPress: onPress, onRelease: onRelease))
-    }
-}
-
-extension View {
     func dismissKeyboardOnTap() -> some View {
         self
             .background(Color.clear.contentShape(Rectangle()))
@@ -154,6 +148,18 @@ extension View {
     }
 }
 
+extension View {
+    func layeredFocusField(
+        themeColors: TabThemeColor,
+        keyboardType: UIKeyboardType = .default,
+        textContentType: UITextContentType? = nil,
+        field: AppTextField,
+        focusField: FocusState<AppTextField?>.Binding
+    ) -> some View {
+        self.modifier(LayeredFocusTextField(themeColors: themeColors, keyboardType: keyboardType, textContentType: textContentType, field: field, focusField: focusField))
+    }
+}
+
 // MARK: - View Modifier
 
 struct ShakeEffect: ViewModifier {
@@ -187,9 +193,11 @@ struct PressEventModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
+            .onTapGesture {
+                onPress()
+            }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in onPress() }
+                TapGesture()
                     .onEnded { _ in onRelease() }
             )
     }
@@ -445,16 +453,10 @@ struct LayeredButton: ViewModifier {
             )
             .onTapGesture {
                 action()
+                isPressed = true
             }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            withAnimation(.easeInOut(duration: pressAnimationDuration)) {
-                                isPressed = true
-                            }
-                        }
-                    }
+                TapGesture()
                     .onEnded { _ in
                         withAnimation(.easeInOut(duration: pressAnimationDuration)) {
                             isPressed = false
@@ -611,19 +613,13 @@ struct LayeredSelectionButton: ViewModifier {
             )
             .onTapGesture {
                 // Execute action với haptic feedback
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
+//                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+//                impactFeedback.impactOccurred()
                 action()
+                isPressed = true
             }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                                isPressed = true
-                            }
-                        }
-                    }
+                TapGesture()
                     .onEnded { _ in
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             isPressed = false
@@ -722,16 +718,10 @@ struct LayeredAlertButton: ViewModifier {
             )
             .onTapGesture {
                 action()
+                isPressed = true
             }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            withAnimation(.easeInOut(duration: pressAnimationDuration)) {
-                                isPressed = true
-                            }
-                        }
-                    }
+                TapGesture()
                     .onEnded { _ in
                         withAnimation(.easeInOut(duration: pressAnimationDuration)) {
                             isPressed = false
@@ -767,5 +757,53 @@ struct LayeredTextFieldBackground: ViewModifier {
                 RoundedRectangle(cornerRadius: effectiveCornerRadius)
                     .stroke(tabThemeColors.primaryColor.opacity(0.3), lineWidth: 1)
             )
+    }
+}
+
+// MARK: - Layered Text Field With Focused
+
+struct LayeredFocusTextField: ViewModifier {
+    private let themeColors: TabThemeColor
+    private let keyboardType: UIKeyboardType
+    private let textContentType: UITextContentType?
+    private let field: AppTextField
+    private let focusField: FocusState<AppTextField?>.Binding
+    @Environment(\.colorScheme) private var colorScheme
+    
+    init(
+        themeColors: TabThemeColor,
+        keyboardType: UIKeyboardType = .default,
+        textContentType: UITextContentType? = nil,
+        field: AppTextField,
+        focusField: FocusState<AppTextField?>.Binding
+    ) {
+        self.themeColors = themeColors
+        self.keyboardType = keyboardType
+        self.textContentType = textContentType
+        self.field = field
+        self.focusField = focusField
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .focused(focusField, equals: field)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                themeColors.primaryColor.opacity(0.3),
+                                Color.primary.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing)
+                    )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        focusField.wrappedValue == field ? themeColors.secondaryColor : Color.systemGray6.opacity(0.5),
+                        lineWidth: 1
+                    )
+            }
     }
 }
