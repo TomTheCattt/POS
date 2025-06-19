@@ -26,7 +26,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
     // Thông tin khách hàng
     var newCustomers: Int
     var returningCustomers: Int
-    var totalCustomers: Int
     
     // Thông tin phương thức thanh toán
     var paymentMethods: [String: Int] // [paymentMethod.rawValue: count]
@@ -48,7 +47,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
         dayOfWeekRevenue: [Int: Double] = [:],
         newCustomers: Int = 0,
         returningCustomers: Int = 0,
-        totalCustomers: Int = 0,
         paymentMethods: [String: Int] = [:],
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -65,7 +63,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
         self.dayOfWeekRevenue = dayOfWeekRevenue
         self.newCustomers = newCustomers
         self.returningCustomers = returningCustomers
-        self.totalCustomers = totalCustomers
         self.paymentMethods = paymentMethods
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -180,7 +177,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
             "dayOfWeekRevenue": dayOfWeekRevenue,
             "newCustomers": newCustomers,
             "returningCustomers": returningCustomers,
-            "totalCustomers": totalCustomers,
             "paymentMethods": paymentMethods,
             "createdAt": Timestamp(date: createdAt),
             "updatedAt": Timestamp(date: updatedAt)
@@ -201,7 +197,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
               let dayOfWeekRevenue = dictionary["dayOfWeekRevenue"] as? [Int: Double],
               let newCustomers = dictionary["newCustomers"] as? Int,
               let returningCustomers = dictionary["returningCustomers"] as? Int,
-              let totalCustomers = dictionary["totalCustomers"] as? Int,
               let paymentMethods = dictionary["paymentMethods"] as? [String: Int],
               let createdAtTimestamp = dictionary["createdAt"] as? Timestamp,
               let updatedAtTimestamp = dictionary["updatedAt"] as? Timestamp else {
@@ -220,7 +215,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
             dayOfWeekRevenue: dayOfWeekRevenue,
             newCustomers: newCustomers,
             returningCustomers: returningCustomers,
-            totalCustomers: totalCustomers,
             paymentMethods: paymentMethods,
             createdAt: createdAtTimestamp.dateValue(),
             updatedAt: updatedAtTimestamp.dateValue()
@@ -273,7 +267,6 @@ struct RevenueRecord: Identifiable, Codable, Equatable, Hashable {
     mutating func updateCustomerStats(newCustomers: Int, returningCustomers: Int, totalCustomers: Int) {
         self.newCustomers = newCustomers
         self.returningCustomers = returningCustomers
-        self.totalCustomers = totalCustomers
         updatedAt = Date()
     }
     
@@ -378,11 +371,7 @@ extension RevenueRecord {
         }
         
         // Validate customer stats
-        guard newCustomers >= 0 && returningCustomers >= 0 && totalCustomers >= 0 else {
-            throw ValidationError.invalidCustomerStats
-        }
-        
-        guard totalCustomers >= newCustomers + returningCustomers else {
+        guard newCustomers >= 0 && returningCustomers >= 0 else {
             throw ValidationError.invalidCustomerStats
         }
         

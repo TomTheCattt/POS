@@ -682,7 +682,6 @@ final class OrderViewModel: ObservableObject {
             } else {
                 record.returningCustomers += 1
             }
-            record.totalCustomers = record.newCustomers + record.returningCustomers
             
             // Cập nhật phương thức thanh toán
             let paymentMethodKey = order.paymentMethod.rawValue
@@ -726,7 +725,6 @@ final class OrderViewModel: ObservableObject {
                 dayOfWeekRevenue: dayOfWeekRevenue,
                 newCustomers: order.customer == nil ? 1 : 0,
                 returningCustomers: order.customer == nil ? 0 : 1,
-                totalCustomers: 1,
                 paymentMethods: paymentMethods,
                 createdAt: Date(),
                 updatedAt: Date()

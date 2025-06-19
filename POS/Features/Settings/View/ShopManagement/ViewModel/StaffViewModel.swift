@@ -299,15 +299,15 @@ class StaffViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             try validateStaff()
-            let staff = Staff(
+                let staff = Staff(
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                position: position,
+                    position: position,
                 hourlyRate: Double(hourlyRate) ?? 0,
                 shopId: "shopId", // Cần truyền đúng shopId thực tế
                 workShifts: workShifts,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
             let _ = try await source.environment.databaseService.createStaff(staff, userId: source.userId, shopId: shop.id!)
             resetForm()
         } catch {
@@ -321,16 +321,16 @@ class StaffViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             try validateStaff()
-            let updatedStaff = Staff(
+                let updatedStaff = Staff(
                 id: staff.id,
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                position: position,
+                    position: position,
                 hourlyRate: Double(hourlyRate) ?? 0,
                 shopId: staff.shopId,
                 workShifts: workShifts,
-                createdAt: staff.createdAt,
-                updatedAt: Date()
-            )
+                    createdAt: staff.createdAt,
+                    updatedAt: Date()
+                )
             try await source.environment.databaseService.updateStaff(updatedStaff, userId: source.userId, shopId: shop.id!, staffId: staff.id!)
             resetForm()
         } catch {
@@ -379,4 +379,4 @@ class StaffViewModel: ObservableObject {
     func clearValidationErrors() {
         validationErrors.removeAll()
     }
-}
+} 

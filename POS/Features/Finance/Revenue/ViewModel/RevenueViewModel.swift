@@ -26,63 +26,43 @@ final class RevenueRecordViewModel: ObservableObject {
     }
     
     var topSellingItem: (name: String, quantity: Int)? {
-        // Gộp tất cả topSellingItems từ các record
-        let allItems = revenueRecords.reduce(into: [String: Int]()) { result, record in
-            record.topSellingItems.forEach { itemId, quantity in
-                result[itemId, default: 0] += quantity
-            }
+        let allItems = revenueRecords.flatMap { record in
+            record.topSellingItems.map { (name: $0.key, quantity: $0.value) }
         }
         
-        // Tìm item bán chạy nhất
-        guard let maxItem = allItems.max(by: { $0.value < $1.value }),
-              let menuItem = menuItems.first(where: { $0.id == maxItem.key }) else {
-            return nil
-        }
+        let groupedItems = Dictionary(grouping: allItems, by: { $0.name })
+            .mapValues { items in items.reduce(0) { $0 + $1.quantity } }
         
-        return (name: menuItem.name, quantity: maxItem.value)
+        return groupedItems.max(by: { $0.value < $1.value })
+            .map { (name: $0.key, quantity: $0.value) }
     }
     
-    var peakHours: [(hour: Int, revenue: Double, percentage: Double)] {
-        // Gộp tất cả peakHours từ các record
-        let allHours = revenueRecords.reduce(into: [Int: Double]()) { result, record in
-            record.peakHours.forEach { hour, revenue in
-                result[hour, default: 0] += revenue
-            }
+    var peakHours: [(hour: Int, percentage: Double)] {
+        let allHours = revenueRecords.flatMap { record in
+            record.peakHours.map { (hour: $0.key, revenue: $0.value) }
         }
         
-        let totalRevenue = allHours.values.reduce(0, +)
+        let groupedHours = Dictionary(grouping: allHours, by: { $0.hour })
+            .mapValues { hours in hours.reduce(0) { $0 + $1.revenue } }
         
-        // Chuyển đổi và sắp xếp theo doanh thu
-        return allHours.map { hour, revenue in
-            (
-                hour: hour,
-                revenue: revenue,
-                percentage: totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0
-            )
-        }
-        .sorted { $0.revenue > $1.revenue }
+        let totalRevenue = groupedHours.values.reduce(0, +)
+        
+        return groupedHours.map { (hour: $0.key, percentage: totalRevenue > 0 ? ($0.value / totalRevenue) * 100 : 0) }
+            .sorted { $0.percentage > $1.percentage }
     }
     
-    var bestDayOfWeek: (day: Int, revenue: Double, percentage: Double)? {
-        // Gộp tất cả dayOfWeekRevenue từ các record
-        let allDays = revenueRecords.reduce(into: [Int: Double]()) { result, record in
-            record.dayOfWeekRevenue.forEach { day, revenue in
-                result[day, default: 0] += revenue
-            }
+    var bestDayOfWeek: (day: Int, percentage: Double)? {
+        let allDays = revenueRecords.flatMap { record in
+            record.dayOfWeekRevenue.map { (day: $0.key, revenue: $0.value) }
         }
         
-        let totalRevenue = allDays.values.reduce(0, +)
+        let groupedDays = Dictionary(grouping: allDays, by: { $0.day })
+            .mapValues { days in days.reduce(0) { $0 + $1.revenue } }
         
-        // Tìm ngày có doanh thu cao nhất
-        guard let maxDay = allDays.max(by: { $0.value < $1.value }) else {
-            return nil
-        }
+        let totalRevenue = groupedDays.values.reduce(0, +)
         
-        return (
-            day: maxDay.key,
-            revenue: maxDay.value,
-            percentage: totalRevenue > 0 ? (maxDay.value / totalRevenue) * 100 : 0
-        )
+        return groupedDays.max(by: { $0.value < $1.value })
+            .map { (day: $0.key, percentage: totalRevenue > 0 ? ($0.value / totalRevenue) * 100 : 0) }
     }
     
     var newCustomers: Int {
@@ -93,13 +73,13 @@ final class RevenueRecordViewModel: ObservableObject {
         revenueRecords.reduce(0) { $0 + $1.returningCustomers }
     }
     
-    var totalCustomers: Int {
-        revenueRecords.reduce(0) { $0 + $1.totalCustomers }
-    }
-    
     var returnRate: Double {
+        let totalNew = revenueRecords.reduce(0) { $0 + $1.newCustomers }
+        let totalReturning = revenueRecords.reduce(0) { $0 + $1.returningCustomers }
+        let totalCustomers = totalNew + totalReturning
+        
         guard totalCustomers > 0 else { return 0 }
-        return Double(returningCustomers) / Double(totalCustomers) * 100
+        return (Double(totalReturning) / Double(totalCustomers)) * 100
     }
     
     var paymentMethodStats: [(method: PaymentMethod, count: Int, percentage: Double)] {
