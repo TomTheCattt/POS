@@ -484,6 +484,23 @@ extension DatabaseService {
         try await delete(id: staffId, from: .staff, type: .nestedSubcollection(userId: userId, shopId: shopId))
     }
     
+    // MARK: - Expense Operations
+    func createExpense<T: Codable>(_ expense: T, userId: String, shopId: String) async throws -> String {
+        return try await create(expense, in: .expense, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getExpense<T: Codable>(userId: String, shopId: String, expenseId: String) async throws -> T {
+        return try await get(id: expenseId, from: .expense, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func getAllExpenses<T: Codable>(userId: String, shopId: String) async throws -> [T] {
+        return try await getAll(from: .expense, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
+    func updateExpense<T: Codable>(_ expense: T, userId: String, shopId: String, expenseId: String) async throws {
+        let _ = try await update(expense, id: expenseId, in: .expense, type: .nestedSubcollection(userId: userId, shopId: shopId))
+    }
+    
     // MARK: - Revenue Record Operations
     func createRevenueRecord<T: Codable>(_ revenueRecord: T, userId: String, shopId: String) async throws -> String {
         return try await create(revenueRecord, in: .revenueRecord, type: .nestedSubcollection(userId: userId, shopId: shopId))

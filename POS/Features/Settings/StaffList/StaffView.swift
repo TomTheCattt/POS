@@ -4,10 +4,11 @@ struct StaffView: View {
     @ObservedObject private var viewModel: StaffViewModel
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var animation
     
-    private var shop: Shop?
+    private var shop: Shop
     
-    init(viewModel: StaffViewModel, shop: Shop?) {
+    init(viewModel: StaffViewModel, shop: Shop) {
         self.viewModel = viewModel
         self.shop = shop
     }
@@ -22,27 +23,12 @@ struct StaffView: View {
         }
         .background(appState.currentTabThemeColors.softGradient(for: colorScheme))
         .navigationTitle("Quản lý nhân viên")
-        .sheet(isPresented: $viewModel.showingAddStaffSheet) {
-            AddStaffSheet(viewModel: viewModel, staff: viewModel.selectedStaff, shop: shop)
-        }
-        .alert("Xóa nhân viên", isPresented: $viewModel.showingDeleteAlert) {
-            Button("Hủy", role: .cancel) {}
-            Button("Xóa", role: .destructive) {
-                if let staff = viewModel.selectedStaff {
-                    Task {
-                        try await viewModel.deleteStaff(staff)
-                    }
-                }
-            }
-        } message: {
-            Text("Bạn có chắc chắn muốn xóa nhân viên này?")
-        }
         .onAppear {
             viewModel.startHeaderAnimation()
-            viewModel.setupStaffsListener(shopId: shop?.id ?? "")
+            viewModel.setupStaffsListener(shopId: shop.id ?? "")
         }
         .onDisappear {
-            viewModel.removeStaffsListener(shopId: shop?.id ?? "")
+            viewModel.removeStaffsListener(shopId: shop.id ?? "")
         }
     }
     
@@ -89,8 +75,7 @@ struct StaffView: View {
                 HStack(spacing: 0) {
                     // Sidebar with staff list
                     staffList
-                        .frame(width: 320)
-                        //.background(Color(.systemGroupedBackground))
+                        .frame(maxWidth: 320)
                     
                     // Detail view
                     if let staff = viewModel.selectedStaff {
@@ -152,6 +137,7 @@ struct StaffView: View {
                             .font(.title2)
                             .foregroundStyle(.primary)
                     }
+                    .tint(appState.currentTabThemeColors.textGradient(for: colorScheme))
                     
                     if !isIphone {
                         addButton
@@ -241,16 +227,14 @@ struct StaffView: View {
     
     // MARK: - Filter Button
     private func filterButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(isSelected ? appState.currentTabThemeColors.primaryColor : Color.systemGray6)
-                .foregroundColor(isSelected ? .white : .primary)
-                .cornerRadius(20)
-        }
+        Text(title)
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .layeredSelectionButton(tabThemeColors: appState.currentTabThemeColors, isSelected: isSelected, namespace: animation, geometryID: "staff_role_filter", action: action)
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(20)
     }
     
     // MARK: - Empty State View
@@ -287,7 +271,7 @@ struct StaffView: View {
     // MARK: - Add Staff Button
     private var addStaffButton: some View {
         Button {
-            viewModel.showAddStaffSheet()
+            appState.coordinator.navigateTo(.staffForm(nil, shop), using: isIphone ? .present : .push)
         } label: {
             HStack {
                 Image(systemName: "plus.circle.fill")
@@ -306,7 +290,7 @@ struct StaffView: View {
     // MARK: - Add Button
     private var addButton: some View {
         Button {
-            viewModel.showAddStaffSheet()
+            appState.coordinator.navigateTo(.staffForm(nil, shop), using: isIphone ? .present : .push)
         } label: {
             Image(systemName: "plus.circle.fill")
                 .font(.title2)
@@ -349,7 +333,7 @@ struct StaffView: View {
         Button(action: {
             viewModel.selectStaff(staff)
             if isIphone {
-                viewModel.showAddStaffSheet(for: staff)
+                appState.coordinator.navigateTo(.staffForm(staff, shop), using: isIphone ? .present : .push)
             }
         }) {
             HStack(spacing: isIphone ? 12 : 16) {
@@ -386,14 +370,14 @@ struct StaffView: View {
                             .font(isIphone ? .caption : .subheadline)
                             .foregroundColor(.secondary)
                         
-                        Text("\(staff.workSchedule.keys.count) ngày/tuần")
+                        Text("\(Set(staff.workShifts.map { $0.dayOfWeek }).count) ngày/tuần")
                             .font(isIphone ? .caption : .subheadline)
                             .foregroundColor(.orange)
                     }
                     
                     Text(staff.formattedEstimatedMonthlySalary)
                         .font(isIphone ? .subheadline : .body)
-                        .foregroundColor(appState.currentTabThemeColors.textColor(for: colorScheme))
+                        .foregroundColor(.primary)
                         .fontWeight(.medium)
                 }
                 
@@ -402,13 +386,19 @@ struct StaffView: View {
                 // Action button
                 Menu {
                     Button {
-                        viewModel.showAddStaffSheet(for: staff)
+                        appState.coordinator.navigateTo(.staffForm(staff, shop), using: isIphone ? .present : .push)
                     } label: {
                         Label("Chỉnh sửa", systemImage: "pencil")
                     }
                     
                     Button(role: .destructive) {
-                        viewModel.showDeleteAlert(for: staff)
+                        appState.sourceModel.showAlert(title: "Xóa nhân viên", message: "Bạn có chắc chắn muốn xóa nhân viên này?", primaryButton: AlertButton(title: "Xoá", role: .destructive, action: {
+                            if let staff = viewModel.selectedStaff {
+                                Task {
+                                    try await viewModel.deleteStaff(staff)
+                                }
+                            }
+                        }), secondaryButton: AlertButton(title: "Huỷ",role: .cancel))
                     } label: {
                         Label("Xóa", systemImage: "trash")
                     }
@@ -447,7 +437,6 @@ struct StaffView: View {
             }
             .padding()
         }
-//        .background(Color(.systemGroupedBackground))
         .layeredCard(tabThemeColors: appState.currentTabThemeColors)
     }
     
@@ -531,7 +520,7 @@ struct StaffView: View {
                 Text("Ngày làm việc")
                     .font(isIphone ? .caption : .subheadline)
                     .foregroundColor(.secondary)
-                Text("\(staff.workSchedule.keys.count)/7")
+                Text("\(Set(staff.workShifts.map { $0.dayOfWeek }).count)/7")
                     .font(isIphone ? .headline : .title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
@@ -579,19 +568,16 @@ struct StaffView: View {
         let isWorkingDay = staff.isWorkingDay(day)
         let shifts = staff.getShiftsForDay(day)
         let totalHours = shifts.reduce(0) { $0 + $1.hoursWorked }
-        
         return VStack(spacing: isIphone ? 3 : 4) {
             Text(day.shortName)
                 .font(isIphone ? .caption2 : .caption)
                 .foregroundColor(.secondary)
                 .fontWeight(.medium)
-            
             if isWorkingDay {
                 Text("\(Int(totalHours))h")
                     .font(isIphone ? .subheadline : .body)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
-                
                 if let firstShift = shifts.first {
                     Text(firstShift.type.displayName)
                         .font(isIphone ? .caption2 : .caption)
@@ -668,6 +654,6 @@ struct StaffView: View {
 }
 
 // MARK: - Extensions
-extension StaffPosition: CaseIterable {
+extension StaffPosition {
     static var allCases: [StaffPosition] = [.cashier, .waiter]
 }

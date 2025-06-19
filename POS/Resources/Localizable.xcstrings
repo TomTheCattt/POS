@@ -205,9 +205,6 @@
     "Bạn cần tạo cửa hàng trước khi quản lý thực đơn" : {
 
     },
-    "Bạn có chắc chắn muốn xóa nhân viên này?" : {
-
-    },
     "Bạn đang được cấp quyền chủ cửa hàng" : {
 
     },
@@ -218,9 +215,6 @@
 
     },
     "Biểu đồ doanh thu" : {
-
-    },
-    "Ca %lld" : {
 
     },
     "Cài đặt" : {
@@ -318,9 +312,6 @@
 
     },
     "Chỉnh sửa thực đơn" : {
-
-    },
-    "Chọn ca làm việc:" : {
 
     },
     "Chọn file" : {
@@ -1430,9 +1421,6 @@
     "Lịch sử thay đổi" : {
 
     },
-    "Loại ca làm việc" : {
-
-    },
     "Loại dịch vụ" : {
 
     },
@@ -2202,6 +2190,9 @@
     "Thêm" : {
 
     },
+    "Thêm ca mới" : {
+
+    },
     "Thêm cửa hàng mới" : {
 
     },
@@ -2459,9 +2450,6 @@
 
     },
     "Xóa cửa hàng" : {
-
-    },
-    "Xóa nhân viên" : {
 
     },
     "Xong" : {

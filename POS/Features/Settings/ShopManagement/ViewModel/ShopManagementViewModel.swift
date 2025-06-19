@@ -2,6 +2,12 @@ import SwiftUI
 import Combine
 import FirebaseFirestore
 
+// Import models
+//@_exported import struct Core.Models.Core.Order.Order
+//@_exported import struct Core.Models.Core.Staff.Staff
+//@_exported import struct Core.Models.Core.Revenue.RevenueRecord
+//@_exported import struct Core.Models.Core.Menu.AppMenu
+
 // MARK: - Shop Validation Errors
 enum ShopValidationError: LocalizedError {
     case invalidShopName(String)
@@ -615,7 +621,7 @@ extension ShopManagementViewModel {
                 let _ = try await source.environment.databaseService.updateShop(updatedShop, userId: userId, shopId: shopId)
                 
                 // Refresh shops list
-//                await source.refreshShops()
+                //await source.refreshShops()
                 
                 // Update selected shop if it's the same
                 if selectedShop?.id == shop.id {

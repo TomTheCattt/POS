@@ -42,7 +42,8 @@ enum Route: Hashable, Identifiable, Codable {
     case manageShops
     case shopDetail(Shop)
     case shopRow(Shop)
-    case staff(Shop?)
+    case staff(Shop)
+    case staffForm(Staff?, Shop)
     
     /// menu section
     case menuSection(Shop?)
@@ -128,7 +129,7 @@ enum Route: Hashable, Identifiable, Codable {
         case .menuRow(let menu): return "menuRow-\(menu.id ?? "unknown")"
         case .addVoucher: return "addVoucher"
         case .menuItemCard(let menuItem): return "menuItemCard-\(menuItem.id ?? "unknown")"
-        case .staff(let shop): return "staff-.\(shop?.id ?? "unknown")"
+        case .staff(let shop): return "\(shop.shopName)-Staff"
         case .authentication: return "auth"
         case .home: return "home"
         case .ownerAuth: return "ownerAuth"
@@ -156,6 +157,7 @@ enum Route: Hashable, Identifiable, Codable {
         case .orderItem(let orderItem): return "OrderItem-\(orderItem.id)"
         case .orderMenuItemCardIphone(let menuItem): return "MenuItem-\(menuItem.id ?? "unknown")"
         case .orderMenuItemCardIpad(let menuItem): return "MenuItem-\(menuItem.id ?? "unknown")"
+        case .staffForm(let staff, let shop): return "\(shop.shopName)-Staff-\(staff?.id ?? "Create")"
         }
     }
     

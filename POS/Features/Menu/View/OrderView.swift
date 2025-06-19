@@ -1189,46 +1189,6 @@ struct QuickOptionRow<T: CaseIterable & RawRepresentable & Hashable>: View where
     }
 }
 
-// MARK: - Payment Method Extensions
-extension PaymentMethod {
-    var icon: String {
-        switch self {
-        case .cash:
-            return "banknote.fill"
-        case .card:
-            return "creditcard.fill"
-        case .bankTransfer:
-            return "iphone"
-        }
-    }
-    
-    var title: String {
-        switch self {
-        case .cash:
-            return "Tiền mặt"
-        case .card:
-            return "Thẻ"
-        case .bankTransfer:
-            return "Chuyển khoản"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .cash:
-            return "Thanh toán khi nhận hàng"
-        case .card:
-            return "Thẻ tín dụng/ghi nợ"
-        case .bankTransfer:
-            return "Chuyển khoản ngân hàng"
-        }
-    }
-    
-    var color: Color {
-        SettingsService.shared.currentThemeColors.order.primaryColor
-    }
-}
-
 
 
 

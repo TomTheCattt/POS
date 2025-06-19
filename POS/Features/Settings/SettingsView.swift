@@ -1527,7 +1527,7 @@ extension SettingsView {
                 break
             case .staff:
                 if isIphone {
-                    appState.coordinator.navigateTo(.staff(activatedShop))
+                    appState.coordinator.navigateTo(.staff(activatedShop!))
                 } else {
                     viewModel.selectedOption = option
                 }
@@ -1633,7 +1633,7 @@ extension SettingsView {
             case .inventory:
                 appState.coordinator.makeView(for: .ingredientSection(activatedShop))
             case .staff:
-                appState.coordinator.makeView(for: .staff(activatedShop))
+                appState.coordinator.makeView(for: .staff(activatedShop!))
             }
         }
     }

@@ -371,6 +371,8 @@ class AppCoordinator: ObservableObject {
                     MenuRow(menu: menu)
                 case .menuItemCard(let menuItem):
                     EnhancedMenuItemCard(viewModel: routerViewModel.menuVM, item: menuItem)
+                case .staffForm(let staff, let shop):
+                    AddStaffSheet(viewModel: routerViewModel.staffVM, staff: staff, shop: shop)
                 }
             } else {
                 EmptyView()

@@ -7,9 +7,9 @@ struct AddStaffSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     
     private let staff: Staff?
-    private let shop: Shop?
+    private let shop: Shop
     
-    init(viewModel: StaffViewModel, staff: Staff?, shop: Shop?) {
+    init(viewModel: StaffViewModel, staff: Staff?, shop: Shop) {
         self.viewModel = viewModel
         self.staff = staff
         self.shop = shop
@@ -66,6 +66,8 @@ struct AddStaffSheet: View {
                 .onAppear {
                     if let staff = staff {
                         viewModel.loadStaffData(staff)
+                    } else {
+                        viewModel.resetForm()
                     }
                 }
                 .onChange(of: viewModel.name) { _ in
@@ -75,12 +77,6 @@ struct AddStaffSheet: View {
                     viewModel.clearValidationErrors()
                 }
                 .onChange(of: viewModel.position) { _ in
-                    viewModel.clearValidationErrors()
-                }
-                .onChange(of: viewModel.workingDays) { _ in
-                    viewModel.clearValidationErrors()
-                }
-                .onChange(of: viewModel.selectedShifts) { _ in
                     viewModel.clearValidationErrors()
                 }
             }
@@ -197,14 +193,12 @@ struct AddStaffSheet: View {
                     }
                     .padding(.horizontal, isIphone ? 16 : 20)
                 }
-                
                 // Selected Day Work Schedule
                 if let selectedDay = viewModel.expandedDay {
                     selectedDayWorkSchedule(for: selectedDay)
                 }
-                
                 // Summary
-                if !viewModel.workingDays.isEmpty {
+                if !viewModel.workShifts.isEmpty {
                     workScheduleSummary
                 }
             }
@@ -214,19 +208,16 @@ struct AddStaffSheet: View {
     // MARK: - Day Button
     private func dayButton(for day: DayOfWeek) -> some View {
         let isSelected = viewModel.expandedDay == day
-        let hasWorkSchedule = viewModel.workingDays.contains(day)
-        
+        let hasWorkShift = viewModel.getShiftsForDay(day).count > 0
         return Button(action: {
-            viewModel.toggleExpandedDay(day)
+            viewModel.expandedDay = isSelected ? nil : day
         }) {
             VStack(spacing: isIphone ? 8 : 12) {
                 Text(day.rawValue)
                     .font(isIphone ? .headline : .title2)
                     .foregroundColor(isSelected ? .white : .primary)
-                
-                if hasWorkSchedule {
-                    let selectedShiftsForDay = viewModel.getSelectedShiftsForDay(day)
-                    let totalHours = selectedShiftsForDay.reduce(0) { $0 + $1.hoursWorked }
+                if hasWorkShift {
+                    let totalHours = viewModel.getShiftsForDay(day).reduce(0) { $0 + $1.hoursWorked }
                     Text("\(Int(totalHours))h")
                         .font(isIphone ? .subheadline : .title3)
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
@@ -244,36 +235,21 @@ struct AddStaffSheet: View {
     // MARK: - Selected Day Work Schedule
     private func selectedDayWorkSchedule(for day: DayOfWeek) -> some View {
         VStack(spacing: isIphone ? 16 : 24) {
-            // Work Shift Type Picker
-            Picker("Loại ca làm việc", selection: Binding(
-                get: { viewModel.selectedWorkShiftTypes[day] ?? .fullTime },
-                set: { shiftType in
-                    viewModel.updateWorkShiftTypeForDay(day, shiftType: shiftType)
-                }
-            )) {
-                ForEach(WorkShiftType.allCases, id: \.self) { type in
-                    Text(type.displayName)
-                        .font(isIphone ? .body : .title3)
-                        .tag(type)
-                }
+            ForEach(viewModel.getShiftsForDay(day), id: \.id) { shift in
+                shiftCard(shift: shift, day: day)
             }
-            .pickerStyle(.segmented)
-            .scaleEffect(isIphone ? 1.0 : 1.1)
-            
-            // Shift Selection
-            VStack(alignment: .leading, spacing: isIphone ? 12 : 16) {
-                Text("Chọn ca làm việc:")
-                    .font(isIphone ? .subheadline : .title3)
-                    .foregroundColor(.secondary)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: isIphone ? 12 : 16) {
-                        ForEach(viewModel.workSchedule[day] ?? [], id: \.id) { shift in
-                            shiftCard(shift: shift, day: day)
-                        }
-                    }
-                    .padding(isIphone ? 16 : 20)
-                }
+            Button(action: {
+                // Thêm ca mới cho ngày này
+                let newShift = WorkShift(
+                    type: .partTime,
+                    startTime: Date(),
+                    endTime: Date().addingTimeInterval(4 * 3600),
+                    hoursWorked: 4.0,
+                    dayOfWeek: day
+                )
+                viewModel.addWorkShift(newShift)
+            }) {
+                Label("Thêm ca mới", systemImage: "plus")
             }
         }
         .padding(isIphone ? 16 : 20)
@@ -283,34 +259,26 @@ struct AddStaffSheet: View {
     
     // MARK: - Shift Card
     private func shiftCard(shift: WorkShift, day: DayOfWeek) -> some View {
-        let isSelected = viewModel.isShiftSelected(shift, day: day)
-        
-        return Button(action: {
-            viewModel.toggleShiftSelection(shift, day: day)
-        }) {
-            VStack(spacing: isIphone ? 8 : 12) {
-                Text("Ca \(viewModel.workSchedule[day]?.firstIndex(of: shift)?.advanced(by: 1) ?? 1)")
-                    .font(isIphone ? .caption : .title3)
-                    .foregroundColor(.secondary)
-                
-                Text(shift.timeRangeString)
-                    .font(isIphone ? .headline : .title2)
-                    .foregroundColor(.primary)
-                
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(shift.type.displayName)
+                    .font(.headline)
+                Text(shift.formattedTimeRange)
+                    .font(.subheadline)
                 Text("\(Int(shift.hoursWorked)) tiếng")
-                    .font(isIphone ? .caption : .title3)
-                    .foregroundColor(.secondary)
+                    .font(.caption)
             }
-            .padding(isIphone ? 12 : 16)
-            .frame(minWidth: isIphone ? 100 : 120)
-            .background(isSelected ? Color.blue.opacity(0.2) : Color(.systemGray6))
-            .cornerRadius(isIphone ? 8 : 12)
-            .overlay(
-                RoundedRectangle(cornerRadius: isIphone ? 8 : 12)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
-            )
+            Spacer()
+            Button(action: {
+                viewModel.removeWorkShift(shift.id)
+            }) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
     }
     
     // MARK: - Work Schedule Summary
@@ -374,7 +342,7 @@ struct AddStaffSheet: View {
         Button {
             Task {
                 focusedField = nil
-                await viewModel.saveStaff()
+                await viewModel.saveStaff(for: shop)
                 if viewModel.getValidationErrors().isEmpty {
                     appState.coordinator.dismiss(style: .present)
                 }
@@ -396,7 +364,7 @@ struct AddStaffSheet: View {
             .padding(isIphone ? 16 : 20)
             .background(
                 LinearGradient(
-                    colors: viewModel.isFormValid ? [appState.currentTabThemeColors.primaryColor, appState.currentTabThemeColors.secondaryColor] : [.gray.opacity(0.3)],
+                    colors: (viewModel.getValidationErrors().isEmpty && !viewModel.isLoading) ? [appState.currentTabThemeColors.primaryColor, appState.currentTabThemeColors.secondaryColor] : [.gray.opacity(0.3)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -404,7 +372,7 @@ struct AddStaffSheet: View {
             .foregroundColor(.white)
             .cornerRadius(isIphone ? 15 : 20)
         }
-        .disabled(!viewModel.isFormValid || viewModel.isLoading)
+        .disabled(!viewModel.getValidationErrors().isEmpty || viewModel.isLoading)
         .padding(.horizontal, isIphone ? 16 : 32)
         .padding(.bottom, isIphone ? 16 : 32)
     }

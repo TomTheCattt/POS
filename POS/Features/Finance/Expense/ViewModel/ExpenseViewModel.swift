@@ -116,34 +116,38 @@ class ExpenseViewModel: ObservableObject {
     }
     
     func addExpense(_ expense: ExpenseItem) async throws {
-//        try await db.collection("expenses").addDocument(from: expense)
+        let _ = try await source.environment.databaseService.createExpense(expense, userId: source.userId, shopId: source.activatedShop?.id ?? "")
     }
     
     func approveExpense(_ expense: ExpenseItem) {
 //        guard var updatedExpense = expense.copy() else { return }
 //        updatedExpense.status = .approved
-//        updatedExpense.approvedBy = currentUserId
+//        updatedExpense.approvedBy = source.userId
 //        updatedExpense.approvedAt = Date()
 //        updatedExpense.updatedAt = Date()
-//
-//        do {
-//            try db.collection("expenses").document(expense.id ?? "").setData(from: updatedExpense)
-//        } catch {
-//            self.error = error
+
+//        Task {
+//            do {
+//                try await source.environment.databaseService.updateExpense(updatedExpense, userId: source.userId, shopId: source.activatedShop?.id ?? "", expenseId: expense.id ?? "")
+//            } catch {
+//                source.handleError(error)
+//            }
 //        }
     }
     
     func rejectExpense(_ expense: ExpenseItem) {
 //        guard var updatedExpense = expense.copy() else { return }
 //        updatedExpense.status = .rejected
-//        updatedExpense.approvedBy = currentUserId
+//        updatedExpense.approvedBy = source.userId
 //        updatedExpense.approvedAt = Date()
 //        updatedExpense.updatedAt = Date()
-//
-//        do {
-//            try db.collection("expenses").document(expense.id ?? "").setData(from: updatedExpense)
-//        } catch {
-//            self.error = error
+
+//        Task {
+//            do {
+//                try await source.environment.databaseService.updateExpense(updatedExpense, userId: source.userId, shopId: source.activatedShop?.id ?? "", expenseId: expense.id ?? "")
+//            } catch {
+//                source.handleError(error)
+//            }
 //        }
     }
     

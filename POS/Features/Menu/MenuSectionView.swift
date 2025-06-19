@@ -20,7 +20,7 @@ struct MenuSectionView: View {
     @State private var showingSearchBar = false
     @State private var animateHeader = false
     
-    private var shop: Shop?
+    @State private var shop: Shop?
     
     private var softGradient: LinearGradient {
         appState.currentTabThemeColors.softGradient(for: colorScheme)
@@ -338,7 +338,7 @@ struct MenuFormView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
     
-    let menu: AppMenu?
+    @State var menu: AppMenu?
     
     private var isFormValid: Bool {
         !menuName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -525,7 +525,7 @@ struct MenuFormView: View {
 }
 
 struct MenuRow: View {
-    private let menu: AppMenu
+    @State private var menu: AppMenu
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
     
@@ -674,7 +674,7 @@ struct MenuDetailView: View {
     @State private var hasAppeared = false
     @Namespace private var animation
     
-    private let currentMenu: AppMenu
+    @State private var currentMenu: AppMenu
     
     init(viewModel: MenuViewModel, currentMenu: AppMenu) {
         self.viewModel = viewModel
@@ -860,8 +860,10 @@ struct MenuDetailView: View {
                     Task {
                         if currentMenu.isActive {
                             await viewModel.deActivateMenu(currentMenu)
+                            currentMenu.toggleActive()
                         } else {
                             await viewModel.activateMenu(currentMenu)
+                            currentMenu.toggleActive()
                         }
                     }
                 } label: {
@@ -1066,7 +1068,7 @@ struct EnhancedMenuItemCard: View {
     @ObservedObject private var viewModel: MenuViewModel
     @Environment(\.colorScheme) private var colorScheme
     
-    private let item: MenuItem
+    @State private var item: MenuItem
     
     init(viewModel: MenuViewModel, item: MenuItem) {
         self.viewModel = viewModel
